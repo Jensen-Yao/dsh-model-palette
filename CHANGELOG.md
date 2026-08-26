@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 - 2026-08-26
+
+- Accept the DSH `0.1.1-rc` client packages through explicit prerelease peer ranges.
+
 ## 0.1.0 - 2026-08-26
 
 - Add the global `Alt+M` model command palette.
