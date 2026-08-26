@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listMediaModels, mediaApiRequest, pickDefaultMediaModel } from '../src/client/media-api.ts'
+import { generateImage, generateVideo, listMediaModels, mediaApiRequest, pickDefaultMediaModel } from '../src/client/media-api.ts'
+import { MANUAL_PAID_ACKNOWLEDGEMENT } from '../src/media-protocol.ts'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -30,6 +31,12 @@ describe('direct media API client', () => {
     ], true)).toBe('paid-preferred')
   })
 
+  it('does not preselect an unverified model while paid generation is blocked', () => {
+    expect(pickDefaultMediaModel([
+      { id: 'paid-preferred', preferred: true, free: false },
+    ], false)).toBe('')
+  })
+
   it('loads the full live catalog directly from the plugin route', async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify({
       ok: true,
@@ -49,5 +56,27 @@ describe('direct media API client', () => {
       error: { message: 'No free image model is currently available' },
     }), { status: 400, headers: { 'content-type': 'application/json' } })))
     await expect(mediaApiRequest('/images/generate', {})).rejects.toThrow('No free image model')
+  })
+
+  it('sends the exact one-time acknowledgement only for manual attempts', async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      value: { model: 'model', free_endpoint: false, manual_paid_override: true, files: [] },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetch)
+
+    await generateImage({ model: 'image-model', prompt: 'image', acknowledgePossibleCharge: true })
+    await generateVideo({ model: 'video-model', prompt: 'video' })
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/model-palette/api/media/images/generate', expect.objectContaining({
+      body: JSON.stringify({
+        model: 'image-model',
+        prompt: 'image',
+        manual_paid_acknowledgement: MANUAL_PAID_ACKNOWLEDGEMENT,
+      }),
+    }))
+    expect(fetch).toHaveBeenNthCalledWith(2, '/model-palette/api/media/videos/generate', expect.objectContaining({
+      body: JSON.stringify({ model: 'video-model', prompt: 'video' }),
+    }))
   })
 })

@@ -5,7 +5,7 @@ import {
   generateVideo,
   getVideoStatus,
   listMediaModels,
-  mediaModelEnabled,
+  mediaModelNeedsConfirmation,
   pickDefaultMediaModel,
   type MediaCatalog,
   type MediaModel,
@@ -27,13 +27,13 @@ function errorMessage(error: unknown): string {
 }
 
 function selectedModel(current: string, models: readonly MediaModel[], allowPaid: boolean): string {
-  return models.some((model) => model.id === current && mediaModelEnabled(model, allowPaid)) ? current : pickDefaultMediaModel(models, allowPaid)
+  return models.some((model) => model.id === current) ? current : pickDefaultMediaModel(models, allowPaid)
 }
 
 function modelLabel(model: MediaModel, allowPaid: boolean, t: MediaPanelProps['t']): string {
   const name = model.name?.trim()
   const identity = name === undefined || name === '' || name === model.id ? model.id : `${name} · ${model.id}`
-  const price = model.free ? t('media.free') : allowPaid ? t('media.paid') : t('media.paidBlocked')
+  const price = model.free ? t('media.free') : allowPaid ? t('media.paidAllowed') : t('media.unverifiedFree')
   return `${model.preferred ? '★ ' : ''}${identity} · ${price}`
 }
 
@@ -42,9 +42,11 @@ export function MediaPanel({ t }: MediaPanelProps) {
   const [imagePrompt, setImagePrompt] = useState('')
   const [imageModel, setImageModel] = useState('')
   const [imageOutputName, setImageOutputName] = useState('')
+  const [imageChargeConfirmed, setImageChargeConfirmed] = useState(false)
   const [videoPrompt, setVideoPrompt] = useState('')
   const [videoModel, setVideoModel] = useState('')
   const [videoDuration, setVideoDuration] = useState('')
+  const [videoChargeConfirmed, setVideoChargeConfirmed] = useState(false)
   const [jobId, setJobId] = useState('')
   const [videoOutputName, setVideoOutputName] = useState('')
   const [pending, setPending] = useState<PendingAction | null>(null)
@@ -59,6 +61,8 @@ export function MediaPanel({ t }: MediaPanelProps) {
       setCatalog(next)
       setImageModel((current) => selectedModel(current, next.images, next.paid_images_enabled))
       setVideoModel((current) => selectedModel(current, next.videos, next.paid_videos_enabled))
+      setImageChargeConfirmed(false)
+      setVideoChargeConfirmed(false)
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {
@@ -86,23 +90,30 @@ export function MediaPanel({ t }: MediaPanelProps) {
 
   const submitImage = () => run('image', async () => {
     if (imageModel === '') throw new Error(t('media.modelRequired'))
+    if (imageNeedsConfirmation && !imageChargeConfirmed) throw new Error(t('media.manualPaidRequired'))
     if (imagePrompt.trim() === '') throw new Error(t('media.promptRequired'))
+    const acknowledgePossibleCharge = imageNeedsConfirmation && imageChargeConfirmed
+    if (acknowledgePossibleCharge) setImageChargeConfirmed(false)
     const result = await generateImage({
       model: imageModel,
       prompt: imagePrompt.trim(),
       ...(imageOutputName.trim() === '' ? {} : { outputName: imageOutputName.trim() }),
+      ...(acknowledgePossibleCharge ? { acknowledgePossibleCharge: true } : {}),
     })
-    return { title: t('media.imageDone'), detail: result.files.map((file) => file.path).join('\n') }
+    return { title: t('media.imageDone'), detail: `${result.manual_paid_override ? `${t('media.manualPaidUsed')}\n` : ''}${result.files.map((file) => file.path).join('\n')}` }
   })
 
   const submitVideo = () => run('video', async () => {
     if (videoModel === '') throw new Error(t('media.modelRequired'))
+    if (videoNeedsConfirmation && !videoChargeConfirmed) throw new Error(t('media.manualPaidRequired'))
     if (videoPrompt.trim() === '') throw new Error(t('media.promptRequired'))
     const duration = videoDuration.trim() === '' ? undefined : Number(videoDuration)
     if (duration !== undefined && (!Number.isInteger(duration) || duration < 1 || duration > 60)) throw new Error(t('media.durationInvalid'))
-    const result = await generateVideo({ model: videoModel, prompt: videoPrompt.trim(), ...(duration === undefined ? {} : { duration }) })
+    const acknowledgePossibleCharge = videoNeedsConfirmation && videoChargeConfirmed
+    if (acknowledgePossibleCharge) setVideoChargeConfirmed(false)
+    const result = await generateVideo({ model: videoModel, prompt: videoPrompt.trim(), ...(duration === undefined ? {} : { duration }), ...(acknowledgePossibleCharge ? { acknowledgePossibleCharge: true } : {}) })
     setJobId(result.id)
-    return { title: t('media.videoSubmitted'), detail: `${result.id}${result.status === undefined ? '' : ` · ${result.status}`}` }
+    return { title: t('media.videoSubmitted'), detail: `${result.manual_paid_override ? `${t('media.manualPaidUsed')}\n` : ''}${result.id}${result.status === undefined ? '' : ` · ${result.status}`}` }
   })
 
   const checkStatus = () => run('status', async () => {
@@ -126,6 +137,12 @@ export function MediaPanel({ t }: MediaPanelProps) {
   const videoSelectionAvailable = videoModel !== ''
   const paidImagesEnabled = catalog?.paid_images_enabled === true
   const paidVideosEnabled = catalog?.paid_videos_enabled === true
+  const selectedImage = images.find((model) => model.id === imageModel)
+  const selectedVideo = videos.find((model) => model.id === videoModel)
+  const imageNeedsConfirmation = selectedImage !== undefined && mediaModelNeedsConfirmation(selectedImage, paidImagesEnabled)
+  const videoNeedsConfirmation = selectedVideo !== undefined && mediaModelNeedsConfirmation(selectedVideo, paidVideosEnabled)
+  const imageCanSubmit = imageSelectionAvailable && (!imageNeedsConfirmation || imageChargeConfirmed)
+  const videoCanSubmit = videoSelectionAvailable && (!videoNeedsConfirmation || videoChargeConfirmed)
 
   return (
     <main className="dmp-media">
@@ -156,12 +173,16 @@ export function MediaPanel({ t }: MediaPanelProps) {
           </div>
           <label className="dmp-media-field">
             <span>{t('media.model')}</span>
-            <select value={imageModel} onChange={(event) => setImageModel(event.currentTarget.value)} disabled={busy || images.length === 0}>
+            <select value={imageModel} onChange={(event) => { setImageModel(event.currentTarget.value); setImageChargeConfirmed(false) }} disabled={busy || images.length === 0}>
               {images.length === 0 && <option value="">{t('media.noModels')}</option>}
-              {images.length > 0 && !imageSelectionAvailable && <option value="">{t('media.noAllowedModels')}</option>}
-              {images.map((model) => <option key={model.id} value={model.id} disabled={!mediaModelEnabled(model, paidImagesEnabled)}>{modelLabel(model, paidImagesEnabled, t)}</option>)}
+              {images.length > 0 && !imageSelectionAvailable && <option value="">{t('media.chooseModel')}</option>}
+              {images.map((model) => <option key={model.id} value={model.id}>{modelLabel(model, paidImagesEnabled, t)}</option>)}
             </select>
           </label>
+          {imageNeedsConfirmation && <label className="dmp-media-paid-confirm">
+            <input type="checkbox" checked={imageChargeConfirmed} onChange={(event) => setImageChargeConfirmed(event.currentTarget.checked)} disabled={busy} />
+            <span><strong>{t('media.manualPaidTitle')}</strong><small>{t('media.manualPaidDescription')}</small></span>
+          </label>}
           <label className="dmp-media-field dmp-media-field-wide">
             <span>{t('media.prompt')}</span>
             <textarea value={imagePrompt} onChange={(event) => setImagePrompt(event.currentTarget.value)} placeholder={t('media.imagePromptPlaceholder')} />
@@ -170,7 +191,7 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span>{t('media.outputOptional')}</span>
             <input value={imageOutputName} onChange={(event) => setImageOutputName(event.currentTarget.value)} placeholder="my-image" />
           </label>
-          <button className="dmp-media-primary" type="button" disabled={busy || !imageSelectionAvailable} onClick={() => void submitImage()}>
+          <button className="dmp-media-primary" type="button" disabled={busy || !imageCanSubmit} onClick={() => void submitImage()}>
             {pending === 'image' ? t('media.running') : t('media.generateImage')}
           </button>
         </section>
@@ -182,12 +203,16 @@ export function MediaPanel({ t }: MediaPanelProps) {
           </div>
           <label className="dmp-media-field">
             <span>{t('media.model')}</span>
-            <select value={videoModel} onChange={(event) => setVideoModel(event.currentTarget.value)} disabled={busy || videos.length === 0}>
+            <select value={videoModel} onChange={(event) => { setVideoModel(event.currentTarget.value); setVideoChargeConfirmed(false) }} disabled={busy || videos.length === 0}>
               {videos.length === 0 && <option value="">{t('media.noModels')}</option>}
-              {videos.length > 0 && !videoSelectionAvailable && <option value="">{t('media.noAllowedModels')}</option>}
-              {videos.map((model) => <option key={model.id} value={model.id} disabled={!mediaModelEnabled(model, paidVideosEnabled)}>{modelLabel(model, paidVideosEnabled, t)}</option>)}
+              {videos.length > 0 && !videoSelectionAvailable && <option value="">{t('media.chooseModel')}</option>}
+              {videos.map((model) => <option key={model.id} value={model.id}>{modelLabel(model, paidVideosEnabled, t)}</option>)}
             </select>
           </label>
+          {videoNeedsConfirmation && <label className="dmp-media-paid-confirm">
+            <input type="checkbox" checked={videoChargeConfirmed} onChange={(event) => setVideoChargeConfirmed(event.currentTarget.checked)} disabled={busy} />
+            <span><strong>{t('media.manualPaidTitle')}</strong><small>{t('media.manualPaidDescription')}</small></span>
+          </label>}
           <label className="dmp-media-field dmp-media-field-wide">
             <span>{t('media.prompt')}</span>
             <textarea value={videoPrompt} onChange={(event) => setVideoPrompt(event.currentTarget.value)} placeholder={t('media.videoPromptPlaceholder')} />
@@ -196,7 +221,7 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span>{t('media.durationOptional')}</span>
             <input type="number" min="1" max="60" step="1" value={videoDuration} onChange={(event) => setVideoDuration(event.currentTarget.value)} placeholder="5" />
           </label>
-          <button className="dmp-media-primary" type="button" disabled={busy || !videoSelectionAvailable} onClick={() => void submitVideo()}>
+          <button className="dmp-media-primary" type="button" disabled={busy || !videoCanSubmit} onClick={() => void submitVideo()}>
             {pending === 'video' ? t('media.running') : t('media.generateVideo')}
           </button>
         </section>

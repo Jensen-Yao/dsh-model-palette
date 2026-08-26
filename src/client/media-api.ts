@@ -1,3 +1,5 @@
+import { MANUAL_PAID_ACKNOWLEDGEMENT } from '../media-protocol.ts'
+
 export interface MediaModel {
   id: string
   name?: string
@@ -18,6 +20,7 @@ export interface MediaCatalog {
 export interface ImageGenerationResult {
   model: string
   free_endpoint: boolean
+  manual_paid_override: boolean
   files: Array<{ path: string; media_type: string; bytes: number }>
 }
 
@@ -26,6 +29,7 @@ export interface VideoGenerationResult {
   status?: string
   model: string
   free_endpoint: boolean
+  manual_paid_override: boolean
 }
 
 export interface VideoDownloadResult {
@@ -47,12 +51,12 @@ interface MediaApiFailure {
 
 const API_BASE = '/model-palette/api/media'
 
-export function mediaModelEnabled(model: MediaModel, allowPaid: boolean): boolean {
-  return model.free || allowPaid
+export function mediaModelNeedsConfirmation(model: MediaModel, allowPaid: boolean): boolean {
+  return !model.free && !allowPaid
 }
 
 export function pickDefaultMediaModel(models: readonly MediaModel[], allowPaid: boolean): string {
-  const available = models.filter((model) => mediaModelEnabled(model, allowPaid))
+  const available = models.filter((model) => !mediaModelNeedsConfirmation(model, allowPaid))
   return available.find((model) => model.free && model.preferred)?.id
     ?? available.find((model) => model.free)?.id
     ?? available.find((model) => model.preferred)?.id
@@ -68,11 +72,13 @@ export async function generateImage(input: {
   model: string
   prompt: string
   outputName?: string
+  acknowledgePossibleCharge?: boolean
 }): Promise<ImageGenerationResult> {
   return mediaApiRequest<ImageGenerationResult>('/images/generate', {
     model: input.model,
     prompt: input.prompt,
     ...(input.outputName === undefined ? {} : { output_name: input.outputName }),
+    ...(input.acknowledgePossibleCharge === true ? { manual_paid_acknowledgement: MANUAL_PAID_ACKNOWLEDGEMENT } : {}),
   })
 }
 
@@ -80,11 +86,13 @@ export async function generateVideo(input: {
   model: string
   prompt: string
   duration?: number
+  acknowledgePossibleCharge?: boolean
 }): Promise<VideoGenerationResult> {
   return mediaApiRequest<VideoGenerationResult>('/videos/generate', {
     model: input.model,
     prompt: input.prompt,
     ...(input.duration === undefined ? {} : { duration: input.duration }),
+    ...(input.acknowledgePossibleCharge === true ? { manual_paid_acknowledgement: MANUAL_PAID_ACKNOWLEDGEMENT } : {}),
   })
 }
 

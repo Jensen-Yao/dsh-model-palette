@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-08-26
+
+- Keep models without a detected free price selectable in the media panel.
+- Require an explicit one-time possible-charge acknowledgement before each manually overridden image or video request.
+- Keep the manual override out of agent tool schemas so models cannot bypass the configured paid-generation guard.
+
 ## 0.3.0 - 2026-08-26
 
 - Replace conversation-based media shortcuts with a direct same-origin plugin API.
