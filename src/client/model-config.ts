@@ -28,6 +28,15 @@ export function deriveCredentialRef(provider: string): string {
   return `${provider.toUpperCase().replace(/[^A-Z0-9]+/gu, '_')}_API_KEY`
 }
 
+export function nextProviderCopyId(sourceId: string, existingIds: readonly string[]): string {
+  const base = `${sourceId || 'provider'}-copy`
+  const existing = new Set(existingIds)
+  if (!existing.has(base)) return base
+  let suffix = 2
+  while (existing.has(`${base}-${suffix}`)) suffix += 1
+  return `${base}-${suffix}`
+}
+
 export function stringField(value: Record<string, unknown>, key: string): string {
   return typeof value[key] === 'string' ? value[key] : ''
 }
@@ -35,6 +44,22 @@ export function stringField(value: Record<string, unknown>, key: string): string
 export function modelRecords(profile: Record<string, unknown>): Record<string, unknown>[] {
   if (!Array.isArray(profile.models)) return []
   return profile.models.filter(isRecord).map(model => structuredClone(model))
+}
+
+export function duplicateModelTemplate(model: Record<string, unknown>): Record<string, unknown> {
+  const next = structuredClone(model)
+  delete next.id
+  delete next.name
+  return next
+}
+
+export function duplicateModelIds(models: readonly Record<string, unknown>[]): string[] {
+  const counts = new Map<string, number>()
+  for (const model of models) {
+    const id = typeof model.id === 'string' ? model.id.trim() : ''
+    if (id !== '') counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return [...counts.entries()].filter(([, count]) => count > 1).map(([id]) => id)
 }
 
 export function setOptionalString(source: Record<string, unknown>, key: string, value: string): Record<string, unknown> {

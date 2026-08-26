@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   applyMissingPresets,
   deriveCredentialRef,
+  duplicateModelIds,
+  duplicateModelTemplate,
   mergeDiscoveredModels,
+  nextProviderCopyId,
   setCompatField,
   setInputModality,
 } from '../src/client/model-config.ts'
@@ -11,6 +14,21 @@ import { BUNDLED_PRESET_REGISTRY } from '../src/client/model-presets.ts'
 describe('model configuration helpers', () => {
   it('derives portable credential refs', () => {
     expect(deriveCredentialRef('bank-of-ai')).toBe('BANK_OF_AI_API_KEY')
+  })
+
+  it('allocates provider copy ids without overwriting an existing route', () => {
+    expect(nextProviderCopyId('bankofai', ['bankofai', 'bankofai-copy'])).toBe('bankofai-copy-2')
+  })
+
+  it('copies model parameters without copying the route identity', () => {
+    expect(duplicateModelTemplate({ id: 'source', name: 'Source', contextWindow: 100, compat: { thinkingFormat: 'deepseek' } })).toEqual({
+      contextWindow: 100,
+      compat: { thinkingFormat: 'deepseek' },
+    })
+  })
+
+  it('reports duplicate model ids after trimming', () => {
+    expect(duplicateModelIds([{ id: 'same' }, { id: ' same ' }, { id: 'other' }])).toEqual(['same'])
   })
 
   it('preserves unrelated model fields while editing input and compatibility', () => {

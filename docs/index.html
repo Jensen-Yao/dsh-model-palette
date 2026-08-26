@@ -644,10 +644,11 @@
       <div class="ico">⭐</div>
       <h3>收藏 &amp; 最近使用</h3>
       <ul>
-        <li>星标收藏常用模型</li>
-        <li>最近使用优先排序</li>
-        <li>当前模型始终置顶</li>
-        <li>localStorage 跨会话持久化</li>
+      <li>星标收藏常用模型</li>
+      <li>最近使用优先排序</li>
+      <li>当前模型始终置顶</li>
+      <li>侧栏快捷筛选收藏与最近模型</li>
+      <li>localStorage 跨会话持久化</li>
       </ul>
     </div>
     <div class="card">
@@ -663,10 +664,12 @@
       <div class="ico">⚙️</div>
       <h3>供应商与模型配置</h3>
       <ul>
-        <li>新增 / 编辑 / 删除供应商</li>
-        <li>协议、Base URL、密钥一站式配置</li>
-        <li>连接测试 + 模型一键导入</li>
-        <li>密钥仅回环可查看，默认掩码</li>
+      <li>新增 / 编辑 / 删除供应商</li>
+      <li>复制线路与模型参数，快速派生配置</li>
+      <li>协议、Base URL、密钥一站式配置</li>
+      <li>连接测试 + 模型一键导入</li>
+      <li>未保存提示与重复 ID 防护</li>
+      <li>密钥仅回环可查看，默认掩码</li>
       </ul>
     </div>
     <div class="card">
@@ -743,6 +746,8 @@ dsh web</pre>
       <div class="key-row"><span class="action">上 / 下导航</span><span><kbd>↑</kbd> <kbd>↓</kbd></span></div>
       <div class="key-row"><span class="action">选择高亮模型</span><span><kbd>Enter</kbd></span></div>
       <div class="key-row"><span class="action">按供应商筛选</span><span>点击左侧栏</span></div>
+      <div class="key-row"><span class="action">仅看收藏</span><span>点击「仅看收藏」</span></div>
+      <div class="key-row"><span class="action">查看最近模型</span><span>点击「最近使用」</span></div>
       <div class="key-row"><span class="action">收藏 / 取消收藏</span><span>点击 ★</span></div>
       <div class="key-row"><span class="action">切换推理档位</span><span>底部下拉框</span></div>
       <div class="key-row"><span class="action">切换三大视图</span><span>左侧栏顶部</span></div>
@@ -755,7 +760,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>选择或新建供应商</h4>
-          <p>按 <kbd>Alt+M</kbd> → 「模型配置」，从下拉框选择已有供应商，或点击「新增供应商」。</p>
+          <p>按 <kbd>Alt+M</kbd> → 「模型配置」，从下拉框选择已有供应商，或点击「新增供应商」/「复制供应商」。</p>
         </div>
       </div>
       <div class="step">
@@ -776,7 +781,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>配置模型参数并应用预置</h4>
-          <p>逐模型设置上下文窗口、最大输出、输入类型与兼容参数；用「自动补全」或手动选择官方预置。</p>
+          <p>用模型筛选快速定位，复制已有参数后填写新 ID，再设置上下文窗口、最大输出、输入类型与兼容参数。</p>
         </div>
       </div>
       <div class="step">
@@ -947,6 +952,7 @@ dsh web</pre>
   var recents = ["openai\u0000gpt-5.5", "deepseek\u0000deepseek-chat"];
   var currentKey = "deepseek\u0000deepseek-chat";
   var providerFilter = null;
+  var quickFilter = "all";
   var query = "";
   var cursor = 0;
 
@@ -981,6 +987,8 @@ dsh web</pre>
     var all = choices();
     var ranked = all.filter(function (ch) {
       if (providerFilter !== null && ch.provider.id !== providerFilter) return false;
+      if (quickFilter === "favorites" && !favorites.has(ch.key)) return false;
+      if (quickFilter === "recents" && recents.indexOf(ch.key) === -1) return false;
       return score(ch, query) > 0;
     });
     ranked.sort(function (a, b) {
@@ -998,16 +1006,22 @@ dsh web</pre>
 
   function renderRail() {
     var html = "";
-    html += '<button class="rail-item' + (providerFilter === null ? " active" : "") + '" data-id="">' +
+    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "all" ? " active" : "") + '" data-quick="all" data-id="">' +
       "<span>全部供应商</span><small>" + choices().length + "</small></button>";
+    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "favorites" ? " active" : "") + '" data-quick="favorites" data-id="">' +
+      "<span>仅看收藏</span><small>" + Array.from(favorites).length + "</small></button>";
+    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "recents" ? " active" : "") + '" data-quick="recents" data-id="">' +
+      "<span>最近使用</span><small>" + recents.length + "</small></button>";
+    html += '<div class="rail-divider"></div>';
     CATALOG.forEach(function (g) {
-      var active = providerFilter === g.id ? " active" : "";
+      var active = providerFilter === g.id && quickFilter === "all" ? " active" : "";
       html += '<button class="rail-item' + active + '" data-id="' + g.id + '">' +
         "<span>" + g.name + "</span><small>" + g.models.length + "</small></button>";
     });
     railEl.innerHTML = html;
     railEl.querySelectorAll(".rail-item").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        quickFilter = btn.getAttribute("data-quick") || "all";
         providerFilter = btn.getAttribute("data-id") || null;
         cursor = 0;
         renderRail();
@@ -1058,6 +1072,7 @@ dsh web</pre>
         ev.stopPropagation();
         var key = btn.getAttribute("data-key");
         if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
+        renderRail();
         renderResults();
       });
     });

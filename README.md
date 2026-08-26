@@ -49,6 +49,7 @@
 - Star any model to add it to favorites
 - Recently used models are ranked first
 - Current model always pinned at the top
+- Dedicated **Favorites only** and **Recent models** quick filters
 - Persisted in `localStorage` across sessions
 
 </td>
@@ -69,6 +70,9 @@ Add, edit, or remove provider profiles directly from the UI:
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - Set **credential reference** and **API key** (masked by default)
 - **Test connection** via `llm.discoverModels` and import discovered models
+- Duplicate a working provider into a new draft with a separate credential reference
+- Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
+- Warn before discarding unsaved edits and protect drafts with a browser unload guard
 - Security: stored keys can only be revealed through direct `127.0.0.1` / `localhost` access
 
 </td>
@@ -157,6 +161,8 @@ This registers five agent tools:
 | Navigate | **<kbd>↑</kbd>** / **<kbd>↓</kbd>** arrow keys |
 | Select | **<kbd>Enter</kbd>** on the highlighted row |
 | Filter by provider | Click a provider in the left rail |
+| Show favorites only | Click **Favorites only** in the left rail |
+| Show recent models | Click **Recent models** in the left rail |
 | Toggle favorite | Click the ★ star on any model row |
 | Switch reasoning effort | Use the dropdown in the footer (visible when the active model supports it) |
 
@@ -165,12 +171,14 @@ This registers five agent tools:
 Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 
 1. **Select or create a provider** — choose from the dropdown or click "Add provider"
-2. **Configure the endpoint** — set base URL, protocol, and credential reference
-3. **Manage API keys** — enter a new key or load the stored one (loopback only)
-4. **Test the connection** — click "Check connection" to discover models
-5. **Configure models** — set context window, max output, input types per model
-6. **Apply presets** — auto-fill from the registry or select manually
-7. **Save** — writes provider profiles through DSH settings and keys through credentials
+2. **Duplicate a provider when useful** — start from a working route without reusing its credential reference
+3. **Configure the endpoint** — set base URL, protocol, and credential reference
+4. **Manage API keys** — enter a new key or load the stored one (loopback only)
+5. **Test the connection** — click "Check connection" to discover models
+6. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
+7. **Apply presets** — auto-fill from the registry or select manually
+8. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+9. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
 ### Media Tools Panel
 

@@ -52,6 +52,26 @@ describe('model palette ranking', () => {
       choiceKey('bankofai', 'deepseek-v4-flash'),
     ])
   })
+
+  it('supports local favorite and recent quick filters', () => {
+    const choices = flattenChoices(groups)
+    expect(rankChoices(choices, {
+      query: '',
+      providerId: null,
+      favorites: [choiceKey('openrouter', 'google/gemini-pro')],
+      recents: [choiceKey('bankofai', 'deepseek-v4-flash')],
+      current: null,
+      quickFilter: 'favorites',
+    }).map(choice => choice.key)).toEqual([choiceKey('openrouter', 'google/gemini-pro')])
+    expect(rankChoices(choices, {
+      query: '',
+      providerId: null,
+      favorites: [],
+      recents: [choiceKey('bankofai', 'deepseek-v4-flash')],
+      current: null,
+      quickFilter: 'recents',
+    }).map(choice => choice.key)).toEqual([choiceKey('bankofai', 'deepseek-v4-flash')])
+  })
 })
 
 describe('selection and persistence helpers', () => {

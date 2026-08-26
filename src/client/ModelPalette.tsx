@@ -49,6 +49,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const [view, setView] = useState<'models' | 'media' | 'config'>('models')
   const [query, setQuery] = useState('')
   const [providerId, setProviderId] = useState<string | null>(null)
+  const [quickFilter, setQuickFilter] = useState<'all' | 'favorites' | 'recents'>('all')
   const [cursor, setCursor] = useState(0)
   const [favorites, setFavorites] = useStoredList(FAVORITES_KEY)
   const [recents, setRecents] = useStoredList(RECENTS_KEY)
@@ -71,7 +72,11 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     favorites,
     recents,
     current: snapshot.current,
-  }), [choices, query, providerId, favorites, recents, snapshot.current])
+    quickFilter,
+  }), [choices, query, providerId, favorites, recents, snapshot.current, quickFilter])
+
+  const favoriteCount = useMemo(() => choices.filter(choice => favorites.includes(choice.key)).length, [choices, favorites])
+  const recentCount = useMemo(() => choices.filter(choice => recents.includes(choice.key)).length, [choices, recents])
 
   const show = () => {
     if (!available || locked) return
@@ -79,6 +84,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     setView('models')
     setQuery('')
     setProviderId(null)
+    setQuickFilter('all')
     setCursor(0)
     setError(null)
     load()
@@ -239,17 +245,32 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 <div className="dmp-provider-divider" />
                 <button
                   type="button"
-                  className={view === 'models' && providerId === null ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null) }}
+                  className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
+                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('all') }}
                 >
                   <span>{t('palette.allProviders')}</span><small>{choices.length}</small>
                 </button>
+                <button
+                  type="button"
+                  className={view === 'models' && providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
+                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('favorites') }}
+                >
+                  <span>{t('palette.favorites')}</span><small>{favoriteCount}</small>
+                </button>
+                <button
+                  type="button"
+                  className={view === 'models' && providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
+                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('recents') }}
+                >
+                  <span>{t('palette.recents')}</span><small>{recentCount}</small>
+                </button>
+                <div className="dmp-provider-divider" />
                 {providers.map((provider) => (
                   <button
                     key={provider.id}
                     type="button"
                     className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
-                    onClick={() => { setView('models'); setProviderId(provider.id) }}
+                    onClick={() => { setView('models'); setProviderId(provider.id); setQuickFilter('all') }}
                     title={`${provider.name} · ${provider.id}`}
                   >
                     <span>{provider.name}</span><small>{provider.models.length}</small>

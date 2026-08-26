@@ -69,14 +69,19 @@ export interface RankOptions {
   favorites: readonly string[]
   recents: readonly string[]
   current: CurrentSelection | null
+  quickFilter?: 'all' | 'favorites' | 'recents'
 }
 
 export function rankChoices(choices: ModelChoice[], options: RankOptions): ModelChoice[] {
   const favoriteRank = new Map(options.favorites.map((key, index) => [key, index]))
   const recentRank = new Map(options.recents.map((key, index) => [key, index]))
+  const quickFilter = options.quickFilter ?? 'all'
   const currentKey = options.current === null ? null : choiceKey(options.current.provider, options.current.model)
   return choices
     .filter((choice) => options.providerId === null || choice.provider.id === options.providerId)
+    .filter((choice) => quickFilter === 'all'
+      || quickFilter === 'favorites' && favoriteRank.has(choice.key)
+      || quickFilter === 'recents' && recentRank.has(choice.key))
     .map((choice) => ({ choice, score: searchScore(choice, options.query) }))
     .filter((entry): entry is { choice: ModelChoice; score: number } => entry.score !== null)
     .sort((left, right) => {

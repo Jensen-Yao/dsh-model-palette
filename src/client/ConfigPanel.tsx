@@ -9,9 +9,12 @@ import {
   applyMissingPresets,
   compatValue,
   deriveCredentialRef,
+  duplicateModelIds,
+  duplicateModelTemplate,
   isRecord,
   mergeDiscoveredModels,
   modelRecords,
+  nextProviderCopyId,
   providerProfiles,
   setCompatField,
   setInputModality,
@@ -62,11 +65,18 @@ function sourcePreset(model: Record<string, unknown>, presets: readonly ModelPre
   return typeof model.id === 'string' ? matchModelPreset(model.id, presets) : undefined
 }
 
+function draftSignature(providerId: string, draft: Record<string, unknown>): string {
+  return JSON.stringify({ providerId, draft })
+}
+
 export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<Record<string, unknown>>({ api: 'openai-completions', models: [] })
+  const [baselineSignature, setBaselineSignature] = useState('')
+  const [previousProviderId, setPreviousProviderId] = useState('')
+  const [modelQuery, setModelQuery] = useState('')
   const [credential, setCredential] = useState<CredentialView | null>(null)
   const [keyDraft, setKeyDraft] = useState('')
   const [keyVisible, setKeyVisible] = useState(false)
@@ -74,7 +84,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [presetState, setPresetState] = useState<'bundled' | 'loading' | 'online' | 'error'>('bundled')
   const [manualPresets, setManualPresets] = useState<Record<number, string>>({})
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
-  const [busy, setBusy] = useState<'load' | 'save' | 'probe' | 'reveal' | 'presets' | null>('load')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -84,8 +94,14 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   )
   const providerIds = useMemo(() => Object.keys(profiles).sort((left, right) => left.localeCompare(right)), [profiles])
   const models = useMemo(() => modelRecords(draft), [draft])
+  const visibleModels = useMemo(() => {
+    const query = modelQuery.trim().toLocaleLowerCase()
+    return models.map((model, index) => ({ model, index })).filter(({ model }) => query === '' || [model.id, model.name]
+      .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
+  }, [modelQuery, models])
   const protocol = stringField(draft, 'api')
   const credentialRef = stringField(draft, 'apiKeyEnv') || deriveCredentialRef(providerId || 'provider')
+  const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -97,7 +113,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setCredential(response.result.value.credentials[ref] ?? null)
   }, [api.credentials])
 
-  const selectProvider = useCallback((id: string, view: SettingsNamespaceView | null = namespace) => {
+  const confirmDiscard = useCallback(() => !dirty || window.confirm(t('config.discardConfirm')), [dirty, t])
+
+  const openProvider = useCallback((id: string, view: SettingsNamespaceView | null = namespace) => {
     if (view === null) return
     const nextProfiles = providerProfiles(view.user ?? view.value)
     const profile = cloneProfile(nextProfiles[id])
@@ -105,6 +123,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setProviderId(id)
     setCreating(false)
     setDraft(profile)
+    setBaselineSignature(draftSignature(id, profile))
+    setPreviousProviderId(id)
+    setModelQuery('')
     setKeyDraft('')
     setKeyVisible(false)
     setManualPresets({})
@@ -114,7 +135,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
   }, [describeCredential, namespace])
 
-  const load = useCallback(async () => {
+  const selectProvider = (id: string) => {
+    if (confirmDiscard()) openProvider(id)
+  }
+
+  const load = useCallback(async (force = false) => {
+    if (!force && !confirmDiscard()) return
     setBusy('load')
     setError(null)
     try {
@@ -125,18 +151,22 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setNamespace(view)
       const ids = Object.keys(providerProfiles(view.user ?? view.value)).sort((left, right) => left.localeCompare(right))
       const selected = ids.includes(providerId) ? providerId : ids[0]
-      if (selected !== undefined) selectProvider(selected, view)
+      if (selected !== undefined) openProvider(selected, view)
       else {
+        const empty = { api: 'openai-completions', models: [] }
         setProviderId('')
         setCreating(true)
-        setDraft({ api: 'openai-completions', models: [] })
+        setDraft(empty)
+        setBaselineSignature(draftSignature('', empty))
+        setPreviousProviderId('')
+        setModelQuery('')
       }
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
       setBusy(null)
     }
-  }, [api.settings, providerId, selectProvider, t])
+  }, [api.settings, confirmDiscard, openProvider, providerId, t])
 
   const refreshPresets = useCallback(async () => {
     setPresetState('loading')
@@ -152,13 +182,28 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
   }, [])
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load(true) }, [])
   useEffect(() => { void refreshPresets() }, [refreshPresets])
 
+  useEffect(() => {
+    if (!dirty) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
+
   const startCreate = () => {
+    if (!confirmDiscard()) return
+    const empty = { api: 'openai-completions', models: [] }
+    setPreviousProviderId(creating ? previousProviderId : providerId)
     setCreating(true)
     setProviderId('')
-    setDraft({ api: 'openai-completions', models: [] })
+    setDraft(empty)
+    setBaselineSignature(draftSignature('', empty))
+    setModelQuery('')
     setCredential(null)
     setKeyDraft('')
     setKeyVisible(false)
@@ -166,6 +211,32 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setDiscovered([])
     setError(null)
     setFeedback(null)
+  }
+
+  const cancelCreate = () => {
+    if (!confirmDiscard()) return
+    const target = providerIds.includes(previousProviderId) ? previousProviderId : providerIds[0]
+    if (target !== undefined) openProvider(target)
+  }
+
+  const duplicateProvider = () => {
+    const id = nextProviderCopyId(providerId, providerIds)
+    const profile = structuredClone(draft)
+    profile.apiKeyEnv = deriveCredentialRef(id)
+    const displayName = stringField(profile, 'displayName') || providerId
+    profile.displayName = t('config.copyName', { name: displayName })
+    setPreviousProviderId(providerId)
+    setCreating(true)
+    setProviderId(id)
+    setDraft(profile)
+    setModelQuery('')
+    setCredential(null)
+    setKeyDraft('')
+    setKeyVisible(false)
+    setManualPresets({})
+    setDiscovered([])
+    setError(null)
+    setFeedback(t('config.copyReady'))
   }
 
   const updateProfileString = (key: string, value: string) => {
@@ -187,7 +258,16 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const addModel = () => {
     setModels([...models, { id: '' }])
+    setModelQuery('')
     setManualPresets(current => ({ ...current, [models.length]: '' }))
+  }
+
+  const duplicateModel = (index: number) => {
+    const template = duplicateModelTemplate(models[index] ?? {})
+    setModels([...models.slice(0, index + 1), template, ...models.slice(index + 1)])
+    setModelQuery('')
+    setManualPresets({})
+    setFeedback(t('config.modelCopyReady'))
   }
 
   const removeModel = (index: number) => {
@@ -263,6 +343,46 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
   }
 
+  const deleteProvider = async () => {
+    if (namespace === null || creating || busy !== null || !confirmDiscard()) return
+    if (!window.confirm(t('config.deleteConfirm', { provider: providerId }))) return
+    setBusy('delete')
+    setError(null)
+    setFeedback(null)
+    try {
+      const response = await api.settings.mutate({
+        ns: SETTINGS_NAMESPACE,
+        ops: [{ op: 'unset', path: ['providers', providerId] }],
+        expectedRevision: namespace.revision,
+      })
+      if (!response.result.ok) throw new Error(response.result.error.message)
+      setNamespace(response.result.value)
+      const remaining = Object.keys(providerProfiles(response.result.value.user ?? response.result.value.value))
+        .filter(id => id !== providerId)
+        .sort((left, right) => left.localeCompare(right))
+      const next = remaining[0]
+      if (next === undefined) {
+        const empty = { api: 'openai-completions', models: [] }
+        setCreating(true)
+        setProviderId('')
+        setDraft(empty)
+        setBaselineSignature(draftSignature('', empty))
+        setPreviousProviderId('')
+        setModelQuery('')
+        setCredential(null)
+        setKeyDraft('')
+        setKeyVisible(false)
+      } else {
+        openProvider(next, response.result.value)
+      }
+      setFeedback(t('config.deleted'))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const save = async () => {
     if (namespace === null || busy !== null) return
     setBusy('save')
@@ -272,12 +392,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       const id = providerId.trim()
       const ref = credentialRef.trim()
       if (!PROVIDER_ID_PATTERN.test(id)) throw new Error(t('config.providerIdInvalid'))
+      if (creating && profiles[id] !== undefined) throw new Error(t('config.providerExists'))
       if (!CREDENTIAL_REF_PATTERN.test(ref)) throw new Error(t('config.credentialRefInvalid'))
       if (stringField(draft, 'baseURL').trim() === '') throw new Error(t('config.baseUrlRequired'))
       if (!PROTOCOLS.includes(stringField(draft, 'api') as typeof PROTOCOLS[number])) throw new Error(t('config.protocolRequired'))
       if (models.length === 0 || models.some(model => typeof model.id !== 'string' || model.id.trim() === '')) {
         throw new Error(t('config.modelIdRequired'))
       }
+      const duplicateIds = duplicateModelIds(models)
+      if (duplicateIds.length > 0) throw new Error(t('config.modelIdDuplicate', { ids: duplicateIds.join(', ') }))
       const key = keyDraft.trim()
       if (key !== '' && !LEGAL_API_KEY.test(key)) throw new Error(t('config.keyInvalid'))
       const profile = structuredClone(draft)
@@ -290,11 +413,14 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
       setNamespace(response.result.value)
+      setDraft(profile)
+      setBaselineSignature(draftSignature(id, profile))
       if (key !== '') {
         const stored = await api.credentials.set({ ref, value: key })
         if (!stored.result.ok) throw new Error(`${t('config.settingsSavedKeyFailed')}: ${stored.result.error.message}`)
       }
       setCreating(false)
+      setPreviousProviderId(id)
       setKeyDraft('')
       setKeyVisible(false)
       await describeCredential(ref)
@@ -323,6 +449,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           <span>{t('config.intro')}</span>
         </div>
         <div className="dmp-config-toolbar-actions">
+          {dirty && <span className="dmp-config-dirty">{t('config.unsaved')}</span>}
           <button type="button" disabled={busy !== null} onClick={() => void load()}>{t('config.reload')}</button>
           <button type="button" disabled={busy !== null} onClick={startCreate}>{t('config.addProvider')}</button>
         </div>
@@ -334,11 +461,16 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       <section className="dmp-config-card">
         <div className="dmp-config-card-heading">
           <div><h3>{t('config.providerTitle')}</h3><p>{t('config.providerDescription')}</p></div>
-          {!creating && providerIds.length > 0 && (
-            <select value={providerId} onChange={event => selectProvider(event.currentTarget.value)} disabled={busy !== null}>
-              {providerIds.map(id => <option key={id} value={id}>{stringField(profiles[id] ?? {}, 'displayName') || id}</option>)}
-            </select>
-          )}
+          <div className="dmp-config-provider-actions">
+            {!creating && providerIds.length > 0 && <>
+              <select value={providerId} onChange={event => selectProvider(event.currentTarget.value)} disabled={busy !== null}>
+                {providerIds.map(id => <option key={id} value={id}>{stringField(profiles[id] ?? {}, 'displayName') || id}</option>)}
+              </select>
+              <button type="button" disabled={busy !== null} onClick={duplicateProvider}>{t('config.duplicateProvider')}</button>
+              <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => void deleteProvider()}>{busy === 'delete' ? t('config.deleting') : t('config.deleteProvider')}</button>
+            </>}
+            {creating && providerIds.length > 0 && <button type="button" disabled={busy !== null} onClick={cancelCreate}>{t('config.cancelCreate')}</button>}
+          </div>
         </div>
 
         <div className="dmp-config-provider-grid">
@@ -390,7 +522,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
             {discovered.length > 0 && <button type="button" disabled={busy !== null} onClick={importDiscovered}>{t('config.importDiscovery', { count: discovered.length })}</button>}
-            <button className="dmp-media-primary" type="button" disabled={busy !== null} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
+            <button className="dmp-media-primary" type="button" disabled={busy !== null || !dirty} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
       </section>
@@ -400,6 +532,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           <div><h3>{t('config.modelsTitle')}</h3><p>{t('config.modelsDescription')}</p></div>
           <div className="dmp-config-heading-actions">
             <span>{presetStatusText}</span>
+            <input className="dmp-config-model-search" value={modelQuery} onChange={event => setModelQuery(event.currentTarget.value)} placeholder={t('config.searchModels')} aria-label={t('config.searchModels')} />
             <button type="button" disabled={busy !== null} onClick={() => void refreshPresets()}>{t('config.refreshPresets')}</button>
             <button type="button" disabled={busy !== null || models.length === 0} onClick={autoApplyPresets}>{t('config.autoPreset')}</button>
             <button type="button" disabled={busy !== null} onClick={addModel}>{t('config.addModel')}</button>
@@ -407,8 +540,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         </div>
 
         {models.length === 0 && <div className="dmp-config-empty">{t('config.noModels')}</div>}
+        {models.length > 0 && visibleModels.length === 0 && <div className="dmp-config-empty">{t('config.noMatchingModels')}</div>}
         <div className="dmp-config-models">
-          {models.map((model, index) => {
+          {visibleModels.map(({ model, index }) => {
             const automatic = sourcePreset(model, registry.presets)
             const selectedPresetId = manualPresets[index] ?? automatic?.id ?? ''
             const selectedPreset = registry.presets.find(preset => preset.id === selectedPresetId)
@@ -417,7 +551,10 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
               <article className="dmp-config-model" key={`${String(model.id)}-${index}`}>
                 <div className="dmp-config-model-top">
                   <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : typeof model.id === 'string' && model.id !== '' ? model.id : `${t('config.model')} ${index + 1}`}</strong>
-                  <button type="button" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>
+                  <div>
+                    <button type="button" disabled={busy !== null} onClick={() => duplicateModel(index)}>{t('config.duplicateModel')}</button>
+                    <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>
+                  </div>
                 </div>
                 <div className="dmp-config-model-grid">
                   <label className="dmp-media-field dmp-config-span-2">

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 - 2026-08-26
+
+- Add Favorites only and Recent models quick filters to the global palette.
+- Add provider duplication with an automatically separated credential reference.
+- Add model parameter duplication and model-list filtering for long provider catalogs.
+- Reject duplicate model IDs before settings writes.
+- Warn before discarding dirty configuration drafts and before browser unload.
+- Add confirmed provider deletion that keeps the associated credential intact.
+- Update the English and Chinese README usage guides.
+
 ## 0.4.0 - 2026-08-26
 
 - Add a provider and model configuration panel beside the model and media views.
