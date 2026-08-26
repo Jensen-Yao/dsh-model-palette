@@ -12,7 +12,7 @@ A global model command palette for DeepSeek Harness Web. Press **Alt+M** or clic
 - Reasoning effort selector for the active model.
 - Visible provider catalog failures and retry.
 - Optional OpenRouter image/video tools with paid generation blocked by default.
-- A media-tools view inside the palette for free-model discovery, image/video requests, video status, and downloads.
+- A media-tools view that reads the full live catalog, disables blocked paid models, and runs image/video actions directly without writing conversation messages.
 
 ## Install
 
@@ -49,9 +49,9 @@ This registers:
 
 The generation tools query live pricing before submission. Paid image/video calls are rejected unless the corresponding configuration flag is explicitly enabled.
 
-Press **Alt+M** and select **Media tools** in the left rail. The forms send structured requests to the current conversation so the agent can call the tools; the browser never reads the OpenRouter credential. Leave the model ID blank to let the agent inspect the current free catalog first.
+Press **Alt+M** and select **Media tools** in the left rail. The panel calls the plugin's same-origin API and loads the full live OpenRouter catalog into model selectors. Free and paid models are labeled separately; paid entries stay visible but disabled unless the matching paid-generation flag is enabled. Generation, status, and download actions run directly without sending prompts to the current conversation. The backend checks live pricing again before each generation. The OpenRouter credential is resolved only by the DSH credentials service on the host and is never returned to the browser.
 
-This optional feature is the lightweight native DSH media toolkit: it registers agent tools rather than adding another page or provider. See [`docs/openrouter-media.zh-CN.md`](docs/openrouter-media.zh-CN.md) for the Chinese explanation and safety model.
+The five agent tools remain registered for model-driven workflows, but the media panel no longer depends on the active model understanding or calling them. See [`docs/openrouter-media.zh-CN.md`](docs/openrouter-media.zh-CN.md) for the Chinese explanation and safety model.
 
 ## Development
 

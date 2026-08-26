@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-08-26
+
+- Replace conversation-based media shortcuts with a direct same-origin plugin API.
+- Load the full live OpenRouter image/video catalog, label current pricing, and disable paid entries while paid generation is blocked.
+- Run image generation, video submission, status checks, and downloads without adding chat messages.
+- Keep all five agent tools and the existing paid-generation guards available for model-driven workflows.
+
 ## 0.2.0 - 2026-08-26
 
 - Add an OpenRouter media shortcut panel to the model palette.

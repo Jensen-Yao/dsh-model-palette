@@ -65,6 +65,5 @@ export interface PaletteProps {
   directory: DirectoryStore
   load: () => void
   select: (selection: Selection) => Promise<boolean>
-  sendPrompt: (prompt: string) => Promise<boolean>
   t: (key: string, params?: Record<string, unknown>) => string
 }

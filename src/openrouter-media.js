@@ -4,8 +4,10 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 
 const API_BASE = 'https://openrouter.ai/api/v1'
+const MEDIA_API_PATH = '/model-palette/api/media'
 const REQUEST_TIMEOUT_MS = 180_000
 const DOWNLOAD_TIMEOUT_MS = 600_000
+const REQUEST_BODY_LIMIT = 1_048_576
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const RESULT_SCHEMA = { type: 'object', additionalProperties: true, properties: {} }
@@ -19,11 +21,111 @@ const IMAGE_EXTENSIONS = new Map([
 export function registerOpenRouterMedia(ctx, rawConfig) {
   const config = resolveConfig(rawConfig)
   mkdirSync(config.outputDir, { recursive: true })
-  ctx.effect(() => ctx.tools.register(modelsTool(ctx, config)), 'dsh-model-palette: OpenRouter media catalog tool')
-  ctx.effect(() => ctx.tools.register(imageTool(ctx, config)), 'dsh-model-palette: OpenRouter image tool')
-  ctx.effect(() => ctx.tools.register(videoSubmitTool(ctx, config)), 'dsh-model-palette: OpenRouter video submit tool')
-  ctx.effect(() => ctx.tools.register(videoStatusTool(ctx, config)), 'dsh-model-palette: OpenRouter video status tool')
-  ctx.effect(() => ctx.tools.register(videoDownloadTool(ctx, config)), 'dsh-model-palette: OpenRouter video download tool')
+  const tools = {
+    models: modelsTool(ctx, config),
+    image: imageTool(ctx, config),
+    video: videoSubmitTool(ctx, config),
+    status: videoStatusTool(ctx, config),
+    download: videoDownloadTool(ctx, config),
+  }
+  ctx.effect(() => ctx.tools.register(tools.models), 'dsh-model-palette: OpenRouter media catalog tool')
+  ctx.effect(() => ctx.tools.register(tools.image), 'dsh-model-palette: OpenRouter image tool')
+  ctx.effect(() => ctx.tools.register(tools.video), 'dsh-model-palette: OpenRouter video submit tool')
+  ctx.effect(() => ctx.tools.register(tools.status), 'dsh-model-palette: OpenRouter video status tool')
+  ctx.effect(() => ctx.tools.register(tools.download), 'dsh-model-palette: OpenRouter video download tool')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'prefix',
+    path: MEDIA_API_PATH,
+    handler: createMediaApiHandler({
+      models: (args, signal) => tools.models.execute(args, { signal }),
+      image: (args, signal) => tools.image.execute(args, { signal }),
+      video: (args, signal) => tools.video.execute(args, { signal }),
+      status: (args, signal) => tools.status.execute(args, { signal }),
+      download: (args, signal) => tools.download.execute(args, { signal }),
+    }),
+  }), 'dsh-model-palette: direct media API')
+}
+
+export function createMediaApiHandler(actions) {
+  const routes = new Map([
+    [`${MEDIA_API_PATH}/models`, actions.models],
+    [`${MEDIA_API_PATH}/images/generate`, actions.image],
+    [`${MEDIA_API_PATH}/videos/generate`, actions.video],
+    [`${MEDIA_API_PATH}/videos/status`, actions.status],
+    [`${MEDIA_API_PATH}/videos/download`, actions.download],
+  ])
+  return async (req, res) => {
+    if (req.method !== 'POST') {
+      writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
+      return
+    }
+    if (!isTrustedBrowserRequest(req)) {
+      writeJson(res, 403, { ok: false, error: { message: 'cross-site request rejected' } })
+      return
+    }
+    if (!String(req.headers['content-type'] ?? '').toLocaleLowerCase().startsWith('application/json')) {
+      writeJson(res, 415, { ok: false, error: { message: 'application/json is required' } })
+      return
+    }
+    let pathname
+    try {
+      pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname
+    } catch {
+      writeJson(res, 400, { ok: false, error: { message: 'invalid request path' } })
+      return
+    }
+    const action = routes.get(pathname)
+    if (action === undefined) {
+      writeJson(res, 404, { ok: false, error: { message: 'unknown media action' } })
+      return
+    }
+    const controller = new AbortController()
+    const abort = () => controller.abort()
+    req.once('aborted', abort)
+    try {
+      const value = await action(await readJsonBody(req), controller.signal)
+      writeJson(res, 200, { ok: true, value })
+    } catch (error) {
+      writeJson(res, mediaErrorStatus(error), { ok: false, error: { message: errorMessage(error) } })
+    } finally {
+      req.removeListener('aborted', abort)
+    }
+  }
+}
+
+function isTrustedBrowserRequest(req) {
+  const site = req.headers['sec-fetch-site']
+  return site === undefined || site === 'same-origin' || site === 'same-site' || site === 'none'
+}
+
+async function readJsonBody(req) {
+  let text = ''
+  for await (const chunk of req) {
+    text += chunk
+    if (Buffer.byteLength(text) > REQUEST_BODY_LIMIT) throw new Error('request body is too large')
+  }
+  if (text.trim() === '') return {}
+  try { return JSON.parse(text) } catch { throw new Error('request body must be valid JSON') }
+}
+
+function writeJson(res, status, value) {
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+  })
+  res.end(JSON.stringify(value))
+}
+
+function mediaErrorStatus(error) {
+  const message = errorMessage(error)
+  if (message.startsWith('OpenRouter ')) return 502
+  if (message.includes('not configured in DSH')) return 503
+  return 400
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function resolveConfig(rawConfig) {

@@ -39,7 +39,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   )
 }
 
-export function ModelPalette({ locked, available, directory, load, select, sendPrompt, t }: PaletteProps) {
+export function ModelPalette({ locked, available, directory, load, select, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
@@ -249,7 +249,7 @@ export function ModelPalette({ locked, available, directory, load, select, sendP
               </nav>
 
               {view === 'media' ? (
-                <MediaPanel locked={locked} sendPrompt={sendPrompt} onSubmitted={close} t={t} />
+                <MediaPanel t={t} />
               ) : <main className="dmp-results">
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
                 {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.empty')}</div>}
