@@ -2,7 +2,7 @@
 
 ## 0.1.2 - 2026-08-26
 
-- Make browser bundles reproducible across Windows and Linux by using project-relative virtual CSS module IDs.
+- Make browser bundles reproducible across Windows and Linux by using project-relative virtual CSS module IDs and normalized CSS line endings.
 
 ## 0.1.1 - 2026-08-26
 

@@ -46,7 +46,7 @@ export default [
         const stableId = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
         const file = resolvePath(process.cwd(), stableId)
         this.addWatchFile(file)
-        const css = await readFile(file, 'utf8')
+        const css = (await readFile(file, 'utf8')).replace(/\r\n?/gu, '\n')
         const tagId = `${PLUGIN_ID}/${basename(file)}`
         return [
           `const css = ${JSON.stringify(css)};`,
