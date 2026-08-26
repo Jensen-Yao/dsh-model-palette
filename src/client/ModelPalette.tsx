@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { MediaPanel } from './MediaPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
@@ -38,11 +39,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
   )
 }
 
-export function ModelPalette({ locked, available, directory, load, select, t }: PaletteProps) {
+export function ModelPalette({ locked, available, directory, load, select, sendPrompt, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState<'models' | 'media'>('models')
   const [query, setQuery] = useState('')
   const [providerId, setProviderId] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
@@ -72,6 +74,7 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
   const show = () => {
     if (!available || locked) return
     setOpen(true)
+    setView('models')
     setQuery('')
     setProviderId(null)
     setCursor(0)
@@ -85,10 +88,10 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
   }
 
   useEffect(() => {
-    if (!open) return
+    if (!open || view !== 'models') return
     const frame = requestAnimationFrame(() => searchRef.current?.focus())
     return () => cancelAnimationFrame(frame)
-  }, [open])
+  }, [open, view])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -104,6 +107,7 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
         close()
         return
       }
+      if (view !== 'models') return
       if (event.key === 'ArrowDown') {
         event.preventDefault()
         setCursor((value) => Math.min(value + 1, Math.max(0, results.length - 1)))
@@ -121,7 +125,7 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, locked, available, results, cursor])
+  }, [open, locked, available, results, cursor, view])
 
   useEffect(() => {
     setCursor(0)
@@ -180,16 +184,16 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
         <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t('palette.title')}>
+          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : 'media.title')}>
             <header className="dmp-header">
               <div>
-                <h2>{t('palette.title')}</h2>
-                <p>{choices.length} {t('palette.models')} · {t('palette.shortcut')}</p>
+                <h2>{t(view === 'models' ? 'palette.title' : 'media.title')}</h2>
+                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : t('media.subtitle')}</p>
               </div>
               <button type="button" className="dmp-close" onClick={close} aria-label={t('palette.close')}>×</button>
             </header>
 
-            <div className="dmp-search-wrap">
+            {view === 'models' && <div className="dmp-search-wrap">
               <span aria-hidden="true">⌕</span>
               <input
                 ref={searchRef}
@@ -205,9 +209,9 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
                 aria-label={t('palette.search')}
               />
               {query !== '' && <button type="button" onClick={() => setQuery('')} aria-label={t('palette.clear')}>×</button>}
-            </div>
+            </div>}
 
-            {(snapshot.error !== null || error !== null) && (
+            {view === 'models' && (snapshot.error !== null || error !== null) && (
               <div className="dmp-error">
                 <span>{error ?? snapshot.error}</span>
                 <button type="button" onClick={load}>{t('palette.retry')}</button>
@@ -218,8 +222,16 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
               <nav className="dmp-providers" aria-label={t('palette.providers')}>
                 <button
                   type="button"
-                  className={providerId === null ? 'is-active' : ''}
-                  onClick={() => setProviderId(null)}
+                  className={`dmp-media-nav${view === 'media' ? ' is-active' : ''}`}
+                  onClick={() => setView('media')}
+                >
+                  <span>{t('media.nav')}</span><small>5</small>
+                </button>
+                <div className="dmp-provider-divider" />
+                <button
+                  type="button"
+                  className={view === 'models' && providerId === null ? 'is-active' : ''}
+                  onClick={() => { setView('models'); setProviderId(null) }}
                 >
                   <span>{t('palette.allProviders')}</span><small>{choices.length}</small>
                 </button>
@@ -227,8 +239,8 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
                   <button
                     key={provider.id}
                     type="button"
-                    className={providerId === provider.id ? 'is-active' : ''}
-                    onClick={() => setProviderId(provider.id)}
+                    className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
+                    onClick={() => { setView('models'); setProviderId(provider.id) }}
                     title={`${provider.name} · ${provider.id}`}
                   >
                     <span>{provider.name}</span><small>{provider.models.length}</small>
@@ -236,7 +248,9 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
                 ))}
               </nav>
 
-              <main className="dmp-results">
+              {view === 'media' ? (
+                <MediaPanel locked={locked} sendPrompt={sendPrompt} onSubmitted={close} t={t} />
+              ) : <main className="dmp-results">
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
                 {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.empty')}</div>}
                 {results.map((choice, index) => {
@@ -279,7 +293,7 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
                     </div>
                   )
                 })}
-              </main>
+              </main>}
             </div>
 
             <footer className="dmp-footer">

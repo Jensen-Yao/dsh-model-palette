@@ -19,6 +19,14 @@ interface ModelDirectoryService {
 
 interface SessionService {
   subagentAddress(sessionId: string): unknown
+  binding(sessionId: string): {
+    session: {
+      prompt(
+        content: Array<{ type: 'text'; text: string }>,
+        mode: 'queue' | 'steer',
+      ): Promise<{ ok: boolean; error?: unknown }>
+    }
+  } | undefined
 }
 
 interface SlotRegistrationScope {
@@ -78,6 +86,19 @@ export function apply(ctx: ClientContext): void {
                 return true
               } catch (error) {
                 console.error('[dsh-model-palette] model selection failed', error)
+                return false
+              }
+            },
+            sendPrompt: async (prompt) => {
+              if (!available) return false
+              const binding = scope.sessions.binding(sessionId)
+              if (binding === undefined) return false
+              try {
+                const result = await binding.session.prompt([{ type: 'text', text: prompt }], 'queue')
+                if (!result.ok) console.error('[dsh-model-palette] media request rejected', result.error)
+                return result.ok
+              } catch (error) {
+                console.error('[dsh-model-palette] media request failed', error)
                 return false
               }
             },

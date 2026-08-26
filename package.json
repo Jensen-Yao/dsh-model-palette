@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Global model command palette for DeepSeek Harness: Alt+M, provider filters, fuzzy provider/model search, recents, favorites, reasoning effort, and optional OpenRouter media tools.",
   "type": "module",
   "main": "lib/index.js",

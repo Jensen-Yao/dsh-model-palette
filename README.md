@@ -12,6 +12,7 @@ A global model command palette for DeepSeek Harness Web. Press **Alt+M** or clic
 - Reasoning effort selector for the active model.
 - Visible provider catalog failures and retry.
 - Optional OpenRouter image/video tools with paid generation blocked by default.
+- A media-tools view inside the palette for free-model discovery, image/video requests, video status, and downloads.
 
 ## Install
 
@@ -47,6 +48,8 @@ This registers:
 - `openrouter_download_video`
 
 The generation tools query live pricing before submission. Paid image/video calls are rejected unless the corresponding configuration flag is explicitly enabled.
+
+Press **Alt+M** and select **Media tools** in the left rail. The forms send structured requests to the current conversation so the agent can call the tools; the browser never reads the OpenRouter credential. Leave the model ID blank to let the agent inspect the current free catalog first.
 
 This optional feature is the lightweight native DSH media toolkit: it registers agent tools rather than adding another page or provider. See [`docs/openrouter-media.zh-CN.md`](docs/openrouter-media.zh-CN.md) for the Chinese explanation and safety model.
 

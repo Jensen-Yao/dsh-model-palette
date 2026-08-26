@@ -12,6 +12,7 @@ DeepSeek Harness Web 的全局模型命令面板。按 **Alt+M**，或点击输�
 - 当前模型的推理档位可直接切换。
 - 显示加载失败的供应商并支持重试。
 - 可选集成 OpenRouter 图像/视频工具，默认禁止付费生成。
+- 模型面板内置“媒体工具”入口，可查询免费模型、提交图像/视频生成、查询视频状态并下载结果。
 
 ## 安装
 
@@ -39,6 +40,8 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
 ```
 
 启用后注册五个 agent 工具：模型与价格查询、生图、视频任务提交、视频状态查询和视频下载。生成前会读取实时价格；除非显式打开对应开关，否则所有付费图像/视频请求都会在提交前被拒绝。
+
+按 **Alt+M** 打开模型面板，再点击左侧 **媒体工具**。快捷表单会把结构化请求发送到当前对话，由 Agent 调用上述工具；浏览器不会读取 OpenRouter 密钥。模型 ID 留空时，Agent 会先查询当前免费模型再执行生成。
 
 这就是前面所说的“轻量 DSH 原生媒体工具包”：它注册的是 agent 工具，不是额外页面或新的供应商。完整说明见 [`docs/openrouter-media.zh-CN.md`](docs/openrouter-media.zh-CN.md)。
 

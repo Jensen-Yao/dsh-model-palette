@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 - 2026-08-26
+
+- Add an OpenRouter media shortcut panel to the model palette.
+- Send structured free-only image and video requests through the current DSH conversation without exposing credentials to the browser.
+- Add quick actions for model discovery, video status, and completed-video downloads.
+
 ## 0.1.2 - 2026-08-26
 
 - Make browser bundles reproducible across Windows and Linux by using project-relative virtual CSS module IDs and normalized CSS line endings.
