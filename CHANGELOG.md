@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 - 2026-08-26
+
+- Make browser bundles reproducible across Windows and Linux by using project-relative virtual CSS module IDs.
+
 ## 0.1.1 - 2026-08-26
 
 - Accept the DSH `0.1.1-rc` client packages through explicit prerelease peer ranges.

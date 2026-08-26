@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { basename, dirname, resolve as resolvePath } from 'node:path'
+import { basename, dirname, relative, resolve as resolvePath } from 'node:path'
 import type { UserConfig } from 'tsdown'
 
 const PLUGIN_ID = 'dsh-model-palette'
@@ -37,11 +37,14 @@ export default [
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.css')) return null
         if (importer === undefined) throw new Error(`cannot resolve CSS ${source} without importer`)
-        return CSS_PREFIX + resolvePath(dirname(importer), source) + CSS_SUFFIX
+        const file = resolvePath(dirname(importer), source)
+        const stableId = relative(process.cwd(), file).replaceAll('\\', '/')
+        return CSS_PREFIX + stableId + CSS_SUFFIX
       },
       async load(id: string) {
         if (!id.startsWith(CSS_PREFIX)) return null
-        const file = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
+        const stableId = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
+        const file = resolvePath(process.cwd(), stableId)
         this.addWatchFile(file)
         const css = await readFile(file, 'utf8')
         const tagId = `${PLUGIN_ID}/${basename(file)}`
