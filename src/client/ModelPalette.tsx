@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
+import { ConfigPanel } from './ConfigPanel.tsx'
 import { MediaPanel } from './MediaPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
@@ -39,12 +41,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
   )
 }
 
-export function ModelPalette({ locked, available, directory, load, select, t }: PaletteProps) {
+export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState<'models' | 'media'>('models')
+  const [view, setView] = useState<'models' | 'media' | 'config'>('models')
   const [query, setQuery] = useState('')
   const [providerId, setProviderId] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
@@ -180,15 +182,15 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
         <kbd>Alt M</kbd>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : 'media.title')}>
+          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : 'config.title')}>
             <header className="dmp-header">
               <div>
-                <h2>{t(view === 'models' ? 'palette.title' : 'media.title')}</h2>
-                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : t('media.subtitle')}</p>
+                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : 'config.title')}</h2>
+                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : t(view === 'media' ? 'media.subtitle' : 'config.subtitle')}</p>
               </div>
               <button type="button" className="dmp-close" onClick={close} aria-label={t('palette.close')}>×</button>
             </header>
@@ -227,6 +229,13 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
                 >
                   <span>{t('media.nav')}</span><small>5</small>
                 </button>
+                <button
+                  type="button"
+                  className={`dmp-media-nav${view === 'config' ? ' is-active' : ''}`}
+                  onClick={() => setView('config')}
+                >
+                  <span>{t('config.nav')}</span><small>⚙</small>
+                </button>
                 <div className="dmp-provider-divider" />
                 <button
                   type="button"
@@ -250,6 +259,8 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
 
               {view === 'media' ? (
                 <MediaPanel t={t} />
+              ) : view === 'config' ? (
+                <ConfigPanel api={api} isLoopback={isLoopback} t={t} />
               ) : <main className="dmp-results">
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
                 {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.empty')}</div>}
@@ -314,7 +325,8 @@ export function ModelPalette({ locked, available, directory, load, select, t }: 
               {snapshot.failures.length > 0 && <span className="dmp-failures" title={snapshot.failures.map((item) => `${item.name}: ${item.message}`).join('\n')}>{t('palette.failures')} ({snapshot.failures.length})</span>}
             </footer>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

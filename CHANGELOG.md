@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 - 2026-08-26
+
+- Add a provider and model configuration panel beside the model and media views.
+- Write provider profiles through DSH `settings.mutate` and keys through `credentials.set`, with live endpoint discovery through `llm.discoverModels`.
+- Add bundled and GitHub-refreshable model presets for verified context windows, maximum outputs, and text/image input support.
+- Keep API keys masked by default; allow loading a stored key only over direct loopback access and reject LAN or reverse-proxy reveal attempts.
+- Expose common per-model OpenAI compatibility switches without discarding existing advanced fields.
+- Render the command dialog through a document-level portal so skins that hide the native composer controls cannot hide the palette.
+
 ## 0.3.1 - 2026-08-26
 
 - Keep models without a detected free price selectable in the media panel.

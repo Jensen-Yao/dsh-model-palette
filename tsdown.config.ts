@@ -3,7 +3,7 @@ import { basename, dirname, relative, resolve as resolvePath } from 'node:path'
 import type { UserConfig } from 'tsdown'
 
 const PLUGIN_ID = 'dsh-model-palette'
-const CLIENT_EXTERNALS = ['react', 'react/jsx-runtime']
+const CLIENT_EXTERNALS = ['react', 'react-dom', 'react/jsx-runtime']
 const CSS_PREFIX = '\0dsh-model-palette-css:'
 const CSS_SUFFIX = '.mjs'
 

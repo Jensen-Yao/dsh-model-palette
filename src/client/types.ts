@@ -65,5 +65,8 @@ export interface PaletteProps {
   directory: DirectoryStore
   load: () => void
   select: (selection: Selection) => Promise<boolean>
+  api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
+  isLoopback: boolean
   t: (key: string, params?: Record<string, unknown>) => string
 }
+import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'

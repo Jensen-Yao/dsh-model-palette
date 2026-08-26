@@ -5,12 +5,16 @@ A global model command palette for DeepSeek Harness Web. Press **Alt+M** or clic
 ## Features
 
 - Global **Alt+M** shortcut.
+- The dialog renders at document level, so skins that hide native composer controls cannot hide the palette with them.
 - One fuzzy search surface for providers and models.
 - Provider filter rail with model counts.
 - Current model, favorites, and recently used routes ranked first.
 - Provider-scoped identities keep same-named models separate.
 - Reasoning effort selector for the active model.
 - Visible provider catalog failures and retry.
+- A model-configuration view for custom provider names, base URLs, protocols, credential refs, and model parameters.
+- Masked API keys, connection checks, and stored-key reveal only through direct `127.0.0.1` or `localhost` access—not LAN or reverse proxies.
+- Bundled and GitHub-refreshable presets for verified context windows, maximum outputs, and text/image inputs; unknown aliases are never guessed.
 - Optional OpenRouter image/video tools with paid generation blocked by default.
 - A media-tools view that reads the full live catalog, permits explicit one-time manual attempts for models not reported free, and runs actions without writing conversation messages.
 
@@ -21,6 +25,14 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
 ```
 
 Restart `dsh web`, then press **Alt+M**.
+
+## Provider and model configuration
+
+Press **Alt+M** and select **Model config** in the left rail. The panel writes provider profiles through DSH `settings.mutate`, writes new keys through `credentials.set`, and checks OpenAI-compatible endpoints through `llm.discoverModels`. `openai-responses` is a wire protocol, not an Agent mode; choose it only when the provider endpoint supports it.
+
+Each model row edits context capacity, maximum output, text/image inputs, and common compatibility switches while retaining unexposed advanced fields. Exact model aliases can fill missing values from the verified preset registry. Private gateway aliases can select an official preset manually. The registry loads from GitHub when available and falls back to the bundled copy offline.
+
+Stored credentials do not travel through the public DSH credentials RPC. The optional reveal action uses a plugin route that requires a loopback remote address, loopback Host and Origin, and no forwarding headers. LAN and tunnel clients may replace a key but cannot read the stored value.
 
 ## Optional OpenRouter media tools
 
