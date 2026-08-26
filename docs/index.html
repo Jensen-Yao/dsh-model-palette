@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>dsh-model-palette · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="DeepSeek Harness Web 的全局供应商感知模型命令面板：模糊搜索、供应商筛选、收藏、模型配置与 OpenRouter 媒体工具。" />
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-2: #0f1830;
+    --bg-3: #131d38;
+    --card: rgba(255, 255, 255, 0.04);
+    --card-border: rgba(255, 255, 255, 0.09);
+    --border: rgba(255, 255, 255, 0.07);
+    --text: #e8edf7;
+    --text-2: #a7b2c8;
+    --text-3: #6d7a93;
+    --brand-1: #35a7ff;
+    --brand-2: #7b61ff;
+    --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+    --green: #22c58b;
+    --amber: #f5a524;
+    --red: #f25c5c;
+    --radius: 16px;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(123, 97, 255, 0.4); }
+  a { color: var(--brand-1); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.07);
+    color: #9fc9ff;
+  }
+  pre {
+    font-family: var(--mono);
+    background: #0a1122;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #c6d2e8;
+  }
+  pre .cm { color: #5d6b85; }
+
+  /* ---------- Background decorations ---------- */
+  .bg-glow {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(600px 400px at 12% -5%, rgba(53, 167, 255, 0.14), transparent 60%),
+      radial-gradient(700px 500px at 95% 8%, rgba(123, 97, 255, 0.16), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, rgba(53, 167, 255, 0.08), transparent 60%);
+  }
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 80%);
+  }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 28px;
+    background: rgba(11, 18, 32, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+  .nav-brand img { width: 30px; height: 30px; }
+  .nav-brand span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .nav-links { display: flex; align-items: center; gap: 4px; }
+  .nav-links a {
+    color: var(--text-2);
+    font-size: 13.5px;
+    padding: 7px 12px;
+    border-radius: 8px;
+  }
+  .nav-links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); text-decoration: none; }
+  .nav-cta {
+    background: var(--grad);
+    color: #fff !important;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(123, 97, 255, 0.35);
+  }
+  .nav-cta:hover { background: linear-gradient(135deg, #4db3ff, #8d76ff); }
+
+  /* ---------- Hero ---------- */
+  header.hero {
+    text-align: center;
+    padding: 92px 24px 70px;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    border: 1px solid rgba(53, 167, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(53, 167, 255, 0.08);
+    color: #9fc9ff;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 26px;
+  }
+  .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34, 197, 139, 0.5); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 139, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(34, 197, 139, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 139, 0); }
+  }
+  .hero-logo {
+    width: 84px; height: 84px;
+    margin-bottom: 22px;
+    filter: drop-shadow(0 12px 34px rgba(91, 120, 255, 0.45));
+    animation: float 5s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 56px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+    margin-bottom: 18px;
+  }
+  .hero h1 .grad {
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p.tagline {
+    font-size: clamp(15px, 2.4vw, 19px);
+    color: var(--text-2);
+    max-width: 640px;
+    margin: 0 auto 30px;
+  }
+  .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); text-decoration: none; }
+  .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 10px 30px rgba(103, 98, 255, 0.4); }
+  .btn-ghost { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: var(--card-border); }
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+  .hero-shortcuts { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3); }
+
+  /* ---------- Live Demo ---------- */
+  .demo-section {
+    max-width: 860px;
+    margin: 0 auto 90px;
+    padding: 0 24px;
+  }
+  .demo-window {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .demo-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .demo-bar .traffic { display: flex; gap: 7px; }
+  .demo-bar .traffic span { width: 11px; height: 11px; border-radius: 50%; }
+  .demo-bar .traffic span:nth-child(1) { background: #ff5f57; }
+  .demo-bar .traffic span:nth-child(2) { background: #febc2e; }
+  .demo-bar .traffic span:nth-child(3) { background: #28c840; }
+  .demo-bar .bar-title { margin-left: 10px; font-size: 12.5px; color: var(--text-3); font-family: var(--mono); }
+  .demo-bar .bar-title b { color: var(--text-2); font-weight: 600; }
+  .demo-hint {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 16px 18px 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(53, 167, 255, 0.08);
+    border: 1px solid rgba(53, 167, 255, 0.25);
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  .demo-hint kbd { background: rgba(53, 167, 255, 0.18); border-color: rgba(53, 167, 255, 0.4); color: #9fc9ff; }
+
+  /* Palette mockup */
+  .palette {
+    margin: 16px 18px 18px;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    background: rgba(10, 17, 33, 0.9);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .palette-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 18px 10px; }
+  .palette-head h2 { font-size: 16px; font-weight: 700; }
+  .palette-head p { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .palette-head .close { color: var(--text-3); font-size: 20px; line-height: 1; cursor: pointer; }
+  .palette-search {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 18px 12px;
+    padding: 0 12px;
+    border: 1px solid rgba(53, 167, 255, 0.5);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 0 3px rgba(53, 167, 255, 0.12);
+  }
+  .palette-search .mag { color: var(--text-3); font-size: 15px; }
+  .palette-search input {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+  .palette-search input::placeholder { color: var(--text-3); }
+  .palette-search .clear { border: 0; background: none; color: var(--text-3); cursor: pointer; font-size: 16px; }
+  .palette-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .palette-rail { padding: 10px; border-right: 1px solid var(--border); background: rgba(255, 255, 255, 0.015); }
+  .rail-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .rail-item:hover { background: rgba(255, 255, 255, 0.06); }
+  .rail-item.active { background: rgba(53, 167, 255, 0.13); color: var(--brand-1); font-weight: 600; }
+  .rail-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail-item small { color: var(--text-3); }
+  .rail-item .r { color: var(--brand-2); font-weight: 700; }
+  .rail-divider { height: 1px; margin: 8px 4px; background: var(--border); }
+  .palette-results { min-height: 300px; max-height: 320px; overflow-y: auto; padding: 8px; }
+  .result {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .result:hover, .result.active { background: rgba(255, 255, 255, 0.07); }
+  .result.current { background: rgba(53, 167, 255, 0.1); }
+  .result-main { flex: 1; min-width: 0; }
+  .result-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+  .result-title em {
+    padding: 1px 6px; border-radius: 999px;
+    background: rgba(53, 167, 255, 0.16); color: #9fc9ff;
+    font-size: 9.5px; font-style: normal; font-weight: 500;
+  }
+  .result-title em.warn { background: rgba(245, 165, 36, 0.16); color: var(--amber); }
+  .result-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; font-size: 11px; color: var(--text-3); }
+  .result-meta strong { color: var(--text-2); font-weight: 500; }
+  .result-reason {
+    width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-3); font-size: 9px; font-weight: 700;
+  }
+  .result-star {
+    border: 0; background: none; cursor: pointer;
+    color: var(--text-3); font-size: 15px;
+    padding: 4px;
+  }
+  .result-star.on { color: var(--amber); }
+  .result-empty { display: grid; place-items: center; height: 220px; color: var(--text-3); font-size: 13px; }
+  .palette-foot {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 11px 18px;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .palette-foot .now { display: flex; align-items: baseline; gap: 7px; flex: 1; min-width: 0; }
+  .palette-foot .now b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .palette-foot .effort { display: flex; align-items: center; gap: 8px; }
+  .palette-foot .effort select {
+    height: 28px; border: 1px solid var(--border); border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05); color: var(--text); font: inherit; font-size: 11.5px; padding: 0 8px;
+  }
+  .demo-tip { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-3); }
+
+  /* ---------- Sections ---------- */
+  section.block { max-width: 1080px; margin: 0 auto 88px; padding: 0 24px; }
+  .sec-head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
+  .sec-head .tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--brand-1);
+    margin-bottom: 12px;
+  }
+  .sec-head h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 800; letter-spacing: -0.01em; }
+  .sec-head p { color: var(--text-2); margin-top: 12px; font-size: 15px; }
+
+  .grid { display: grid; gap: 18px; }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(53, 167, 255, 0.35); background: rgba(255, 255, 255, 0.06); }
+  .card .ico {
+    width: 42px; height: 42px;
+    display: grid; place-items: center;
+    border-radius: 12px;
+    background: rgba(53, 167, 255, 0.12);
+    font-size: 21px;
+    margin-bottom: 16px;
+  }
+  .card h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; }
+  .card p { color: var(--text-2); font-size: 13.5px; }
+  .card ul { list-style: none; margin-top: 10px; }
+  .card li { color: var(--text-2); font-size: 13px; padding: 4px 0 4px 20px; position: relative; }
+  .card li::before { content: "→"; position: absolute; left: 0; color: var(--brand-1); font-size: 12px; top: 5px; }
+
+  /* Feature pill row */
+  .pills { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .pill {
+    text-align: center;
+    padding: 22px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .pill .num { font-size: 28px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .pill .lbl { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 26px; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+  .tab.active { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 8px 24px rgba(103, 98, 255, 0.35); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Steps */
+  .steps { counter-reset: step; display: grid; gap: 14px; max-width: 720px; margin: 0 auto; }
+  .step {
+    display: flex;
+    gap: 16px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 18px;
+    align-items: flex-start;
+  }
+  .step .n {
+    counter-increment: step;
+    flex: none;
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    background: rgba(53, 167, 255, 0.14);
+    color: var(--brand-1);
+    font-weight: 800;
+    font-size: 15px;
+  }
+  .step .n::before { content: counter(step); }
+  .step h4 { font-size: 14.5px; margin-bottom: 4px; }
+  .step p { color: var(--text-2); font-size: 13px; }
+
+  /* Key shortcuts grid */
+  .keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 720px; margin: 0 auto; }
+  .key-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 13px 18px; font-size: 13.5px; color: var(--text-2);
+  }
+  .key-row .action { color: var(--text); font-weight: 600; }
+
+  /* Code + steps split */
+  .install-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: start; }
+  .install-grid pre { margin-top: 14px; }
+
+  /* Media mini-card */
+  .media-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .media-card { text-align: center; padding: 28px 18px; }
+  .media-card .big { font-size: 34px; margin-bottom: 12px; }
+  .media-card h3 { margin-bottom: 6px; }
+  .media-card .badge {
+    display: inline-block; margin-top: 12px;
+    padding: 4px 12px; border-radius: 999px;
+    background: rgba(34, 197, 139, 0.14); color: var(--green);
+    font-size: 11px; font-weight: 700;
+  }
+
+  /* CTA */
+  .cta-band {
+    max-width: 860px; margin: 0 auto 90px; padding: 0 24px;
+    text-align: center;
+    border: 1px solid rgba(123, 97, 255, 0.3);
+    border-radius: 24px;
+    background:
+      radial-gradient(400px 200px at 20% 0%, rgba(53, 167, 255, 0.12), transparent 60%),
+      radial-gradient(400px 220px at 85% 100%, rgba(123, 97, 255, 0.16), transparent 60%),
+      rgba(255, 255, 255, 0.03);
+    padding: 56px 32px;
+  }
+  .cta-band h2 { font-size: clamp(24px, 4vw, 34px); font-weight: 800; margin-bottom: 12px; }
+  .cta-band p { color: var(--text-2); max-width: 480px; margin: 0 auto 26px; }
+  .cta-band .hero-shortcuts { margin-top: 22px; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 34px 24px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+  footer .foot-links { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+
+  @media (max-width: 900px) {
+    .grid-3, .pills, .media-cards { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .install-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+  }
+  @media (max-width: 620px) {
+    .grid-3, .grid-2, .pills, .media-cards, .keys { grid-template-columns: 1fr; }
+    .palette-body { grid-template-columns: 118px minmax(0, 1fr); }
+    .palette-foot { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<nav>
+  <div class="nav-brand">
+    <img src="icon.svg" alt="logo" />
+    <span>dsh-model-palette</span>
+  </div>
+  <div class="nav-links">
+    <a href="#demo">在线演示</a>
+    <a href="#features">功能特性</a>
+    <a href="#install">安装</a>
+    <a href="#usage">使用指南</a>
+    <a href="#media">媒体工具</a>
+  </div>
+  <a class="btn nav-cta" href="#install">开始使用</a>
+</nav>
+
+<header class="hero">
+  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态</div>
+  <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
+  <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
+  <p class="tagline">
+    为 DeepSeek Harness Web 打造。按 <kbd>Alt+M</kbd>，在任何界面中模糊搜索、筛选、收藏并切换来自所有供应商的模型 —— 还能直接配置线路、管理密钥、生成图像与视频。
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="#demo">🎮 试试在线演示</a>
+    <a class="btn btn-ghost" href="#install">⚡ 快速安装</a>
+  </div>
+  <div class="hero-shortcuts">
+    <span><kbd>Alt</kbd> + <kbd>M</kbd> 唤起面板</span>
+    <span><kbd>↑</kbd> <kbd>↓</kbd> 导航</span>
+    <span><kbd>Enter</kbd> 选择</span>
+    <span><kbd>Esc</kbd> 关闭</span>
+  </div>
+</header>
+
+<!-- Live demo -->
+<section class="demo-section" id="demo">
+  <div class="demo-window">
+    <div class="demo-bar">
+      <div class="traffic"><span></span><span></span><span></span></div>
+      <div class="bar-title">DeepSeek Harness — <b>dsh-model-palette 在线演示</b></div>
+    </div>
+    <div class="demo-hint">
+      <kbd>Alt</kbd>+<kbd>M</kbd>
+      <span>试试下方的搜索框 —— 输入 <code>gpt</code>、<code>claude</code>、<code>deepseek</code> 或任意模型名，点击左侧供应商进行筛选，点击 ★ 收藏。</span>
+    </div>
+    <div class="palette">
+      <div class="palette-head">
+        <div>
+          <h2>模型命令面板</h2>
+          <p><span id="count-label">0</span> 个模型 · Alt+M 随时打开</p>
+        </div>
+        <span class="close" id="demo-close" title="关闭">×</span>
+      </div>
+      <div class="palette-search">
+        <span class="mag">⌕</span>
+        <input id="demo-search" type="text" placeholder="搜索模型、模型 ID、供应商或供应商 ID…" autocomplete="off" />
+        <button class="clear" id="demo-clear" title="清空">×</button>
+      </div>
+      <div class="palette-body">
+        <nav class="palette-rail" id="demo-rail"></nav>
+        <div class="palette-results" id="demo-results"></div>
+      </div>
+      <div class="palette-foot">
+        <div class="now">
+          <span>当前</span>
+          <b id="demo-current">deepseek-chat · DeepSeek</b>
+        </div>
+        <div class="effort">
+          <span>推理档位</span>
+          <select id="demo-effort">
+            <option>低 · low</option>
+            <option selected>中 · medium</option>
+            <option>高 · high</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="demo-tip">↑↓ 或点击选择模型 · Esc 关闭 · 该演示为静态模拟，不影响你的真实 DSH 环境</div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="block" id="features">
+  <div class="sec-head">
+    <div class="tag">Features</div>
+    <h2>开箱即用的强大体验</h2>
+    <p>从快速切换到大屏配置，一个面板覆盖模型管理的全部场景。</p>
+  </div>
+
+  <div class="pills">
+    <div class="pill"><div class="num">1</div><div class="lbl">个全局快捷键 Alt+M</div></div>
+    <div class="pill"><div class="num">1</div><div class="lbl">个模糊搜索入口</div></div>
+    <div class="pill"><div class="num">3</div><div class="lbl">大视图：模型 / 配置 / 媒体</div></div>
+    <div class="pill"><div class="num">5</div><div class="lbl">个 OpenRouter 媒体工具</div></div>
+  </div>
+
+  <div style="height:18px"></div>
+
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="ico">🎯</div>
+      <h3>全局命令面板</h3>
+      <ul>
+        <li>任意界面 <kbd>Alt+M</kbd> 唤起</li>
+        <li>文档级渲染，皮肤无法隐藏</li>
+        <li>名称 / ID / 供应商 / 描述 模糊搜索</li>
+        <li>方向键导航，回车即选</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="ico">🏷️</div>
+      <h3>供应商筛选栏</h3>
+      <ul>
+        <li>侧栏实时显示各供应商模型数</li>
+        <li>点击即筛选，一键回到全部</li>
+        <li>当前供应商自动置顶高亮</li>
+        <li>目录加载失败可见并可重试</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="ico">⭐</div>
+      <h3>收藏 &amp; 最近使用</h3>
+      <ul>
+        <li>星标收藏常用模型</li>
+        <li>最近使用优先排序</li>
+        <li>当前模型始终置顶</li>
+        <li>localStorage 跨会话持久化</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="ico">🧠</div>
+      <h3>推理档位选择器</h3>
+      <ul>
+        <li>活动模型支持时自动出现</li>
+        <li>低 / 中 / 高随时切换</li>
+        <li>应用供应商默认档位</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="ico">⚙️</div>
+      <h3>供应商与模型配置</h3>
+      <ul>
+        <li>新增 / 编辑 / 删除供应商</li>
+        <li>协议、Base URL、密钥一站式配置</li>
+        <li>连接测试 + 模型一键导入</li>
+        <li>密钥仅回环可查看，默认掩码</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="ico">📦</div>
+      <h3>在线模型预置</h3>
+      <ul>
+        <li>已核验的上下文 / 输出 / 输入预置</li>
+        <li>GitHub 在线刷新，离线自动回退</li>
+        <li>自动补全缺失参数</li>
+        <li>绝不猜测未知别名</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Install -->
+<section class="block" id="install">
+  <div class="sec-head">
+    <div class="tag">Install</div>
+    <h2>60 秒完成安装</h2>
+    <p>一条命令即可将模型面板接入你的 DeepSeek Harness Web。</p>
+  </div>
+  <div class="install-grid">
+    <div>
+      <div class="tabs">
+        <button class="tab active" data-tab="install-zh">中文</button>
+        <button class="tab" data-tab="install-en">English</button>
+      </div>
+      <div class="tab-pane active" id="install-zh">
+        <pre><span class="cm"># 安装插件（web profile）</span>
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
+
+<span class="cm"># 重启 dsh web，然后按 Alt+M</span>
+dsh web</pre>
+      </div>
+      <div class="tab-pane" id="install-en">
+        <pre><span class="cm"># Install the plugin (web profile)</span>
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
+
+<span class="cm"># Restart dsh web, then press Alt+M</span>
+dsh web</pre>
+      </div>
+    </div>
+    <div class="card">
+      <h3>环境要求</h3>
+      <ul>
+        <li><strong>Node.js</strong> ≥ 22.19</li>
+        <li><strong>DeepSeek Harness</strong> ≥ 4.0.1</li>
+        <li><strong>pnpm</strong> ≥ 11.21（仅开发）</li>
+        <li>无需构建：仓库已提交预构建 lib/ 产物</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Usage -->
+<section class="block" id="usage">
+  <div class="sec-head">
+    <div class="tag">Usage</div>
+    <h2>使用指南</h2>
+    <p>面板、配置与媒体工具，三大视图各司其职。</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="usage-quick">🎮 快速上手</button>
+    <button class="tab" data-tab="usage-config">⚙️ 模型配置</button>
+    <button class="tab" data-tab="usage-media">🖼️ 媒体工具</button>
+  </div>
+
+  <div class="tab-pane active" id="usage-quick">
+    <div class="keys">
+      <div class="key-row"><span class="action">打开 / 关闭面板</span><span><kbd>Alt</kbd> + <kbd>M</kbd></span></div>
+      <div class="key-row"><span class="action">关闭面板</span><span><kbd>Esc</kbd></span></div>
+      <div class="key-row"><span class="action">上 / 下导航</span><span><kbd>↑</kbd> <kbd>↓</kbd></span></div>
+      <div class="key-row"><span class="action">选择高亮模型</span><span><kbd>Enter</kbd></span></div>
+      <div class="key-row"><span class="action">按供应商筛选</span><span>点击左侧栏</span></div>
+      <div class="key-row"><span class="action">收藏 / 取消收藏</span><span>点击 ★</span></div>
+      <div class="key-row"><span class="action">切换推理档位</span><span>底部下拉框</span></div>
+      <div class="key-row"><span class="action">切换三大视图</span><span>左侧栏顶部</span></div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="usage-config">
+    <div class="steps">
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>选择或新建供应商</h4>
+          <p>按 <kbd>Alt+M</kbd> → 「模型配置」，从下拉框选择已有供应商，或点击「新增供应商」。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>配置端点与协议</h4>
+          <p>填写 Base URL、协议类型（openai-completions / openai-responses / anthropic-messages）与凭据引用。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>管理密钥并测试连接</h4>
+          <p>输入 API key（默认掩码），点击「检查连接」探测该端点的模型列表，可一键导入。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>配置模型参数并应用预置</h4>
+          <p>逐模型设置上下文窗口、最大输出、输入类型与兼容参数；用「自动补全」或手动选择官方预置。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>保存，实时生效</h4>
+          <p>供应商配置写入 DSH settings，密钥写入 credentials，无需重启。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="usage-media">
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="ico">🖼️</div>
+        <h3>图像生成</h3>
+        <p>读取 OpenRouter 实时目录，选模型、写提示词，直接生成并保存到配置的输出目录。免费模型优先，不发送对话消息。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🎬</div>
+        <h3>视频生成</h3>
+        <p>提交异步视频任务，支持 1–60 秒时长与分辨率控制，随后在任务区查询状态。</p>
+      </div>
+      <div class="card">
+        <div class="ico">⬇️</div>
+        <h3>任务与下载</h3>
+        <p>输入任务 ID 查询状态，完成后一键下载到输出目录，支持自定义文件名。</p>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+    <div class="keys">
+      <div class="key-row"><span class="action">付费保护</span><span>默认阻止付费生成，可配置放开</span></div>
+      <div class="key-row"><span class="action">非免费模型</span><span>逐次勾选「可能扣费」确认</span></div>
+      <div class="key-row"><span class="action">密钥安全</span><span>OpenRouter 凭据仅在宿主解析</span></div>
+      <div class="key-row"><span class="action">Agent 工具</span><span>5 个工具保留给模型驱动工作流</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Media (static) -->
+<section class="block" id="media">
+  <div class="sec-head">
+    <div class="tag">Media Tools</div>
+    <h2>OpenRouter 媒体工具（可选）</h2>
+    <p>在配置文件中启用补丁后，即可直接生成图像与视频。</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="media-yaml">YAML 补丁</button>
+    <button class="tab" data-tab="media-tools">Agent 工具</button>
+  </div>
+  <div class="tab-pane active" id="media-yaml">
+    <pre><span class="cm"># 在 cordis.patch.yml 或你的 profile 补丁中加入</span>
+- id: dsh-model-palette
+  config:
+    openrouterMedia:
+      enabled: true
+      credentialRef: OPENROUTER_API_KEY
+      outputDir: 'D:\AI\openrouter\outputs'
+      allowPaidImages: false
+      allowPaidVideos: false
+      preferredImageModels: []
+      preferredVideoModels: []</pre>
+  </div>
+  <div class="tab-pane" id="media-tools">
+    <div class="media-cards">
+      <div class="card media-card">
+        <div class="big">🔎</div>
+        <h3>openrouter_media_models</h3>
+        <p>浏览实时图像 / 视频模型与价格，不产生费用。</p>
+        <span class="badge">只读 · 免费</span>
+      </div>
+      <div class="card media-card">
+        <div class="big">🎨</div>
+        <h3>openrouter_generate_image</h3>
+        <p>通过 OpenRouter 生成 / 编辑图像并保存到本地。</p>
+        <span class="badge">付费受控</span>
+      </div>
+      <div class="card media-card">
+        <div class="big">🎬</div>
+        <h3>openrouter_generate_video</h3>
+        <p>提交异步视频生成任务，随后轮询与下载。</p>
+        <span class="badge">付费受控</span>
+      </div>
+      <div class="card media-card">
+        <div class="big">📡</div>
+        <h3>openrouter_video_status</h3>
+        <p>查询已有视频任务状态，不产生新费用。</p>
+        <span class="badge">只读 · 免费</span>
+      </div>
+      <div class="card media-card">
+        <div class="big">⬇️</div>
+        <h3>openrouter_download_video</h3>
+        <p>将完成的视频下载到配置的输出目录。</p>
+        <span class="badge">下载</span>
+      </div>
+      <div class="card media-card">
+        <div class="big">🛡️</div>
+        <h3>安全模型</h3>
+        <p>每次生成前后端复核实时价格；未授权付费一律拒绝。</p>
+        <span class="badge">逐次确认</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-band">
+  <h2>让模型切换变得像呼吸一样自然</h2>
+  <p>安装 dsh-model-palette，在 DeepSeek Harness Web 中体验真正流畅的全局模型管理。</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="#install">⚡ 立即安装</a>
+    <a class="btn btn-ghost" href="#demo">回到演示</a>
+  </div>
+  <div class="hero-shortcuts">
+    <span>MIT License</span>
+    <span>开源 · 免费</span>
+    <span><kbd>Alt</kbd>+<kbd>M</kbd> 即刻体验</span>
+  </div>
+</div>
+
+<footer>
+  <div class="foot-links">
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette">GitHub</a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.md">README</a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md">中文文档</a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/CHANGELOG.md">更新日志</a>
+  </div>
+  <div>© <span id="year"></span> Jensen Yao · dsh-model-palette · 为 DeepSeek Harness 生态用心打造 ❤️</div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Demo catalog ---------- */
+  var CATALOG = [
+    { id: "deepseek", name: "DeepSeek", models: [
+      { id: "deepseek-chat", name: "DeepSeek Chat", desc: "通用对话模型，推理成本低", reason: true, effort: "中 · medium" },
+      { id: "deepseek-reasoner", name: "DeepSeek Reasoner", desc: "深度推理模型，擅长数学与逻辑", reason: true, effort: "高 · high" },
+      { id: "deepseek-vl", name: "DeepSeek VL", desc: "多模态视觉语言模型", reason: false }
+    ]},
+    { id: "openai", name: "OpenAI", models: [
+      { id: "gpt-5.5", name: "GPT-5.5", desc: "旗舰模型 · 上下文 1,050k", reason: true, effort: "中 · medium" },
+      { id: "gpt-5.5-mini", name: "GPT-5.5 Mini", desc: "轻量高速，适合日常任务", reason: true, effort: "低 · low" },
+      { id: "gpt-5.5-nano", name: "GPT-5.5 Nano", desc: "极小模型，极致延迟", reason: false }
+    ]},
+    { id: "anthropic", name: "Anthropic", models: [
+      { id: "claude-opus-5", name: "Claude Opus 5", desc: "旗舰推理 · 上下文 1,000k", reason: true, effort: "高 · high" },
+      { id: "claude-sonnet-5", name: "Claude Sonnet 5", desc: "平衡能力与成本", reason: true, effort: "中 · medium" },
+      { id: "claude-haiku-5", name: "Claude Haiku 5", desc: "快速响应，低延迟", reason: false }
+    ]},
+    { id: "google", name: "Google", models: [
+      { id: "gemini-3-pro", name: "Gemini 3 Pro", desc: "多模态旗舰", reason: true, effort: "中 · medium" },
+      { id: "gemini-3-flash", name: "Gemini 3 Flash", desc: "快速多模态", reason: false },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "高性价比", reason: false }
+    ]},
+    { id: "xai", name: "xAI", models: [
+      { id: "grok-4", name: "Grok 4", desc: "实时信息强项", reason: true, effort: "中 · medium" },
+      { id: "grok-4-mini", name: "Grok 4 Mini", desc: "轻量快速", reason: false }
+    ]},
+    { id: "openrouter", name: "OpenRouter", models: [
+      { id: "auto", name: "Auto Router", desc: "智能路由到最优供应商", reason: false }
+    ]}
+  ];
+
+  var favorites = new Set();
+  var recents = ["openai\u0000gpt-5.5", "deepseek\u0000deepseek-chat"];
+  var currentKey = "deepseek\u0000deepseek-chat";
+  var providerFilter = null;
+  var query = "";
+  var cursor = 0;
+
+  var searchEl = document.getElementById("demo-search");
+  var railEl = document.getElementById("demo-rail");
+  var resultsEl = document.getElementById("demo-results");
+  var countEl = document.getElementById("count-label");
+  var currentEl = document.getElementById("demo-current");
+
+  function choices() {
+    var out = [];
+    CATALOG.forEach(function (g) {
+      g.models.forEach(function (m) {
+        out.push({ key: g.id + "\u0000" + m.id, provider: g, model: m });
+      });
+    });
+    return out;
+  }
+
+  function norm(s) { return (s || "").toLowerCase().trim(); }
+
+  function score(ch, q) {
+    if (q === "") return 1;
+    var fields = [ch.model.name, ch.model.id, ch.provider.name, ch.provider.id, ch.model.desc];
+    for (var i = 0; i < fields.length; i++) {
+      if (norm(fields[i]).indexOf(norm(q)) !== -1) return 100 - i;
+    }
+    return 0;
+  }
+
+  function filtered() {
+    var all = choices();
+    var ranked = all.filter(function (ch) {
+      if (providerFilter !== null && ch.provider.id !== providerFilter) return false;
+      return score(ch, query) > 0;
+    });
+    ranked.sort(function (a, b) {
+      var ac = a.key === currentKey, bc = b.key === currentKey;
+      if (ac !== bc) return ac ? -1 : 1;
+      var af = favorites.has(a.key), bf = favorites.has(b.key);
+      if (af !== bf) return af ? -1 : 1;
+      var ar = recents.indexOf(a.key), br = recents.indexOf(b.key);
+      var arv = ar === -1 ? 999 : ar, brv = br === -1 ? 999 : br;
+      if (arv !== brv) return arv - brv;
+      return score(b, query) - score(a, query);
+    });
+    return ranked;
+  }
+
+  function renderRail() {
+    var html = "";
+    html += '<button class="rail-item' + (providerFilter === null ? " active" : "") + '" data-id="">' +
+      "<span>全部供应商</span><small>" + choices().length + "</small></button>";
+    CATALOG.forEach(function (g) {
+      var active = providerFilter === g.id ? " active" : "";
+      html += '<button class="rail-item' + active + '" data-id="' + g.id + '">' +
+        "<span>" + g.name + "</span><small>" + g.models.length + "</small></button>";
+    });
+    railEl.innerHTML = html;
+    railEl.querySelectorAll(".rail-item").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        providerFilter = btn.getAttribute("data-id") || null;
+        cursor = 0;
+        renderRail();
+        renderResults();
+      });
+    });
+  }
+
+  function renderResults() {
+    var list = filtered();
+    if (list.length === 0) {
+      resultsEl.innerHTML = '<div class="result-empty">没有匹配的模型</div>';
+      return;
+    }
+    if (cursor >= list.length) cursor = list.length - 1;
+    if (cursor < 0) cursor = 0;
+    var html = "";
+    list.forEach(function (ch, i) {
+      var active = i === cursor ? " active" : "";
+      var isCur = ch.key === currentKey;
+      var cur = isCur ? " current" : "";
+      var badge = isCur ? '<em>当前</em>' : (recents.indexOf(ch.key) !== -1 ? '<em>最近</em>' : (favorites.has(ch.key) ? '<em class="warn">★收藏</em>' : ""));
+      var reason = ch.model.reason ? '<span class="result-reason">R</span>' : "";
+      var star = favorites.has(ch.key) ? '<button class="result-star on" data-key="' + ch.key + '" title="取消收藏">★</button>' : '<button class="result-star" data-key="' + ch.key + '" title="加入收藏">☆</button>';
+      html += '<div class="result' + active + cur + '" data-index="' + i + '">' +
+        '<div class="result-main">' +
+          '<div class="result-title">' + ch.model.name + badge + "</div>" +
+          '<div class="result-meta"><strong>' + ch.provider.name + "</strong><span>" + ch.model.id + "</span></div>" +
+          (ch.model.desc ? '<div style="font-size:11px;color:#6d7a93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + ch.model.desc + "</div>" : "") +
+        "</div>" +
+        reason + star +
+      "</div>";
+    });
+    resultsEl.innerHTML = html;
+
+    resultsEl.querySelectorAll(".result").forEach(function (row) {
+      row.addEventListener("click", function () {
+        var ch = list[Number(row.getAttribute("data-index"))];
+        if (ch) select(ch);
+      });
+      row.addEventListener("mouseenter", function () {
+        cursor = Number(row.getAttribute("data-index"));
+        renderResults();
+      });
+    });
+    resultsEl.querySelectorAll(".result-star").forEach(function (btn) {
+      btn.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var key = btn.getAttribute("data-key");
+        if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
+        renderResults();
+      });
+    });
+  }
+
+  function select(ch) {
+    currentKey = ch.key;
+    recents = [ch.key].concat(recents.filter(function (k) { return k !== ch.key; })).slice(0, 12);
+    var now = ch.model.name + " · " + ch.provider.name;
+    currentEl.textContent = now;
+    var effortEl = document.getElementById("demo-effort");
+    if (ch.model.reason && ch.model.effort) {
+      var val = ch.model.effort;
+      Array.prototype.forEach.call(effortEl.options, function (o, i) {
+        if (o.text === val) effortEl.selectedIndex = i;
+      });
+    }
+    renderResults();
+  }
+
+  function onSearch() {
+    query = searchEl.value;
+    cursor = 0;
+    renderResults();
+  }
+
+  searchEl.addEventListener("input", onSearch);
+  document.getElementById("demo-clear").addEventListener("click", function () {
+    searchEl.value = "";
+    onSearch();
+  });
+
+  var open = true;
+  function toggleDemo(force) {
+    open = force === undefined ? !open : force;
+    var p = document.querySelector(".palette");
+    p.style.display = open ? "" : "none";
+    document.getElementById("demo-close").textContent = open ? "×" : "＋";
+  }
+  document.getElementById("demo-close").addEventListener("click", function () { toggleDemo(); });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.altKey && !ev.ctrlKey && !ev.metaKey && ev.key.toLowerCase() === "m") {
+      ev.preventDefault();
+      toggleDemo();
+    }
+    if (ev.key === "Escape") { toggleDemo(false); return; }
+    if (ev.key === "ArrowDown") { ev.preventDefault(); cursor = Math.min(cursor + 1, filtered().length - 1); renderResults(); }
+    if (ev.key === "ArrowUp") { ev.preventDefault(); cursor = Math.max(0, cursor - 1); renderResults(); }
+    if (ev.key === "Enter") {
+      var list = filtered();
+      if (list[cursor]) select(list[cursor]);
+    }
+  });
+
+  function updateCount() { countEl.textContent = choices().length; }
+
+  /* ---------- Tabs ---------- */
+  document.querySelectorAll(".tabs").forEach(function (wrap) {
+    wrap.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        wrap.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+        tab.classList.add("active");
+        var target = tab.getAttribute("data-tab");
+        var panes = wrap.parentElement.querySelectorAll(".tab-pane");
+        panes.forEach(function (pane) { pane.classList.toggle("active", pane.id === target); });
+      });
+    });
+  });
+
+  document.getElementById("year").textContent = new Date().getFullYear();
+  renderRail();
+  renderResults();
+  updateCount();
+})();
+</script>
+</body>
+</html>

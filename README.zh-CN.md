@@ -1,48 +1,128 @@
-# dsh-model-palette
+<div align="center">
+  <img src="assets/icon.svg" width="96" height="96" alt="DSH Model Palette" />
+  <h1>dsh-model-palette</h1>
+  <p>
+    <strong>DeepSeek Harness Web 的全局供应商感知模型命令面板</strong>
+  </p>
+  <p>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases"><img src="https://img.shields.io/github/v/release/Jensen-Yao/dsh-model-palette" alt="Latest Release" /></a>
+    <a href="https://www.npmjs.com/package/dsh-model-palette"><img src="https://img.shields.io/badge/dsh-plugin-4.0.1+-6a4cff" alt="DSH Plugin" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.md"><img src="https://img.shields.io/badge/English-Doc-0078ff" alt="English Doc" /></a>
+  </p>
+  <p>
+    <kbd>Alt+M</kbd> &nbsp;·&nbsp; 模糊搜索 &nbsp;·&nbsp; 供应商筛选 &nbsp;·&nbsp; 模型配置 &nbsp;·&nbsp; OpenRouter 媒体工具
+  </p>
+</div>
 
-DeepSeek Harness Web 的全局模型命令面板。按 **Alt+M**，或点击输入框上方的模型按钮，即可在一个搜索框里按供应商名称、供应商 ID、模型名称、模型 ID 或描述查找模型。
+---
 
-## 功能
+**dsh-model-palette** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的一款插件，用强大的全局命令面板取代原生模型选择器。在 Web 界面的任意位置按下 **Alt+M**，或点击输入框的模型触发器，即可跨所有供应商即时搜索、筛选、收藏和切换模型。
 
-- **Alt+M** 全局快捷键。
-- 弹窗挂载在页面顶层，不会被 Deepcel 等隐藏原生输入栏控件的皮肤一起隐藏。
-- 供应商和模型共用一个模糊搜索入口。
-- 左侧供应商快速筛选，并显示各供应商模型数量。
-- 当前模型、收藏和最近使用自动排在前面。
-- 相同名称的模型仍按供应商隔离，不会切错线路。
-- 当前模型的推理档位可直接切换。
-- 显示加载失败的供应商并支持重试。
-- 内置“模型配置”面板，可编辑自定义供应商名称、Base URL、协议、Credential ref 和模型参数。
-- API key 默认遮罩；可修改、检查连接，并且只有从 `127.0.0.1` / `localhost` 直连时才允许读取已存 key。LAN 与反向代理访问不能显露密钥。
-- 模型预置包含经官方资料核验的上下文窗口、最大输出和 Text/Image 输入能力；支持从 GitHub 刷新，未知别名不会自动猜测，也可以手工指定预置。
-- 可选集成 OpenRouter 图像/视频工具，默认禁止付费生成。
-- 模型面板内置“媒体工具”入口，直接读取完整实时目录；对未识别为免费的模型提供逐次人工确认后尝试，并可提交生成、查询视频状态和下载结果，不写入对话。
+## ✨ 功能特性
 
-## 安装
+<table>
+<tr>
+<td width="50%">
+
+### 🎯 全局命令面板
+- 任意位置可用 **<kbd>Alt+M</kbd>** 快捷键唤起
+- 对话框渲染在文档层，隐藏原生输入控件的皮肤无法一并隐藏面板
+- 统一的模糊搜索：模型名、模型 ID、供应商名、供应商 ID 一次搜索搞定
+- 方向键导航 + 回车选择
+
+</td>
+<td width="50%">
+
+### 🏷️ 供应商筛选栏
+- 侧边栏列出所有供应商及实时模型数量
+- 点击任意供应商筛选；点击「全部供应商」重置
+- 当前供应商自动置顶高亮
+- 供应商目录加载失败有可见提示
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ⭐ 收藏与最近使用
+- 为任意模型点亮星标加入收藏
+- 最近使用过的模型优先排序
+- 当前模型始终置顶
+- 收藏与最近记录保存在 `localStorage`，跨会话持久化
+
+</td>
+<td width="50%">
+
+### 🧠 推理档位选择器
+- 当活动模型支持推理档位时，底部出现下拉选择器
+- 随时切换推理档位（低 / 中 / 高）
+- 自动应用供应商特定的默认档位
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ⚙️ 供应商与模型配置
+直接在界面中新增、编辑或删除供应商：
+- 配置 **供应商 ID**、**显示名称**、**Base URL** 与 **协议类型**（`openai-completions`、`openai-responses`、`anthropic-messages`）
+- 设置 **凭据引用** 与 **API key**（默认掩码显示）
+- 通过 `llm.discoverModels` **测试连接**，并可一键导入探测到的模型
+- 安全设计：已存的 key 仅在直连 `127.0.0.1` / `localhost` 时可查看
+
+</td>
+<td width="50%">
+
+### 📦 模型预置
+- **内置预置**：已核验的上下文窗口、最大输出与输入类型
+- **在线刷新**：从 GitHub 拉取最新预置数据
+- **自动补全**：为精确匹配的模型自动填充缺失参数
+- **手动选择**：私有网关别名可手动选择官方预置
+- 绝不猜测未知别名，只应用经过核验的数据
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🖼️ OpenRouter 媒体工具（可选）
+- **图像生成** — 选模型、写提示词、直接生成
+- **视频生成** — 提交异步任务，支持时长控制
+- **任务管理** — 查询状态、下载完成的视频
+- 所有操作直接执行，不向会话发送提示词
+- **默认阻止付费生成**，可通过配置放开
+
+</td>
+<td width="50%">
+
+### 🔒 安全与隐私
+- API key 默认掩码，存入 DSH credentials 服务
+- 凭据查看仅限回环连接，杜绝局域网/反向代理泄露
+- 所有插件 API 均有跨站请求伪造防护
+- OpenRouter 凭据由宿主解析，绝不下发浏览器
+- 非免费媒体模型需逐次确认可能扣费
+
+</td>
+</tr>
+</table>
+
+## 🚀 快速开始
+
+### 安装
 
 ```sh
 dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
 ```
 
-重启 `dsh web` 后按 **Alt+M**。
+重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
 
-## 供应商与模型配置
+### 启用 OpenRouter 媒体工具（可选）
 
-按 **Alt+M**，点击左侧 **模型配置**：
-
-1. 选择已有自定义供应商，或点击“新增供应商”。
-2. 编辑显示名称、Base URL、协议和 Credential ref。`openai-responses` 只是线路协议，不代表 Agent 模式；必须按供应商端点实际支持选择。
-3. API key 留空会保留原值；输入新值后由 DSH `credentials.set` 保存。点击“检查连接”会通过 DSH `llm.discoverModels` 读取供应商模型目录，不发送对话或模型推理请求。
-4. 每个模型可编辑上下文窗口、最大输出、Text/Image 输入类型和常用兼容开关。点击“自动补全缺失参数”只应用精确匹配；供应商私有别名可在模型行中手工选择对应官方预置。
-5. 点击“应用配置”，插件通过 DSH `settings.mutate` 实时写入，未知高级字段会保留。
-
-插件不会通过 DSH 公共 credentials RPC 读取 key。为了满足本机检查需求，读取已存 key 使用插件自己的严格直连本机路由：请求来源、Host、Origin 和远端地址都必须是 loopback，并拒绝 `Forwarded`、`X-Forwarded-For` 和 Cloudflare 代理头。通过局域网地址或 Tunnel 打开的页面只能修改 key，不能看到旧值。
-
-## 可选 OpenRouter 媒体工具
-
-插件市场安装后不会默认要求其他用户配置 OpenRouter。需要时在 profile 的 `cordis.patch.yml` 中加入：
+如需启用可选的图像 / 视频生成工具，在配置文件中加入以下补丁：
 
 ```yaml
+# cordis.patch.yml 或你的 profile 补丁文件
 - id: dsh-model-palette
   config:
     openrouterMedia:
@@ -55,21 +135,122 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
       preferredVideoModels: []
 ```
 
-启用后注册五个 agent 工具：模型与价格查询、生图、视频任务提交、视频状态查询和视频下载。生成前会读取实时价格；除非显式打开对应开关，否则 agent 发起的付费图像/视频请求都会在提交前被拒绝。模型无法使用面板专属的人工确认绕过该限制。
+注册的五个 Agent 工具：
 
-按 **Alt+M** 打开模型面板，再点击左侧 **媒体工具**。面板会通过插件自己的同源 API 直接读取 OpenRouter 完整实时目录。价格接口识别为免费的模型可以直接使用；未识别为免费的模型仍能手工选择，因为部分促销限免可能没有进入价格数据。当全局付费开关关闭时，每次提交前都必须勾选“本次请求可能扣费”确认，点击提交后确认立即重置；如果实际收费，费用仍由你的 OpenRouter 账户承担。生成、状态查询和下载直接调用插件后端，不会向当前对话发送提示词；每次生成前，服务端还会再次查询实时价格。OpenRouter 密钥只由 DSH credentials 服务在服务端解析，浏览器不会读取密钥。
+| 工具 | 说明 |
+|------|------|
+| `openrouter_media_models` | 浏览 OpenRouter 实时图像 / 视频模型与价格 |
+| `openrouter_generate_image` | 通过 OpenRouter 生成图像 |
+| `openrouter_generate_video` | 提交异步视频生成任务 |
+| `openrouter_video_status` | 查询视频任务状态 |
+| `openrouter_download_video` | 下载已完成的视频到配置的输出目录 |
 
-五个 agent 工具仍然保留，模型需要时可以调用；媒体面板不再依赖当前模型或 agent 是否理解这些工具。完整说明见 [`docs/openrouter-media.zh-CN.md`](docs/openrouter-media.zh-CN.md)。
+## 🎮 使用面板
 
-## 开发
+### 基本操作
+
+| 操作 | 方式 |
+|------|------|
+| 打开面板 | 按 **<kbd>Alt+M</kbd>** 或点击 ⌘ 模型触发器 |
+| 关闭面板 | 按 **<kbd>Esc</kbd>** 或点击对话框外部 |
+| 搜索 | 在搜索框输入——匹配模型名、模型 ID、供应商名、供应商 ID 与描述 |
+| 导航 | **<kbd>↑</kbd>** / **<kbd>↓</kbd>** 方向键 |
+| 选择 | 高亮行按 **<kbd>Enter</kbd>** |
+| 供应商筛选 | 点击左侧栏中的供应商 |
+| 收藏 / 取消收藏 | 点击模型行的 ★ 星标 |
+| 切换推理档位 | 使用底部下拉框（活动模型支持时显示） |
+
+### 配置面板
+
+按 **<kbd>Alt+M</kbd>**，在左侧栏选择「模型配置」，即可：
+
+1. **选择或新建供应商** — 从下拉框选择，或点击「新增供应商」
+2. **配置端点** — 设置 Base URL、协议类型与凭据引用
+3. **管理 API key** — 输入新 key 或读取已存 key（仅回环）
+4. **测试连接** — 点击「检查连接」探测模型
+5. **配置模型** — 逐个模型设置上下文窗口、最大输出、输入类型
+6. **应用预置** — 从注册表自动补全或手动选择
+7. **保存** — 供应商配置写入 DSH settings，key 写入 credentials
+
+### 媒体工具面板
+
+按 **<kbd>Alt+M</kbd>**，在左侧栏选择「媒体工具」，即可：
+
+1. 面板自动加载 OpenRouter 实时图像 / 视频目录
+2. 标记为**免费**的模型可正常使用
+3. 未被价格接口识别为**免费**的模型，每次提交前需勾选可能扣费确认
+4. 图像生成同步执行，保存到输出目录
+5. 视频生成提交异步任务——完成后查询状态并下载
+
+## 🛠️ 开发
 
 ```sh
+# 克隆仓库
+git clone https://github.com/Jensen-Yao/dsh-model-palette.git
+cd dsh-model-palette
+
+# 安装依赖
 pnpm install
+
+# 类型检查 + 测试 + 构建
 pnpm check
+
+# 仅构建
+pnpm build
+
+# 仅测试
+pnpm test
 ```
 
-仓库提交预构建的 `lib/`，从 GitHub 安装时不需要执行构建脚本。
+仓库已提交预构建的 `lib/` 文件，GitHub 安装无需构建脚本。
 
-## 许可
+### 项目结构
 
-MIT
+```
+dsh-model-palette/
+├── src/
+│   ├── client/              # 前端 React 组件
+│   │   ├── index.tsx        # 客户端入口与插槽注册
+│   │   ├── ModelPalette.tsx  # 主面板组件
+│   │   ├── ConfigPanel.tsx   # 供应商与模型配置界面
+│   │   ├── MediaPanel.tsx    # OpenRouter 媒体工具界面
+│   │   ├── model.ts          # 搜索、排序、收藏逻辑
+│   │   ├── model-config.ts   # 配置数据工具函数
+│   │   ├── model-presets.ts  # 预置注册表管理
+│   │   ├── config-api.ts     # 配置 API 客户端
+│   │   ├── media-api.ts      # 媒体 API 客户端
+│   │   ├── locales.ts        # i18n（中 / 英）
+│   │   ├── types.ts          # TypeScript 类型定义
+│   │   └── style.css         # 组件样式
+│   ├── index.js              # 插件入口（服务端）
+│   ├── openrouter-media.js   # OpenRouter 媒体后端
+│   ├── model-config-api.js   # 模型配置 API 后端
+│   └── media-protocol.ts     # 共享协议常量
+├── assets/
+│   ├── icon.svg              # 插件图标
+│   └── model-presets.json    # 内置模型预置
+├── docs/
+│   └── openrouter-media.zh-CN.md  # 媒体工具说明文档（中文）
+├── tests/                    # 单元测试
+├── lib/                      # 预构建产物
+├── package.json
+├── tsconfig.json
+├── tsdown.config.ts
+└── cordis.patch.yml
+```
+
+## 📋 环境要求
+
+- **Node.js** >= 22.19
+- **DeepSeek Harness** >= 4.0.1
+- **pnpm** >= 11.21（开发用）
+
+## 📄 许可证
+
+[MIT](LICENSE) © Jensen Yao
+
+---
+
+<div align="center">
+  <sub>为 DeepSeek Harness 生态用心打造 ❤️</sub>
+</div>
