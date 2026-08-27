@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ConfigPanel } from './ConfigPanel.tsx'
 import { MediaPanel } from './MediaPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
+import { ensureSelectionCompatibility, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
@@ -39,6 +40,10 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (
     target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
   )
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
@@ -148,6 +153,15 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }, [cursor])
 
   const choose = async (choice: ModelChoice) => {
+    if (mayNeedReasoningCompatibility(choice.provider.id, choice.model.id, choice.model.name)) {
+      try {
+        const repaired = await ensureSelectionCompatibility(api, choice.provider.id, choice.model.id)
+        if (repaired.length > 0) load()
+      } catch (cause) {
+        setError(t('palette.compatRepairFailed', { message: messageOf(cause) }))
+        return
+      }
+    }
     const accepted = await select(choice.selection)
     if (!accepted) {
       setError(t('palette.selectFailed'))

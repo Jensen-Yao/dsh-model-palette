@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyMissingPresets,
+  applyReasoningCompatibilityDefaults,
   deriveCredentialRef,
   duplicateModelIds,
   duplicateModelTemplate,
   mergeDiscoveredModels,
   nextProviderCopyId,
+  repairProviderCompatibility,
   setCompatField,
   setInputModality,
 } from '../src/client/model-config.ts'
@@ -40,6 +42,70 @@ describe('model configuration helpers', () => {
       reasoningEfforts: { high: 'high' },
       input: ['image'],
       compat: { maxTokensField: 'max_tokens', supportsDeveloperRole: false },
+    })
+  })
+
+  it('repairs DeepSeek reasoning replay compatibility for custom OpenAI gateways', () => {
+    const result = repairProviderCompatibility({
+      api: 'openai-completions',
+      models: [{ id: 'deepseek-v4-flash' }],
+    })
+    expect(result).toMatchObject({ changed: true, repairedModels: ['deepseek-v4-flash'] })
+    expect(result.profile.models).toEqual([{
+      id: 'deepseek-v4-flash',
+      compat: {
+        thinkingFormat: 'deepseek',
+        requiresReasoningContentOnAssistantMessages: true,
+        supportsDeveloperRole: false,
+      },
+    }])
+  })
+
+  it('repairs an explicitly marked DeepSeek dialect even when the model id is a gateway alias', () => {
+    const result = applyReasoningCompatibilityDefaults('openai-completions', {
+      id: 'v4-flash',
+      compat: { thinkingFormat: 'deepseek' },
+    })
+    expect(result).toEqual({
+      changed: true,
+      model: {
+        id: 'v4-flash',
+        compat: {
+          thinkingFormat: 'deepseek',
+          requiresReasoningContentOnAssistantMessages: true,
+          supportsDeveloperRole: false,
+        },
+      },
+    })
+  })
+
+  it('does not rewrite ordinary models or explicit compatibility choices', () => {
+    expect(repairProviderCompatibility({
+      api: 'openai-completions',
+      models: [{ id: 'gpt-5.6' }],
+    }).changed).toBe(false)
+    expect(repairProviderCompatibility({
+      api: 'openai-completions',
+      models: [{ id: 'deepseek-v4-flash', compat: { thinkingFormat: 'openai' } }],
+    }).changed).toBe(false)
+    expect(applyReasoningCompatibilityDefaults('openai-responses', { id: 'deepseek-v4-flash' })).toEqual({
+      changed: false,
+      model: { id: 'deepseek-v4-flash' },
+    })
+  })
+
+  it('keeps manual values while filling only missing DeepSeek fields', () => {
+    const result = applyReasoningCompatibilityDefaults('openai-completions', {
+      id: 'deepseek-v4-flash',
+      compat: { supportsDeveloperRole: true, requiresReasoningContentOnAssistantMessages: false },
+    })
+    expect(result.model).toEqual({
+      id: 'deepseek-v4-flash',
+      compat: {
+        supportsDeveloperRole: true,
+        requiresReasoningContentOnAssistantMessages: false,
+        thinkingFormat: 'deepseek',
+      },
     })
   })
 

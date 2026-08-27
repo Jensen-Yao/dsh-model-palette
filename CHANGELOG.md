@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 - 2026-08-27
+
+- Detect known DeepSeek-dialect models served through custom `openai-completions` gateways.
+- Repair missing `thinkingFormat`, assistant `reasoning_content` replay, and developer-role compatibility without overriding manual values.
+- Run the repair preflight automatically before selecting an affected model.
+- Show affected models in the configuration panel and provide one-click repair and apply.
+- Add focused tests for BankOfAI-style routes, ordinary models, manual overrides, and selection-time settings writes.
+
 ## 0.5.0 - 2026-08-26
 
 - Add Favorites only and Recent models quick filters to the global palette.

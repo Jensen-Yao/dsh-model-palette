@@ -107,6 +107,73 @@ export function compatValue(source: Record<string, unknown>, key: string): unkno
   return isRecord(source.compat) ? source.compat[key] : undefined
 }
 
+export interface CompatibilityRepairResult {
+  profile: Record<string, unknown>
+  changed: boolean
+  repairedModels: string[]
+}
+
+/**
+ * Add the replay fields required by DeepSeek reasoning models behind custom
+ * OpenAI-compatible gateways. Explicit compatibility values always win.
+ */
+export function applyReasoningCompatibilityDefaults(
+  protocol: string,
+  model: Record<string, unknown>,
+): { model: Record<string, unknown>; changed: boolean } {
+  const next = structuredClone(model)
+  if (protocol !== 'openai-completions') return { model: next, changed: false }
+  const compat = isRecord(next.compat) ? structuredClone(next.compat) : {}
+  const explicitThinkingFormat = typeof compat.thinkingFormat === 'string' ? compat.thinkingFormat : undefined
+  if (explicitThinkingFormat !== undefined && explicitThinkingFormat !== 'deepseek') {
+    return { model: next, changed: false }
+  }
+  const identity = [next.id, next.name]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLocaleLowerCase()
+  const isDeepSeekDialect = explicitThinkingFormat === 'deepseek'
+    || compat.requiresReasoningContentOnAssistantMessages === true
+    || identity.includes('deepseek')
+  if (!isDeepSeekDialect) return { model: next, changed: false }
+  let changed = false
+  if (isDeepSeekDialect && compat.thinkingFormat === undefined) {
+    compat.thinkingFormat = 'deepseek'
+    changed = true
+  }
+  if (compat.requiresReasoningContentOnAssistantMessages === undefined) {
+    compat.requiresReasoningContentOnAssistantMessages = true
+    changed = true
+  }
+  if (compat.supportsDeveloperRole === undefined) {
+    compat.supportsDeveloperRole = false
+    changed = true
+  }
+  if (changed) next.compat = compat
+  return { model: next, changed }
+}
+
+/** Repair all eligible models in a provider profile without changing manual values. */
+export function repairProviderCompatibility(
+  profile: Record<string, unknown>,
+  modelId?: string,
+): CompatibilityRepairResult {
+  const next = structuredClone(profile)
+  const protocol = stringField(next, 'api')
+  const sourceModels = modelRecords(next)
+  const repairedModels: string[] = []
+  const models = sourceModels.map((model) => {
+    if (modelId !== undefined && model.id !== modelId) return structuredClone(model)
+    const result = applyReasoningCompatibilityDefaults(protocol, model)
+    if (result.changed) {
+      repairedModels.push(typeof model.id === 'string' && model.id.trim() !== '' ? model.id.trim() : 'unknown model')
+    }
+    return result.model
+  })
+  if (repairedModels.length > 0) next.models = models
+  return { profile: next, changed: repairedModels.length > 0, repairedModels }
+}
+
 export function applyMissingPresets(
   models: readonly Record<string, unknown>[],
   presets: readonly ModelPreset[],

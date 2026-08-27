@@ -16,6 +16,7 @@ import {
   modelRecords,
   nextProviderCopyId,
   providerProfiles,
+  repairProviderCompatibility,
   setCompatField,
   setInputModality,
   setOptionalPositiveInteger,
@@ -94,6 +95,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   )
   const providerIds = useMemo(() => Object.keys(profiles).sort((left, right) => left.localeCompare(right)), [profiles])
   const models = useMemo(() => modelRecords(draft), [draft])
+  const compatibilityRepair = useMemo(() => repairProviderCompatibility(draft), [draft])
   const visibleModels = useMemo(() => {
     const query = modelQuery.trim().toLocaleLowerCase()
     return models.map((model, index) => ({ model, index })).filter(({ model }) => query === '' || [model.id, model.name]
@@ -406,15 +408,17 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       const profile = structuredClone(draft)
       profile.apiKeyEnv = ref
       profile.models = models.map(model => ({ ...model, id: String(model.id).trim() }))
+      const repaired = repairProviderCompatibility(profile)
+      const savedProfile = repaired.profile
       const response = await api.settings.mutate({
         ns: SETTINGS_NAMESPACE,
-        ops: [{ op: 'set', path: ['providers', id], value: profile }],
+        ops: [{ op: 'set', path: ['providers', id], value: savedProfile }],
         expectedRevision: namespace.revision,
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
       setNamespace(response.result.value)
-      setDraft(profile)
-      setBaselineSignature(draftSignature(id, profile))
+      setDraft(savedProfile)
+      setBaselineSignature(draftSignature(id, savedProfile))
       if (key !== '') {
         const stored = await api.credentials.set({ ref, value: key })
         if (!stored.result.ok) throw new Error(`${t('config.settingsSavedKeyFailed')}: ${stored.result.error.message}`)
@@ -424,7 +428,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setKeyDraft('')
       setKeyVisible(false)
       await describeCredential(ref)
-      setFeedback(t('config.saved'))
+      setFeedback(repaired.changed
+        ? t('config.savedWithCompatibilityRepair', { count: repaired.repairedModels.length })
+        : t('config.saved'))
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
@@ -457,6 +463,20 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
       {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
       {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+      {compatibilityRepair.changed && (
+        <div className="dmp-config-compat-warning" role="status">
+          <div>
+            <strong>{t('config.reasoningRepairTitle')}</strong>
+            <span>{t('config.reasoningRepairDescription', {
+              count: compatibilityRepair.repairedModels.length,
+              models: compatibilityRepair.repairedModels.join(', '),
+            })}</span>
+          </div>
+          <button type="button" disabled={busy !== null} onClick={() => void save()}>
+            {busy === 'save' ? t('config.saving') : t('config.reasoningRepairApply')}
+          </button>
+        </div>
+      )}
 
       <section className="dmp-config-card">
         <div className="dmp-config-card-heading">
@@ -522,7 +542,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
             {discovered.length > 0 && <button type="button" disabled={busy !== null} onClick={importDiscovered}>{t('config.importDiscovery', { count: discovered.length })}</button>}
-            <button className="dmp-media-primary" type="button" disabled={busy !== null || !dirty} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
+            <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
       </section>

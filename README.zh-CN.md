@@ -74,6 +74,8 @@
 - 通过 `llm.discoverModels` **测试连接**，并可一键导入探测到的模型
 - 可复制已有供应商，自动生成独立的凭据引用草稿，避免覆盖原线路
 - 可筛选长模型列表、复制模型参数，并在保存前拒绝重复模型 ID
+- 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
+- 配置页会列出这类模型缺失的 `thinkingFormat` / `reasoning_content` 设置，并支持一键修复应用
 - 切换供应商、重新读取或离开页面前会提示未保存修改
 - 安全设计：已存的 key 仅在直连 `127.0.0.1` / `localhost` 时可查看
 
@@ -179,8 +181,9 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
 5. **测试连接** — 点击「检查连接」探测模型
 6. **配置模型** — 筛选长列表、复制参数，逐个设置上下文窗口、最大输出、输入类型
 7. **应用预置** — 从注册表自动补全或手动选择
-8. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
-9. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
+8. **修复已知方言兼容项** — DeepSeek 兼容端点缺少历史 `reasoning_content` 回传配置时，点击「修复并应用」；正常切换模型时插件也会自动预检
+9. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
+10. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
 
 ### 媒体工具面板
 
@@ -226,6 +229,7 @@ dsh-model-palette/
 │   │   ├── MediaPanel.tsx    # OpenRouter 媒体工具界面
 │   │   ├── model.ts          # 搜索、排序、收藏逻辑
 │   │   ├── model-config.ts   # 配置数据工具函数
+│   │   ├── selection-compatibility.ts # 切换模型前的 DeepSeek 兼容预检
 │   │   ├── model-presets.ts  # 预置注册表管理
 │   │   ├── config-api.ts     # 配置 API 客户端
 │   │   ├── media-api.ts      # 媒体 API 客户端

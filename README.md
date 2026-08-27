@@ -74,6 +74,8 @@ Add, edit, or remove provider profiles directly from the UI:
 - **Test connection** via `llm.discoverModels` and import discovered models
 - Duplicate a working provider into a new draft with a separate credential reference
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
+- Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
+- List affected models missing `thinkingFormat` / `reasoning_content` replay settings and provide one-click repair in the config panel
 - Warn before discarding unsaved edits and protect drafts with a browser unload guard
 - Security: stored keys can only be revealed through direct `127.0.0.1` / `localhost` access
 
@@ -179,8 +181,9 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 5. **Test the connection** — click "Check connection" to discover models
 6. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
 7. **Apply presets** — auto-fill from the registry or select manually
-8. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-9. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+8. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+9. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+10. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
 ### Media Tools Panel
 
@@ -226,6 +229,7 @@ dsh-model-palette/
 │   │   ├── MediaPanel.tsx    # OpenRouter media tools UI
 │   │   ├── model.ts          # Search, ranking, favorites logic
 │   │   ├── model-config.ts   # Configuration data utilities
+│   │   ├── selection-compatibility.ts # DeepSeek compatibility preflight before selection
 │   │   ├── model-presets.ts  # Preset registry management
 │   │   ├── config-api.ts     # Config API client
 │   │   ├── media-api.ts      # Media API client
