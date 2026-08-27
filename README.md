@@ -19,6 +19,8 @@
 
 **dsh-model-palette** is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that replaces the native model selector with a powerful, global command palette. Press **Alt+M** from anywhere in the Web UI — or click the composer trigger — and instantly search, filter, favorite, and switch models across all your providers.
 
+Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
+
 ## ✨ Features
 
 <table>
