@@ -134,7 +134,14 @@
 .dmp-config-status-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-inverted); }
 .dmp-config-status-row > span.is-ok { color: #22a06b; }
 .dmp-config-status-row > div { margin-left: auto; }
+.dmp-config-protocol-model { display: flex; align-items: center; gap: 6px; color: var(--dsw-alias-label-tertiary); font-size: 10.5px; }
+.dmp-config-protocol-model select { max-width: 190px; height: 29px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); padding: 0 7px; font: inherit; font-size: 10.5px; }
 .dmp-config-status-row button.dmp-media-primary { border-color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-label-on-primary, #fff); }
+.dmp-config-protocol-results { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-inverted); font-size: 10.5px; }
+.dmp-config-protocol-results span { display: inline-flex; align-items: baseline; gap: 4px; color: var(--dsw-alias-label-secondary); }
+.dmp-config-protocol-results span.is-ok { color: #22a06b; }
+.dmp-config-protocol-results span.is-error { color: var(--dsw-alias-state-error-primary); }
+.dmp-config-protocol-results button { min-height: 27px; padding: 0 8px; border: 1px solid var(--dsw-alias-brand-primary); border-radius: 7px; background: transparent; color: var(--dsw-alias-brand-primary); cursor: pointer; font-size: 10px; }
 .dmp-config-heading-actions { flex-wrap: wrap; justify-content: flex-end; }
 .dmp-config-model-search { width: 190px; height: 29px; box-sizing: border-box; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; outline: 0; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); padding: 0 9px; font: inherit; font-size: 10.5px; }
 .dmp-config-model-search:focus { border-color: var(--dsw-alias-brand-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2 - 2026-08-27
+
+- Add live protocol probing for OpenAI-compatible providers.
+- Test `/chat/completions` and `/responses` with a minimal request and show the result in the configuration panel.
+- Keep protocol selection manual; only offer one-click adoption when exactly one protocol succeeds.
+- Keep stored credentials on the plugin backend and require confirmation before the live probe.
+
 ## 0.5.1 - 2026-08-27
 
 - Detect known DeepSeek-dialect models served through custom `openai-completions` gateways.

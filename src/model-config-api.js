@@ -1,6 +1,7 @@
 const CONFIG_API_PATH = '/model-palette/api/config'
 const REQUEST_BODY_LIMIT = 8_192
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
+const PROTOCOLS = ['openai-completions', 'openai-responses']
 
 /** Register the loopback-only credential reveal route used by the configuration panel. */
 export function registerModelConfigApi(ctx) {
@@ -33,6 +34,10 @@ export function createModelConfigApiHandler(ctx) {
       writeJson(res, 400, { ok: false, error: { message: 'invalid request path' } })
       return
     }
+    if (pathname === `${CONFIG_API_PATH}/protocols/probe`) {
+      await probeProtocols(ctx, req, res)
+      return
+    }
     if (pathname !== `${CONFIG_API_PATH}/credentials/reveal`) {
       writeJson(res, 404, { ok: false, error: { message: 'unknown configuration action' } })
       return
@@ -54,6 +59,51 @@ export function createModelConfigApiHandler(ctx) {
       writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
     }
   }
+}
+
+async function probeProtocols(ctx, req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const baseURL = requireBaseURL(body?.baseURL)
+    const model = requireNonEmptyString(body?.model, 'model')
+    const ref = requireCredentialRef(body?.credentialRef)
+    const apiKey = optionalApiKey(body?.apiKey) ?? (await ctx.credentials.resolve(ref))?.value
+    if (apiKey === undefined) throw new Error(`credential ${ref} is not configured`)
+    const results = await Promise.all(PROTOCOLS.map(protocol => probeProtocol(baseURL, model, apiKey, protocol)))
+    writeJson(res, 200, { ok: true, value: { results } })
+  } catch (error) {
+    writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
+  }
+}
+
+async function probeProtocol(baseURL, model, apiKey, protocol) {
+  const path = protocol === 'openai-completions' ? '/chat/completions' : '/responses'
+  const body = protocol === 'openai-completions'
+    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: 1, stream: false }
+    : { model, input: 'Reply only with OK.', max_output_tokens: 1 }
+  try {
+    const response = await fetch(`${baseURL.replace(/\/+$/u, '')}${path}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (response.ok) return { protocol, available: true }
+    return { protocol, available: false, error: await responseMessage(response) }
+  } catch (error) {
+    return { protocol, available: false, error: errorMessage(error) }
+  }
+}
+
+async function responseMessage(response) {
+  const text = (await response.text()).slice(0, 240)
+  try {
+    const parsed = JSON.parse(text)
+    if (typeof parsed?.error?.message === 'string') return `HTTP ${response.status}: ${parsed.error.message}`
+  } catch {
+    // The remote reply is not JSON; its bounded text is the only useful diagnostic.
+  }
+  return text === '' ? `HTTP ${response.status}` : `HTTP ${response.status}: ${text}`
 }
 
 function isTrustedBrowserRequest(req) {
@@ -118,6 +168,30 @@ function requireCredentialRef(value) {
   if (typeof value !== 'string' || !CREDENTIAL_PATTERN.test(value)) {
     throw new Error(`credential ref must match ${String(CREDENTIAL_PATTERN)}`)
   }
+  return value
+}
+
+function requireBaseURL(value) {
+  const baseURL = requireNonEmptyString(value, 'baseURL')
+  try {
+    const parsed = new URL(baseURL)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('baseURL must use http or https')
+    return baseURL
+  } catch (error) {
+    throw new Error(error instanceof Error && error.message === 'baseURL must use http or https'
+      ? error.message
+      : 'baseURL must be a valid URL')
+  }
+}
+
+function requireNonEmptyString(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${label} is required`)
+  return value.trim()
+}
+
+function optionalApiKey(value) {
+  if (value === undefined || value === '') return undefined
+  if (typeof value !== 'string' || /[\s\x00-\x1F\x7F]/u.test(value)) throw new Error('apiKey is invalid')
   return value
 }
 

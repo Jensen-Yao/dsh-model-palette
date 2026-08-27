@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   CredentialView, DiscoveredModelView, IApiClient, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
-import { revealCredential } from './config-api.ts'
+import { probeProviderProtocols, revealCredential, type ProtocolProbeResult } from './config-api.ts'
 import {
   CREDENTIAL_REF_PATTERN,
   PROVIDER_ID_PATTERN,
@@ -85,7 +85,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [presetState, setPresetState] = useState<'bundled' | 'loading' | 'online' | 'error'>('bundled')
   const [manualPresets, setManualPresets] = useState<Record<number, string>>({})
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'reveal' | 'presets' | null>('load')
+  const [protocolResults, setProtocolResults] = useState<ProtocolProbeResult[] | null>(null)
+  const [protocolTestModelId, setProtocolTestModelId] = useState('')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -102,6 +104,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
   }, [modelQuery, models])
   const protocol = stringField(draft, 'api')
+  const protocolTestModel = models.find(model => model.id === protocolTestModelId)
+    ?? models.find(model => typeof model.id === 'string' && model.id.trim() !== '')
+  const protocolTestModelValue = typeof protocolTestModel?.id === 'string' ? protocolTestModel.id : ''
+  const recommendedProtocol = protocolResults?.filter(result => result.available).length === 1
+    ? protocolResults.find(result => result.available)?.protocol
+    : undefined
   const credentialRef = stringField(draft, 'apiKeyEnv') || deriveCredentialRef(providerId || 'provider')
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
 
@@ -132,6 +140,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setDiscovered([])
+    setProtocolResults(null)
+    setProtocolTestModelId('')
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
@@ -162,6 +172,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setBaselineSignature(draftSignature('', empty))
         setPreviousProviderId('')
         setModelQuery('')
+        setProtocolResults(null)
+        setProtocolTestModelId('')
       }
     } catch (cause) {
       setError(messageOf(cause))
@@ -211,6 +223,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setDiscovered([])
+    setProtocolResults(null)
+    setProtocolTestModelId('')
     setError(null)
     setFeedback(null)
   }
@@ -237,12 +251,14 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setDiscovered([])
+    setProtocolResults(null)
     setError(null)
     setFeedback(t('config.copyReady'))
   }
 
   const updateProfileString = (key: string, value: string) => {
     setDraft(current => setOptionalString(current, key, value))
+    setProtocolResults(null)
     if (key === 'apiKeyEnv') {
       setKeyDraft('')
       setKeyVisible(false)
@@ -252,6 +268,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const setModels = (next: Record<string, unknown>[]) => {
     setDraft(current => ({ ...structuredClone(current), models: next }))
+    setProtocolResults(null)
   }
 
   const updateModel = (index: number, next: Record<string, unknown>) => {
@@ -324,6 +341,47 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     const result = mergeDiscoveredModels(models, discovered)
     setModels(result.models)
     setFeedback(t('config.discoveryApplied', { added: result.added, enriched: result.enriched }))
+  }
+
+  const probeProtocols = async () => {
+    if (busy !== null) return
+    const model = protocolTestModel?.id
+    if (typeof model !== 'string' || model.trim() === '') {
+      setError(t('config.protocolProbeModelRequired'))
+      return
+    }
+    if (!window.confirm(t('config.protocolProbeConfirm', { model: model.trim() }))) return
+    setBusy('protocol-probe')
+    setError(null)
+    setFeedback(null)
+    try {
+      const results = await probeProviderProtocols({
+        baseURL: stringField(draft, 'baseURL').trim(),
+        credentialRef,
+        model: model.trim(),
+        ...(keyDraft.trim() === '' ? {} : { apiKey: keyDraft.trim() }),
+      })
+      setProtocolResults(results)
+      const available = results.filter(result => result.available)
+      setFeedback(t(available.length === 0 ? 'config.protocolProbeNone' : available.length === 1 ? 'config.protocolProbeOne' : 'config.protocolProbeBoth', {
+        protocol: available[0]?.protocol ?? '',
+      }))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const applyRecommendedProtocol = () => {
+    if (recommendedProtocol === undefined) return
+    updateProfileString('api', recommendedProtocol)
+    setFeedback(t('config.protocolApplied', { protocol: recommendedProtocol }))
+  }
+
+  const chooseProtocolTestModel = (modelId: string) => {
+    setProtocolTestModelId(modelId)
+    setProtocolResults(null)
   }
 
   const reveal = async () => {
@@ -524,7 +582,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                 type={keyVisible ? 'text' : 'password'}
                 value={keyDraft}
                 disabled={readOnly || credential?.writable === false}
-                onChange={event => setKeyDraft(event.currentTarget.value)}
+                onChange={event => { setKeyDraft(event.currentTarget.value); setProtocolResults(null) }}
                 autoComplete="off"
                 placeholder={credential?.configured ? t('config.keyConfigured') : t('config.keyNotConfigured')}
               />
@@ -539,12 +597,27 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             {credential?.configured ? t('config.credentialStatusConfigured', { source: credential.source ?? '?' }) : t('config.credentialStatusMissing')}
           </span>
           <span>{isLoopback ? t('config.revealLocalReady') : t('config.revealLoopbackOnly')}</span>
+          <label className="dmp-config-protocol-model">
+            <span>{t('config.protocolProbeModel')}</span>
+            <select value={protocolTestModelValue} disabled={busy !== null || protocolTestModel === undefined} onChange={event => chooseProtocolTestModel(event.currentTarget.value)}>
+              {models.filter(model => typeof model.id === 'string' && model.id.trim() !== '').map(model => <option key={model.id as string} value={model.id as string}>{model.id as string}</option>)}
+            </select>
+          </label>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
+            <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
             {discovered.length > 0 && <button type="button" disabled={busy !== null} onClick={importDiscovered}>{t('config.importDiscovery', { count: discovered.length })}</button>}
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
+        {protocolResults !== null && (
+          <div className="dmp-config-protocol-results">
+            {protocolResults.map(result => <span className={result.available ? 'is-ok' : 'is-error'} key={result.protocol}>
+              <strong>{result.protocol}</strong>{result.available ? t('config.protocolAvailable') : t('config.protocolUnavailable', { error: result.error ?? '?' })}
+            </span>)}
+            {recommendedProtocol !== undefined && recommendedProtocol !== protocol && <button type="button" disabled={busy !== null} onClick={applyRecommendedProtocol}>{t('config.protocolApplyRecommended', { protocol: recommendedProtocol })}</button>}
+          </div>
+        )}
       </section>
 
       <section className="dmp-config-card dmp-config-model-card">

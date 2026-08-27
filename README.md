@@ -179,11 +179,14 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
 5. **Test the connection** — click "Check connection" to discover models
-6. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
-7. **Apply presets** — auto-fill from the registry or select manually
-8. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
-9. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-10. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+6. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
+7. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
+8. **Apply presets** — auto-fill from the registry or select manually
+9. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+10. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+11. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+
+Live protocol probing sends real minimal API requests and may incur a small charge. The plugin never changes protocol based solely on reasoning capability.
 
 ### Media Tools Panel
 
