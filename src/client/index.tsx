@@ -1,6 +1,7 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelPalette } from './ModelPalette.tsx'
 import { en, NS, zh } from './locales.ts'
+import { installModelPaletteSkinBridge } from './skin-v2.ts'
 import type { DirectoryStore, PaletteProps, Selection } from './types.ts'
 import './style.css'
 
@@ -54,6 +55,10 @@ export const inject = ['locale', 'sessions', 'slots', 'modelDirectories', 'conne
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection')
+  const skinBridge = typeof window === 'undefined' ? undefined : installModelPaletteSkinBridge(window)
+  if (skinBridge !== undefined) {
+    ctx.effect(() => () => skinBridge.dispose(), 'dsh-model-palette: Skin Center v2 bridge')
+  }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-model-palette: dictionaries')
   ctx.inject(['slots', 'modelDirectories', 'sessions'], (scope) => {
     scope.slots.inject(
@@ -86,6 +91,7 @@ export function apply(ctx: ClientContext): void {
             },
             api: connection.api,
             isLoopback: connection.isLoopback,
+            skinBridge,
           }
         },
       }, ModelPalette),

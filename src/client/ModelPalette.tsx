@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { ConfigPanel } from './ConfigPanel.tsx'
 import { MediaPanel } from './MediaPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { ensureSelectionCompatibility, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
+import { MODEL_PALETTE_PLUGIN_ID, type ModelPaletteView } from './skin-v2.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
@@ -46,7 +47,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
+export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, skinBridge, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
@@ -83,22 +84,25 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const favoriteCount = useMemo(() => choices.filter(choice => favorites.includes(choice.key)).length, [choices, favorites])
   const recentCount = useMemo(() => choices.filter(choice => recents.includes(choice.key)).length, [choices, recents])
 
-  const show = () => {
-    if (!available || locked) return
+  const show = useCallback((nextView: ModelPaletteView = 'models'): boolean => {
+    if (!available || locked) return false
     setOpen(true)
-    setView('models')
+    setView(nextView)
     setQuery('')
     setProviderId(null)
     setQuickFilter('all')
     setCursor(0)
     setError(null)
     load()
-  }
+    return true
+  }, [available, load, locked])
 
   const close = () => {
     setOpen(false)
     setError(null)
   }
+
+  useEffect(() => skinBridge?.register(show), [show, skinBridge])
 
   useEffect(() => {
     if (!open || view !== 'models') return
@@ -187,12 +191,12 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const currentEffort = snapshot.current?.reasoningEffort ?? currentReasoning?.defaultEffort ?? ''
 
   return (
-    <div className="dmp-seat">
+    <div className="dmp-launcher" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID}>
       <button
         type="button"
         className="dmp-trigger"
         disabled={locked || !available}
-        onClick={show}
+        onClick={() => show()}
         title={`${currentLabel}${providerLabel === undefined ? '' : ` · ${providerLabel}`} · Alt+M`}
         aria-label={t('trigger.aria')}
       >
@@ -203,10 +207,10 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       </button>
 
       {open && createPortal(
-        <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
+        <div className="dmp-overlay" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID} data-dsh-model-palette-view={view} role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : 'config.title')}>
+          <section className="dmp-dialog" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID} role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : 'config.title')}>
             <header className="dmp-header">
               <div>
                 <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : 'config.title')}</h2>

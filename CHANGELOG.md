@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 - 2026-08-28
+
+- Add Skin Center v2 compatibility markers and the stable `dsh-model-palette:open` launcher event.
+- Add the `dsh-model-palette:ready` handshake for skins that activate before the palette component mounts.
+- Rename the composer launcher class so workbook skins cannot hide it with native `seat` layout selectors.
+- Install a versioned page bridge during client activation and expose stable model, media, and config view controls for v2 skin hooks.
+
 ## 0.5.3 - 2026-08-27
 
 - Add a dedicated API key validation button for provider configuration.

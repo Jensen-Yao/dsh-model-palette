@@ -115,6 +115,36 @@
 </tr>
 </table>
 
+## Skin Center v2 兼容
+
+本项目仍然是标准 DSH 客户端插件。`skin.json`、`skin.css`、`patches.css` 和 `hooks.mjs` 由 Skin Center v2 统一拥有和加载；`dsh-model-palette` 不冒充皮肤，也不再自创第二套皮肤清单。启用 v2 皮肤后，模型面板仍通过原生插槽、文档级 Portal 和快捷键工作。
+
+插件会在入口和对话框根节点输出 `data-dsh-plugin="dsh-model-palette"`，皮肤可以据此稳定覆盖插件区域，而不必依赖构建生成的 class 名。插件仍由普通 DSH `dsh.client` 协议发现和挂载；v2 桥接会在插件激活时安装，即使对话区稍后才挂载也能工作。v2 皮肤可以通过下面的稳定浏览器事件打开模型、媒体或配置页：
+
+```js
+window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
+```
+
+`view` 可选值为 `models`、`media`、`config`；省略或传入未知值时打开模型页。也可以调用页面桥接，适合需要直接切页的 v2 `hooks.mjs`：
+
+```js
+window.__DSH_MODEL_PALETTE__?.open('config')
+```
+
+如果皮肤可能早于本插件激活，请使用 `dsh-model-palette:ready` 做一次就绪握手，而不要只调用一次可选链：
+
+```js
+function openModelPaletteWhenReady(view = 'models') {
+  const retry = () => window.__DSH_MODEL_PALETTE__?.open(view)
+  window.addEventListener('dsh-model-palette:ready', retry, { once: true })
+  if (retry() === true) window.removeEventListener('dsh-model-palette:ready', retry)
+}
+
+openModelPaletteWhenReady('media')
+```
+
+`ready` 事件在插件组件挂载后发出；如果桥接已安装但组件尚未挂载，`open()` 会先排队。事件和页面桥接只在当前浏览器页面内传播，不携带密钥或对话内容。入口 class 刻意不再包含 `seat`，因为 Excel 工作簿皮肤可能使用 `[class*="seat"]` 隐藏原生输入区的布局载体；此前的 `dmp-seat` 会因此被误隐藏。`skinManifestVersion: 2` 仍只属于皮肤的 `skin.json`，本项目仍按 DSH 的 `dsh.client` 插件协议加载，不把普通插件伪装成皮肤。
+
 ## 🚀 快速开始
 
 ### 安装

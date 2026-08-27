@@ -115,6 +115,36 @@ Add, edit, or remove provider profiles directly from the UI:
 </tr>
 </table>
 
+## Skin Center v2 compatibility
+
+The package remains a standard DSH client plugin. Skin Center v2 owns `skin.json`, `skin.css`, `patches.css`, and `hooks.mjs`; `dsh-model-palette` does not pretend to be a skin and does not add a second skin manifest. When a v2 skin is active, the palette stays usable through the native slot, document-level portal, and keyboard shortcut.
+
+The client exposes `data-dsh-plugin="dsh-model-palette"` on its launcher and dialog roots so v2 skins can target the plugin without generated class names. The normal DSH client loader discovers and mounts the bundle through `dsh.client`; the v2 bridge is installed at plugin activation and remains usable even when the composer mounts later. A v2 skin can open the model, media, or config view through this stable browser event:
+
+```js
+window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
+```
+
+`view` accepts `models`, `media`, or `config`; omitted or unknown values open the model view. Hooks that need direct view switching can also use the page bridge:
+
+```js
+window.__DSH_MODEL_PALETTE__?.open('config')
+```
+
+If a skin can activate before this plugin, use the `dsh-model-palette:ready` handshake instead of making one optional-chaining call:
+
+```js
+function openModelPaletteWhenReady(view = 'models') {
+  const retry = () => window.__DSH_MODEL_PALETTE__?.open(view)
+  window.addEventListener('dsh-model-palette:ready', retry, { once: true })
+  if (retry() === true) window.removeEventListener('dsh-model-palette:ready', retry)
+}
+
+openModelPaletteWhenReady('media')
+```
+
+The `ready` event fires after the plugin component mounts; when the bridge exists but the component does not, `open()` queues the request. The event and page bridge stay local to the current browser page and carry no credentials or conversation content. The launcher deliberately avoids a class name containing `seat`, because workbook skins may hide native composer seat carriers with `[class*="seat"]`. `skinManifestVersion: 2` remains a `skin.json` concern; this project remains a normal DSH `dsh.client` plugin and does not pretend to be a skin.
+
 ## 🚀 Quick Start
 
 ### Install
