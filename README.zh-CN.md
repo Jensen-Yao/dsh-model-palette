@@ -21,6 +21,8 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
+当前版本：[v0.5.4](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.4)
+
 ## ✨ 功能特性
 
 <table>
@@ -150,7 +152,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -269,6 +271,7 @@ dsh-model-palette/
 │   │   ├── model-presets.ts  # 预置注册表管理
 │   │   ├── config-api.ts     # 配置 API 客户端
 │   │   ├── media-api.ts      # 媒体 API 客户端
+│   │   ├── skin-v2.ts         # Skin Center v2 页面桥接
 │   │   ├── locales.ts        # i18n（中 / 英）
 │   │   ├── types.ts          # TypeScript 类型定义
 │   │   └── style.css         # 组件样式

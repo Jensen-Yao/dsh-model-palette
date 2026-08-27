@@ -21,6 +21,8 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
+Current release: [v0.5.4](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.4)
+
 ## ✨ Features
 
 <table>
@@ -150,7 +152,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -269,6 +271,7 @@ dsh-model-palette/
 │   │   ├── model-presets.ts  # Preset registry management
 │   │   ├── config-api.ts     # Config API client
 │   │   ├── media-api.ts      # Media API client
+│   │   ├── skin-v2.ts         # Skin Center v2 page bridge
 │   │   ├── locales.ts        # i18n (en & zh)
 │   │   ├── types.ts          # TypeScript types
 │   │   └── style.css         # Component styles
