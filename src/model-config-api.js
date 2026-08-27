@@ -2,6 +2,7 @@ const CONFIG_API_PATH = '/model-palette/api/config'
 const REQUEST_BODY_LIMIT = 8_192
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 const PROTOCOLS = ['openai-completions', 'openai-responses']
+const API_KEY_PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages']
 
 /** Register the loopback-only credential reveal route used by the configuration panel. */
 export function registerModelConfigApi(ctx) {
@@ -36,6 +37,10 @@ export function createModelConfigApiHandler(ctx) {
     }
     if (pathname === `${CONFIG_API_PATH}/protocols/probe`) {
       await probeProtocols(ctx, req, res)
+      return
+    }
+    if (pathname === `${CONFIG_API_PATH}/credentials/validate`) {
+      await validateApiKey(ctx, req, res)
       return
     }
     if (pathname !== `${CONFIG_API_PATH}/credentials/reveal`) {
@@ -76,6 +81,22 @@ async function probeProtocols(ctx, req, res) {
   }
 }
 
+async function validateApiKey(ctx, req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const baseURL = requireBaseURL(body?.baseURL)
+    const protocol = requireProtocol(body?.protocol)
+    const model = optionalNonEmptyString(body?.model)
+    const ref = requireCredentialRef(body?.credentialRef)
+    const apiKey = optionalApiKey(body?.apiKey) ?? optionalApiKey((await ctx.credentials.resolve(ref))?.value)
+    if (apiKey === undefined) throw new Error(`credential ${ref} is not configured`)
+    const result = await validateCredential(baseURL, protocol, model, apiKey)
+    writeJson(res, 200, { ok: true, value: result })
+  } catch (error) {
+    writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
+  }
+}
+
 async function probeProtocol(baseURL, model, apiKey, protocol) {
   const path = protocol === 'openai-completions' ? '/chat/completions' : '/responses'
   const body = protocol === 'openai-completions'
@@ -84,19 +105,87 @@ async function probeProtocol(baseURL, model, apiKey, protocol) {
   try {
     const response = await fetch(`${baseURL.replace(/\/+$/u, '')}${path}`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json', accept: 'application/json' },
+      headers: headersForProtocol(apiKey, protocol, true),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),
     })
     if (response.ok) return { protocol, available: true }
-    return { protocol, available: false, error: await responseMessage(response) }
+    return { protocol, available: false, error: await responseMessage(response, apiKey) }
   } catch (error) {
-    return { protocol, available: false, error: errorMessage(error) }
+    return { protocol, available: false, error: errorMessage(error, apiKey) }
   }
 }
 
-async function responseMessage(response) {
-  const text = (await response.text()).slice(0, 240)
+async function validateCredential(baseURL, protocol, model, apiKey) {
+  const root = baseURL.replace(/\/+$/u, '')
+  const catalogResponse = await fetch(`${root}/models`, {
+    method: 'GET',
+    headers: headersForProtocol(apiKey, protocol),
+    signal: AbortSignal.timeout(15_000),
+  }).catch(error => ({ error }))
+  if ('error' in catalogResponse) {
+    return { protocol, model, status: 'unknown', checkedBy: 'models', message: errorMessage(catalogResponse.error, apiKey) }
+  }
+  if (catalogResponse.ok) {
+    return { protocol, model, status: 'valid', checkedBy: 'models', httpStatus: catalogResponse.status, message: `HTTP ${catalogResponse.status}: model catalog accepted the API key` }
+  }
+  if (![404, 405, 501].includes(catalogResponse.status)) {
+    return validationResult(protocol, model, classifyApiKeyStatus(catalogResponse.status), 'models', catalogResponse.status, await responseMessage(catalogResponse, apiKey))
+  }
+  if (model === undefined) {
+    return { protocol, status: 'unknown', checkedBy: 'models', httpStatus: catalogResponse.status, message: `HTTP ${catalogResponse.status}: model catalog is unavailable; select a model for a request test` }
+  }
+  return validateModelRequest(baseURL, protocol, model, apiKey)
+}
+
+async function validateModelRequest(baseURL, protocol, model, apiKey) {
+  const path = protocol === 'openai-completions'
+    ? '/chat/completions'
+    : protocol === 'openai-responses'
+      ? '/responses'
+      : '/messages'
+  const body = protocol === 'openai-completions'
+    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: 1, stream: false }
+    : protocol === 'openai-responses'
+      ? { model, input: 'Reply only with OK.', max_output_tokens: 1 }
+      : { model, max_tokens: 1, messages: [{ role: 'user', content: 'Reply only with OK.' }] }
+  try {
+    const response = await fetch(`${baseURL.replace(/\/+$/u, '')}${path}`, {
+      method: 'POST',
+      headers: headersForProtocol(apiKey, protocol, true),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    })
+    const status = response.ok ? 'valid' : classifyApiKeyStatus(response.status)
+    return validationResult(protocol, model, status, 'request', response.status, response.ok
+      ? `HTTP ${response.status}: minimal model request succeeded`
+      : await responseMessage(response, apiKey))
+  } catch (error) {
+    return { protocol, model, status: 'unknown', checkedBy: 'request', message: errorMessage(error, apiKey) }
+  }
+}
+
+function headersForProtocol(apiKey, protocol, includeContentType = false) {
+  const headers = protocol === 'anthropic-messages'
+    ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', accept: 'application/json' }
+    : { authorization: `Bearer ${apiKey}`, accept: 'application/json' }
+  if (includeContentType) headers['content-type'] = 'application/json'
+  return headers
+}
+
+function classifyApiKeyStatus(status) {
+  if (status === 401) return 'invalid'
+  if (status === 403) return 'blocked'
+  if (status === 402 || status === 408 || status === 429) return 'unavailable'
+  return 'unknown'
+}
+
+function validationResult(protocol, model, status, checkedBy, httpStatus, message) {
+  return { protocol, ...(model === undefined ? {} : { model }), status, checkedBy, httpStatus, message }
+}
+
+async function responseMessage(response, secret = '') {
+  const text = redactDiagnostic((await response.text()).slice(0, 240), secret)
   try {
     const parsed = JSON.parse(text)
     if (typeof parsed?.error?.message === 'string') return `HTTP ${response.status}: ${parsed.error.message}`
@@ -184,9 +273,19 @@ function requireBaseURL(value) {
   }
 }
 
+function requireProtocol(value) {
+  if (typeof value !== 'string' || !API_KEY_PROTOCOLS.includes(value)) throw new Error('protocol is invalid')
+  return value
+}
+
 function requireNonEmptyString(value, label) {
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`${label} is required`)
   return value.trim()
+}
+
+function optionalNonEmptyString(value) {
+  if (value === undefined || value === '') return undefined
+  return requireNonEmptyString(value, 'model')
 }
 
 function optionalApiKey(value) {
@@ -204,6 +303,10 @@ function writeJson(res, status, value) {
   res.end(JSON.stringify(value))
 }
 
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error)
+function errorMessage(error, secret = '') {
+  return redactDiagnostic(error instanceof Error ? error.message : String(error), secret)
+}
+
+function redactDiagnostic(value, secret) {
+  return secret === '' ? value : value.split(secret).join('[redacted]')
 }

@@ -142,6 +142,13 @@
 .dmp-config-protocol-results span.is-ok { color: #22a06b; }
 .dmp-config-protocol-results span.is-error { color: var(--dsw-alias-state-error-primary); }
 .dmp-config-protocol-results button { min-height: 27px; padding: 0 8px; border: 1px solid var(--dsw-alias-brand-primary); border-radius: 7px; background: transparent; color: var(--dsw-alias-brand-primary); cursor: pointer; font-size: 10px; }
+.dmp-config-key-validation { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-inverted); font-size: 10.5px; }
+.dmp-config-key-validation strong { font-weight: 600; }
+.dmp-config-key-validation span { color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
+.dmp-config-key-validation.is-valid strong { color: #22a06b; }
+.dmp-config-key-validation.is-invalid strong, .dmp-config-key-validation.is-blocked strong { color: var(--dsw-alias-state-error-primary); }
+.dmp-config-key-validation.is-unavailable strong { color: var(--dsw-alias-state-warn-primary, #d97706); }
+.dmp-config-key-validation.is-unknown strong { color: var(--dsw-alias-label-tertiary); }
 .dmp-config-heading-actions { flex-wrap: wrap; justify-content: flex-end; }
 .dmp-config-model-search { width: 190px; height: 29px; box-sizing: border-box; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; outline: 0; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); padding: 0 9px; font: inherit; font-size: 10.5px; }
 .dmp-config-model-search:focus { border-color: var(--dsw-alias-brand-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); }

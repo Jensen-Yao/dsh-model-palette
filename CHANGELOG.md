@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 - 2026-08-27
+
+- Add a dedicated API key validation button for provider configuration.
+- Prefer the authenticated `/models` endpoint to avoid generation charges, with a minimal model request fallback when the catalog endpoint is unavailable.
+- Distinguish invalid credentials, provider or gateway rejection, quota/rate-limit unavailability, and inconclusive endpoint or model errors.
+- Validate OpenAI Completions, OpenAI Responses, and Anthropic Messages authentication without returning credentials to the browser.
+
 ## 0.5.2 - 2026-08-27
 
 - Add live protocol probing for OpenAI-compatible providers.

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   CredentialView, DiscoveredModelView, IApiClient, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
-import { probeProviderProtocols, revealCredential, type ProtocolProbeResult } from './config-api.ts'
+import {
+  probeProviderProtocols,
+  revealCredential,
+  validateProviderApiKey,
+  type ApiKeyValidationResult,
+  type ProtocolProbeResult,
+} from './config-api.ts'
 import {
   CREDENTIAL_REF_PATTERN,
   PROVIDER_ID_PATTERN,
@@ -70,6 +76,16 @@ function draftSignature(providerId: string, draft: Record<string, unknown>): str
   return JSON.stringify({ providerId, draft })
 }
 
+function apiKeyValidationLabel(status: ApiKeyValidationResult['status']): string {
+  switch (status) {
+    case 'valid': return 'config.apiKeyValidationValid'
+    case 'invalid': return 'config.apiKeyValidationInvalid'
+    case 'blocked': return 'config.apiKeyValidationBlocked'
+    case 'unavailable': return 'config.apiKeyValidationUnavailable'
+    case 'unknown': return 'config.apiKeyValidationUnknown'
+  }
+}
+
 export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
@@ -87,7 +103,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const [protocolResults, setProtocolResults] = useState<ProtocolProbeResult[] | null>(null)
   const [protocolTestModelId, setProtocolTestModelId] = useState('')
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'reveal' | 'presets' | null>('load')
+  const [apiKeyValidation, setApiKeyValidation] = useState<ApiKeyValidationResult | null>(null)
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'api-key-validation' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -107,6 +124,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const protocolTestModel = models.find(model => model.id === protocolTestModelId)
     ?? models.find(model => typeof model.id === 'string' && model.id.trim() !== '')
   const protocolTestModelValue = typeof protocolTestModel?.id === 'string' ? protocolTestModel.id : ''
+  const hasApiKey = keyDraft.trim() !== '' || credential?.configured === true
   const recommendedProtocol = protocolResults?.filter(result => result.available).length === 1
     ? protocolResults.find(result => result.available)?.protocol
     : undefined
@@ -142,6 +160,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setDiscovered([])
     setProtocolResults(null)
     setProtocolTestModelId('')
+    setApiKeyValidation(null)
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
@@ -174,6 +193,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setModelQuery('')
         setProtocolResults(null)
         setProtocolTestModelId('')
+        setApiKeyValidation(null)
       }
     } catch (cause) {
       setError(messageOf(cause))
@@ -225,6 +245,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setDiscovered([])
     setProtocolResults(null)
     setProtocolTestModelId('')
+    setApiKeyValidation(null)
     setError(null)
     setFeedback(null)
   }
@@ -252,6 +273,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setManualPresets({})
     setDiscovered([])
     setProtocolResults(null)
+    setApiKeyValidation(null)
     setError(null)
     setFeedback(t('config.copyReady'))
   }
@@ -259,6 +281,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const updateProfileString = (key: string, value: string) => {
     setDraft(current => setOptionalString(current, key, value))
     setProtocolResults(null)
+    setApiKeyValidation(null)
     if (key === 'apiKeyEnv') {
       setKeyDraft('')
       setKeyVisible(false)
@@ -269,6 +292,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const setModels = (next: Record<string, unknown>[]) => {
     setDraft(current => ({ ...structuredClone(current), models: next }))
     setProtocolResults(null)
+    setApiKeyValidation(null)
   }
 
   const updateModel = (index: number, next: Record<string, unknown>) => {
@@ -382,6 +406,44 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const chooseProtocolTestModel = (modelId: string) => {
     setProtocolTestModelId(modelId)
     setProtocolResults(null)
+    setApiKeyValidation(null)
+  }
+
+  const validateApiKey = async () => {
+    if (busy !== null) return
+    const baseURL = stringField(draft, 'baseURL').trim()
+    const apiProtocol = stringField(draft, 'api').trim()
+    if (baseURL === '') {
+      setError(t('config.baseUrlRequired'))
+      return
+    }
+    if (!PROTOCOLS.includes(apiProtocol as typeof PROTOCOLS[number])) {
+      setError(t('config.protocolRequired'))
+      return
+    }
+    if (!hasApiKey) {
+      setError(t('config.apiKeyValidationKeyRequired'))
+      return
+    }
+    if (!window.confirm(t('config.apiKeyValidationConfirm', { model: protocolTestModelValue || t('config.apiKeyValidationCatalog') }))) return
+    setBusy('api-key-validation')
+    setError(null)
+    setFeedback(null)
+    try {
+      const result = await validateProviderApiKey({
+        baseURL,
+        credentialRef,
+        protocol: apiProtocol as ApiKeyValidationResult['protocol'],
+        ...(protocolTestModelValue === '' ? {} : { model: protocolTestModelValue }),
+        ...(keyDraft.trim() === '' ? {} : { apiKey: keyDraft.trim() }),
+      })
+      setApiKeyValidation(result)
+      setFeedback(t('config.apiKeyValidationDone'))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
   }
 
   const reveal = async () => {
@@ -395,6 +457,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     try {
       setKeyDraft(await revealCredential(credentialRef))
       setKeyVisible(true)
+      setApiKeyValidation(null)
       setFeedback(t('config.revealSuccess'))
     } catch (cause) {
       setError(messageOf(cause))
@@ -432,6 +495,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setCredential(null)
         setKeyDraft('')
         setKeyVisible(false)
+        setProtocolResults(null)
+        setProtocolTestModelId('')
+        setApiKeyValidation(null)
       } else {
         openProvider(next, response.result.value)
       }
@@ -477,6 +543,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setNamespace(response.result.value)
       setDraft(savedProfile)
       setBaselineSignature(draftSignature(id, savedProfile))
+      setApiKeyValidation(null)
       if (key !== '') {
         const stored = await api.credentials.set({ ref, value: key })
         if (!stored.result.ok) throw new Error(`${t('config.settingsSavedKeyFailed')}: ${stored.result.error.message}`)
@@ -554,7 +621,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         <div className="dmp-config-provider-grid">
           <label className="dmp-media-field">
             <span>{t('config.providerId')}</span>
-            <input value={providerId} disabled={!creating || busy !== null} onChange={event => setProviderId(event.currentTarget.value.toLocaleLowerCase())} placeholder="my-provider" />
+            <input value={providerId} disabled={!creating || busy !== null} onChange={event => { setProviderId(event.currentTarget.value.toLocaleLowerCase()); setProtocolResults(null); setApiKeyValidation(null) }} placeholder="my-provider" />
           </label>
           <label className="dmp-media-field">
             <span>{t('config.displayName')}</span>
@@ -582,7 +649,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                 type={keyVisible ? 'text' : 'password'}
                 value={keyDraft}
                 disabled={readOnly || credential?.writable === false}
-                onChange={event => { setKeyDraft(event.currentTarget.value); setProtocolResults(null) }}
+                onChange={event => { setKeyDraft(event.currentTarget.value); setProtocolResults(null); setApiKeyValidation(null) }}
                 autoComplete="off"
                 placeholder={credential?.configured ? t('config.keyConfigured') : t('config.keyNotConfigured')}
               />
@@ -605,6 +672,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </label>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
+            <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
             {discovered.length > 0 && <button type="button" disabled={busy !== null} onClick={importDiscovered}>{t('config.importDiscovery', { count: discovered.length })}</button>}
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
@@ -616,6 +684,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
               <strong>{result.protocol}</strong>{result.available ? t('config.protocolAvailable') : t('config.protocolUnavailable', { error: result.error ?? '?' })}
             </span>)}
             {recommendedProtocol !== undefined && recommendedProtocol !== protocol && <button type="button" disabled={busy !== null} onClick={applyRecommendedProtocol}>{t('config.protocolApplyRecommended', { protocol: recommendedProtocol })}</button>}
+          </div>
+        )}
+        {apiKeyValidation !== null && (
+          <div className={`dmp-config-key-validation is-${apiKeyValidation.status}`} role="status">
+            <strong>{t(apiKeyValidationLabel(apiKeyValidation.status))}</strong>
+            <span>{apiKeyValidation.message}</span>
           </div>
         )}
       </section>

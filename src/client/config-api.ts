@@ -16,6 +16,15 @@ export type ProtocolProbeResult = {
   error?: string
 }
 
+export type ApiKeyValidationResult = {
+  protocol: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
+  model?: string
+  status: 'valid' | 'invalid' | 'blocked' | 'unavailable' | 'unknown'
+  checkedBy: 'models' | 'request'
+  httpStatus?: number
+  message: string
+}
+
 /** Reveal one stored credential through the plugin's direct-loopback-only route. */
 export async function revealCredential(ref: string): Promise<string> {
   const response = await fetch(`${CONFIG_API_BASE}/credentials/reveal`, {
@@ -59,4 +68,29 @@ export async function probeProviderProtocols(input: {
     throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
   }
   return payload.value.results
+}
+
+/** Validate one provider credential without returning the credential to the browser. */
+export async function validateProviderApiKey(input: {
+  baseURL: string
+  credentialRef: string
+  protocol: ApiKeyValidationResult['protocol']
+  model?: string
+  apiKey?: string
+}): Promise<ApiKeyValidationResult> {
+  const response = await fetch(`${CONFIG_API_BASE}/credentials/validate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  let payload: ConfigApiSuccess<ApiKeyValidationResult> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<ApiKeyValidationResult> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
 }
