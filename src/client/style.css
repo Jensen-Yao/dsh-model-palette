@@ -172,7 +172,9 @@
 .dmp-config-empty { min-height: 90px; display: grid; place-items: center; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
 .dmp-config-model { padding: 10px; border: 1px solid var(--dsw-alias-border-inverted); border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 70%, transparent); }
 .dmp-config-model-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.dmp-config-model-top strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.dmp-config-model-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.dmp-config-model-title > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.dmp-config-model-title > small { flex: 0 0 auto; padding: 1px 6px; border: 1px solid color-mix(in srgb, #22a06b 38%, transparent); border-radius: 999px; background: color-mix(in srgb, #22a06b 12%, transparent); color: #22a06b; font-size: 9px; font-weight: 700; line-height: 15px; text-transform: uppercase; }
 .dmp-config-model-top button { min-height: 25px; color: var(--dsw-alias-state-error-primary); }
 .dmp-config-inputs { grid-column: span 2; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 0; padding: 5px 8px 7px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
 .dmp-config-inputs legend { padding: 0 4px; color: var(--dsw-alias-label-tertiary); font-size: 10.5px; }

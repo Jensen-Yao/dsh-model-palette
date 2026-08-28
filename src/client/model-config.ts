@@ -1,4 +1,3 @@
-import type { DiscoveredModelView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ModelPreset } from './model-presets.ts'
 import { applyModelPreset, matchModelPreset } from './model-presets.ts'
 
@@ -7,6 +6,14 @@ export const CREDENTIAL_REF_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 export const REASONING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type ReasoningLevel = typeof REASONING_LEVELS[number]
 export type ReasoningEfforts = Partial<Record<ReasoningLevel, string | null>>
+
+export interface ModelCandidate {
+  id: string
+  name?: string
+  contextWindow?: number
+  maxTokens?: number
+  input?: Array<'text' | 'image'>
+}
 
 export const UNIVERSAL_REASONING_EFFORTS: ReasoningEfforts = {
   off: null,
@@ -374,7 +381,7 @@ export function applyMissingPresets(
 
 export function mergeDiscoveredModels(
   models: readonly Record<string, unknown>[],
-  discovered: readonly DiscoveredModelView[],
+  discovered: readonly ModelCandidate[],
 ): { models: Record<string, unknown>[]; added: number; enriched: number } {
   const next = models.map(model => structuredClone(model))
   const index = new Map(next.map((model, position) => [typeof model.id === 'string' ? model.id : '', position]))
@@ -388,6 +395,7 @@ export function mergeDiscoveredModels(
         ...(candidate.name === undefined ? {} : { name: candidate.name }),
         ...(candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow }),
         ...(candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens }),
+        ...(candidate.input === undefined ? {} : { input: [...candidate.input] }),
       })
       index.set(candidate.id, next.length - 1)
       added += 1
@@ -398,7 +406,35 @@ export function mergeDiscoveredModels(
     if (candidate.name !== undefined && typeof current.name !== 'string') { current.name = candidate.name; changed = true }
     if (candidate.contextWindow !== undefined && typeof current.contextWindow !== 'number') { current.contextWindow = candidate.contextWindow; changed = true }
     if (candidate.maxTokens !== undefined && typeof current.maxTokens !== 'number') { current.maxTokens = candidate.maxTokens; changed = true }
+    if (candidate.input !== undefined && (!Array.isArray(current.input) || current.input.length === 0)) { current.input = [...candidate.input]; changed = true }
     if (changed) enriched += 1
   }
   return { models: next, added, enriched }
+}
+
+/** Merge discovered endpoint metadata and immediately fill remaining known capabilities from presets. */
+export function mergeDiscoveredModelsWithPresets(
+  models: readonly Record<string, unknown>[],
+  discovered: readonly ModelCandidate[],
+  presets: readonly ModelPreset[],
+): { models: Record<string, unknown>[]; added: number; enriched: number; presetsApplied: number } {
+  const merged = mergeDiscoveredModels(models, discovered)
+  const presetResult = applyMissingPresets(merged.models, presets)
+  return { ...merged, models: presetResult.models, presetsApplied: presetResult.applied }
+}
+
+/** Synchronize live OpenRouter :free variants while preserving every non-free and manually configured field. */
+export function synchronizeOpenRouterFreeModels(
+  models: readonly Record<string, unknown>[],
+  liveModels: readonly ModelCandidate[],
+): { models: Record<string, unknown>[]; added: number; enriched: number; removed: number } {
+  const liveIds = new Set(liveModels.map(model => model.id))
+  let removed = 0
+  const retained = models.filter((model) => {
+    const id = typeof model.id === 'string' ? model.id : ''
+    const keep = !id.toLocaleLowerCase().endsWith(':free') || liveIds.has(id)
+    if (!keep) removed += 1
+    return keep
+  })
+  return { ...mergeDiscoveredModels(retained, liveModels), removed }
 }

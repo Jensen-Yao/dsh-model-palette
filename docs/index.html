@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.6.0 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.6.0：全模型推理档位、全部 API key 巡检、Cloudflare 403 恢复、44 项模型预置与文本/视觉输入配置。" />
+<title>dsh-model-palette v0.7.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.7.0：OpenRouter 实时免费模型同步、连接检查自动填容量、全模型推理档位、全部 API key 巡检与 44 项模型预置。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -543,7 +543,7 @@
 </nav>
 
 <header class="hero">
-  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.6.0</div>
+  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.7.0</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -678,7 +678,8 @@
       <li>新增 / 编辑 / 删除供应商</li>
       <li>复制线路与模型参数，快速派生配置</li>
       <li>协议、Base URL、密钥一站式配置</li>
-      <li>连接测试 + 模型一键导入</li>
+      <li>连接测试后自动导入并补齐容量</li>
+      <li>OpenRouter 实时 :free 模型一键同步</li>
       <li>API key 实际可用性验证</li>
       <li>全部 API key 一键巡检并直达编辑</li>
       <li>真实请求检测 Completions / Responses</li>
@@ -707,7 +708,7 @@
   <div class="sec-head">
     <div class="tag">Skin Center v2</div>
     <h2>皮肤负责外观，插件负责能力</h2>
-    <p>v0.6.0 保持标准 DSH 插件协议，同时为 v2 皮肤提供稳定的打开入口和语义标记。</p>
+    <p>v0.7.0 保持标准 DSH 插件协议，并把实时免费模型与容量补全直接带进供应商配置流程。</p>
   </div>
   <div class="compat-panel">
     <div class="card">
@@ -750,14 +751,14 @@ window.dispatchEvent(new CustomEvent(
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -824,7 +825,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>管理密钥并测试连接</h4>
-          <p>输入 API key（默认掩码），点击「检查连接」探测该端点的模型列表，可一键导入。</p>
+          <p>输入 API key（默认掩码），点击「检查连接」后模型会直接加入草稿，并自动补齐上下文、最大输出和输入类型。</p>
         </div>
       </div>
       <div class="step">
@@ -832,6 +833,13 @@ dsh web</pre>
         <div>
           <h4>检测实际协议</h4>
           <p>选择一个模型后点击「测试实际协议」，插件会分别发送最小的 /chat/completions 与 /responses 请求；只在唯一协议成功时提供采用建议。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>同步 OpenRouter 免费模型</h4>
+          <p>读取公开实时目录，导入当前 :free 文本模型及容量信息，同时清理已下线的旧 :free 条目，不需要 API key。</p>
         </div>
       </div>
       <div class="step">

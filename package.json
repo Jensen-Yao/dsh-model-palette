@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.6.0",
-  "description": "Global model command palette and provider/model configuration panel for DeepSeek Harness, with online capacity presets and optional OpenRouter media tools.",
+  "version": "0.7.0",
+  "description": "Global model command palette and provider/model configuration panel for DeepSeek Harness, with live OpenRouter free-model sync, online capacity presets, and optional media tools.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

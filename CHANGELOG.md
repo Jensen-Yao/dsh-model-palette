@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 - 2026-08-28
+
+- Add one-click live synchronization of DSH-compatible OpenRouter `:free` text models without requiring or exposing an API key.
+- Import current free models with context, maximum output, and text/image input metadata while removing expired `:free` entries and preserving every non-free model.
+- Make connection discovery immediately add and enrich models, then fill remaining exact-match capabilities from the bundled or refreshed preset registry.
+
 ## 0.6.0 - 2026-08-28
 
 - Retry explicit Cloudflare/WAF 403 block pages with bounded, cancellable backoff after other DSH recovery handlers have had a chance to act.

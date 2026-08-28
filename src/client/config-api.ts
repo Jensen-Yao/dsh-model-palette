@@ -48,6 +48,20 @@ export type BatchApiKeyValidationResult = {
   credentialSource?: string
 }
 
+export type OpenRouterFreeModel = {
+  id: string
+  name?: string
+  contextWindow?: number
+  maxTokens?: number
+  input: Array<'text' | 'image'>
+  free: true
+}
+
+export type OpenRouterFreeModelCatalog = {
+  checkedAt: string
+  models: OpenRouterFreeModel[]
+}
+
 /** Reveal one stored credential through the plugin's direct-loopback-only route. */
 export async function revealCredential(ref: string): Promise<string> {
   const response = await fetch(`${CONFIG_API_BASE}/credentials/reveal`, {
@@ -137,4 +151,23 @@ export async function validateProviderApiKeys(input: {
     throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
   }
   return payload.value.results
+}
+
+/** Read the live public OpenRouter catalog and return its DSH-compatible :free variants. */
+export async function fetchOpenRouterFreeModels(): Promise<OpenRouterFreeModelCatalog> {
+  const response = await fetch(`${CONFIG_API_BASE}/models/openrouter/free`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  })
+  let payload: ConfigApiSuccess<OpenRouterFreeModelCatalog> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<OpenRouterFreeModelCatalog> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
 }

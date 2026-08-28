@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.6.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.6.0)
+当前版本：[v0.7.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.0)
 
 ## ✨ 功能特性
 
@@ -75,7 +75,8 @@
 - 配置 **供应商 ID**、**显示名称**、**Base URL** 与 **协议类型**（`openai-completions`、`openai-responses`、`anthropic-messages`）
 - 设置 **凭据引用** 与 **API key**（默认掩码显示）
 - 一键检查全部运行时 API key，并从结果直接跳到有问题的供应商修改
-- 通过 `llm.discoverModels` **测试连接**，并可一键导入探测到的模型
+- 通过 `llm.discoverModels` **测试连接**，探测到的模型会立即加入草稿，并自动补齐实时元数据与精确匹配预置
+- OpenRouter 线路提供 **同步免费模型**：读取公开实时目录，导入全部可用 `:free` 文本模型并清理已失效的旧 `:free` 条目
 - 可复制已有供应商，自动生成独立的凭据引用草稿，避免覆盖原线路
 - 可筛选长模型列表、复制模型参数，并在保存前拒绝重复模型 ID
 - 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
@@ -156,7 +157,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -214,22 +215,25 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
 2. **复制已有供应商（可选）** — 从可用线路生成新草稿，凭据引用自动分离
 3. **配置端点** — 设置 Base URL、协议类型与凭据引用
 4. **管理 API key** — 输入新 key 或读取已存 key（仅回环）
-5. **测试连接** — 点击「检查连接」探测模型
-6. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
-7. **一键检查全部 API key** — 依次测试每个运行时凭据，并从结果直接打开失败供应商
-8. **检测实际协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
-9. **配置模型** — 筛选长列表、复制参数，设置上下文窗口、最大输出、输入模态与推理 wire value
-10. **启用全档推理** — 为单模型或当前线路全部已声明模型补齐七个 DSH 推理档位
-11. **应用预置** — 从 44 项注册表自动补全或手动选择，连同文本/视觉输入和已知推理档位一起适配
-12. **修复已知方言兼容项** — DeepSeek 兼容端点缺少历史 `reasoning_content` 回传配置时，点击「修复并应用」；正常切换模型时插件也会自动预检
-13. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
-14. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
+5. **检查连接** — 点击「检查连接」探测模型，并立即填入接口返回或预置提供的上下文、最大输出、输入与推理信息
+6. **同步 OpenRouter 免费模型** — 在 OpenRouter 线路导入当前可用 `:free` 目录并清理失效 `:free` 变体，不影响付费或手工命名模型
+7. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
+8. **一键检查全部 API key** — 依次测试每个运行时凭据，并从结果直接打开失败供应商
+9. **检测实际协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
+10. **配置模型** — 筛选长列表、复制参数，设置上下文窗口、最大输出、输入模态与推理 wire value
+11. **启用全档推理** — 为单模型或当前线路全部已声明模型补齐七个 DSH 推理档位
+12. **应用预置** — 从 44 项注册表自动补全或手动选择，连同文本/视觉输入和已知推理档位一起适配
+13. **修复已知方言兼容项** — DeepSeek 兼容端点缺少历史 `reasoning_content` 回传配置时，点击「修复并应用」；正常切换模型时插件也会自动预检
+14. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
+15. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
 
 API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“暂不可用”“未配置”和“无法判断”。插件不会把公开 `/models` 成功当成 key 可用于对话的证明，而是使用与 DSH 对话一致的最小流式请求；“一键检查全部 API key”会依次测试运行时凭据以降低限流压力，并显示供应商、credential ref、来源、协议、模型与诊断。DSH 当前运行时凭据与输入框中不同的待保存 key 会分开验证，且 key 始终只在插件后端使用。每次请求可能产生少量费用。
 
 完整对话遇到明确的 Cloudflare/WAF 403 时，插件会先让 DSH 其他恢复处理器执行，再使用有限、可取消的退避自动重试。重试后仍被拦截，会把持久错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。这不是绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
 
 推理档位是模型能力声明，不等于协议选择。`openai-responses` 与 `openai-completions` 仍应按真实端点测试结果选择。插件只在需要时补写 `reasoningEfforts`，并开放每个档位的 wire value，因为不同供应商可能使用不同参数名或档位拼写。
+
+OpenRouter 免费同步使用公开 `/api/v1/models` 目录，只接收带明确 `:free` 标识、输出文本且至少支持一种 DSH 输入（`text` 或 `image`）的模型。该操作不需要 API key；仍在线的免费模型会保留你的手工字段，非免费模型完全不动，而实时目录不再提供的旧 `:free` ID 会被清理。
 
 协议检测会发送真实请求并将最大输出限制为 16 token，可能产生少量费用；该上限可避免部分网关拒绝单 token 探测而造成误判。插件不会根据“是否推理”自动更改协议。
 

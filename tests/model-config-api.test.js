@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
-import { createModelConfigApiHandler } from '../src/model-config-api.js'
+import { createModelConfigApiHandler, parseOpenRouterFreeModels } from '../src/model-config-api.js'
 
 async function invoke(handler, body, options = {}) {
   const req = Readable.from([JSON.stringify(body)])
@@ -27,6 +27,53 @@ async function invoke(handler, body, options = {}) {
 }
 
 describe('model configuration credential API', () => {
+  it('parses only DSH-compatible OpenRouter :free text models with live capacities', () => {
+    expect(parseOpenRouterFreeModels({ data: [
+      {
+        id: 'vendor/vision:free', name: 'Vision (free)', context_length: 262144,
+        architecture: { input_modalities: ['text', 'image', 'audio'], output_modalities: ['text'] },
+        top_provider: { max_completion_tokens: 32768 },
+      },
+      {
+        id: 'vendor/audio:free', name: 'Audio', context_length: 1000,
+        architecture: { input_modalities: ['audio'], output_modalities: ['audio'] },
+        top_provider: { max_completion_tokens: 100 },
+      },
+      {
+        id: 'vendor/paid', name: 'Paid', context_length: 1000,
+        architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+      },
+    ] })).toEqual([{
+      id: 'vendor/vision:free', name: 'Vision (free)', contextWindow: 262144, maxTokens: 32768,
+      input: ['text', 'image'], free: true,
+    }])
+  })
+
+  it('returns the live OpenRouter free catalog without requiring a credential', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      expect(url).toBe('https://openrouter.ai/api/v1/models')
+      expect(init.headers.accept).toBe('application/json')
+      return new Response(JSON.stringify({ data: [{
+        id: 'vendor/model:free', name: 'Model (free)', context_length: 131072,
+        architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+        top_provider: { max_completion_tokens: 16384 },
+      }] }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    try {
+      const response = await invoke(createModelConfigApiHandler({ credentials: { resolve: vi.fn() } }), {}, {
+        url: '/model-palette/api/config/models/openrouter/free',
+      })
+      expect(response.status).toBe(200)
+      expect(response.body.value).toMatchObject({ models: [{
+        id: 'vendor/model:free', contextWindow: 131072, maxTokens: 16384, input: ['text'], free: true,
+      }] })
+      expect(response.body.value.checkedAt).toEqual(expect.any(String))
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('reveals a configured key only on direct loopback access', async () => {
     const resolve = vi.fn(async () => ({ value: 'secret-value', source: 'file' }))
     const response = await invoke(createModelConfigApiHandler({ credentials: { resolve } }), { ref: 'BANKOFAI_API_KEY' })

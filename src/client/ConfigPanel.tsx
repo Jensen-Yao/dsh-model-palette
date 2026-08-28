@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
-  CredentialView, DiscoveredModelView, IApiClient, SettingsNamespaceView,
+  CredentialView, IApiClient, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import {
+  fetchOpenRouterFreeModels,
   probeProviderProtocols,
   revealCredential,
   validateProviderApiKeys,
@@ -25,7 +26,7 @@ import {
   duplicateModelTemplate,
   inputMode,
   isRecord,
-  mergeDiscoveredModels,
+  mergeDiscoveredModelsWithPresets,
   modelRecords,
   nextProviderCopyId,
   providerProfiles,
@@ -38,6 +39,7 @@ import {
   setReasoningEffort,
   setReasoningMode,
   stringField,
+  synchronizeOpenRouterFreeModels,
 } from './model-config.ts'
 import {
   BUNDLED_PRESET_REGISTRY,
@@ -104,6 +106,16 @@ function firstConfiguredModelId(profile: Record<string, unknown>): string {
   return overrides.find(id => id.trim() !== '')?.trim() ?? ''
 }
 
+function isOpenRouterProfile(providerId: string, profile: Record<string, unknown>): boolean {
+  if (providerId.toLocaleLowerCase().includes('openrouter')) return true
+  try {
+    const hostname = new URL(stringField(profile, 'baseURL')).hostname.toLocaleLowerCase()
+    return hostname === 'openrouter.ai' || hostname.endsWith('.openrouter.ai')
+  } catch {
+    return false
+  }
+}
+
 export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
@@ -118,12 +130,11 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [registry, setRegistry] = useState<ModelPresetRegistry>(BUNDLED_PRESET_REGISTRY)
   const [presetState, setPresetState] = useState<'bundled' | 'loading' | 'online' | 'error'>('bundled')
   const [manualPresets, setManualPresets] = useState<Record<number, string>>({})
-  const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const [protocolResults, setProtocolResults] = useState<ProtocolProbeResult[] | null>(null)
   const [protocolTestModelId, setProtocolTestModelId] = useState('')
   const [apiKeyValidation, setApiKeyValidation] = useState<ApiKeyValidationResult | null>(null)
   const [batchApiKeyValidation, setBatchApiKeyValidation] = useState<BatchApiKeyValidationResult[] | null>(null)
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -150,6 +161,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const credentialRef = stringField(draft, 'apiKeyEnv') || deriveCredentialRef(providerId || 'provider')
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
   const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
+  const openRouterProfile = isOpenRouterProfile(providerId, draft)
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -177,7 +189,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyDraft('')
     setKeyVisible(false)
     setManualPresets({})
-    setDiscovered([])
     setProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
@@ -263,7 +274,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyDraft('')
     setKeyVisible(false)
     setManualPresets({})
-    setDiscovered([])
     setProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
@@ -292,7 +302,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyDraft('')
     setKeyVisible(false)
     setManualPresets({})
-    setDiscovered([])
     setProtocolResults(null)
     setApiKeyValidation(null)
     setError(null)
@@ -357,6 +366,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setManualPresets(current => ({ ...current, [index]: preset.id }))
   }
 
+  const applyCandidateMetadata = (nextModels: Record<string, unknown>[]) => {
+    const presetResult = applyMissingPresets(nextModels, registry.presets)
+    const prepared = presetResult.models.map(model => model.reasoningEfforts === undefined
+      ? model
+      : applyReasoningDispatchDefaults(providerId || 'provider', draft, model))
+    setModels(prepared)
+    return presetResult.applied
+  }
+
   const probe = async () => {
     if (busy !== null) return
     setBusy('probe')
@@ -378,8 +396,17 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         ...(key === '' ? {} : { apiKey: key }),
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
-      setDiscovered(response.result.value.models)
-      setFeedback(t('config.probeSuccess', { count: response.result.value.models.length }))
+      const result = mergeDiscoveredModelsWithPresets(models, response.result.value.models, registry.presets)
+      const prepared = result.models.map(model => model.reasoningEfforts === undefined
+        ? model
+        : applyReasoningDispatchDefaults(providerId || 'provider', draft, model))
+      setModels(prepared)
+      setFeedback(t('config.probeSuccessApplied', {
+        count: response.result.value.models.length,
+        added: result.added,
+        enriched: result.enriched,
+        presets: result.presetsApplied,
+      }))
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
@@ -387,10 +414,27 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
   }
 
-  const importDiscovered = () => {
-    const result = mergeDiscoveredModels(models, discovered)
-    setModels(result.models)
-    setFeedback(t('config.discoveryApplied', { added: result.added, enriched: result.enriched }))
+  const syncOpenRouterFreeModels = async () => {
+    if (busy !== null) return
+    setBusy('openrouter-free')
+    setError(null)
+    setFeedback(null)
+    try {
+      const catalog = await fetchOpenRouterFreeModels()
+      const result = synchronizeOpenRouterFreeModels(models, catalog.models)
+      const presets = applyCandidateMetadata(result.models)
+      setFeedback(t('config.openRouterFreeApplied', {
+        count: catalog.models.length,
+        added: result.added,
+        enriched: result.enriched,
+        removed: result.removed,
+        presets,
+      }))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
   }
 
   const enableReasoningForProvider = () => {
@@ -812,9 +856,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </label>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
+            {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void syncOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeSyncing') : t('config.openRouterFreeSync')}</button>}
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
-            {discovered.length > 0 && <button type="button" disabled={busy !== null} onClick={importDiscovered}>{t('config.importDiscovery', { count: discovered.length })}</button>}
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
@@ -872,7 +916,10 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             return (
               <article className="dmp-config-model" key={`${String(model.id)}-${index}`}>
                 <div className="dmp-config-model-top">
-                  <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : typeof model.id === 'string' && model.id !== '' ? model.id : `${t('config.model')} ${index + 1}`}</strong>
+                  <span className="dmp-config-model-title">
+                    <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : typeof model.id === 'string' && model.id !== '' ? model.id : `${t('config.model')} ${index + 1}`}</strong>
+                    {openRouterProfile && typeof model.id === 'string' && model.id.toLocaleLowerCase().endsWith(':free') && <small>{t('config.freeModelBadge')}</small>}
+                  </span>
                   <div>
                     <button type="button" disabled={busy !== null} onClick={() => duplicateModel(index)}>{t('config.duplicateModel')}</button>
                     <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>

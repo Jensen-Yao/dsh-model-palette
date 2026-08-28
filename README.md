@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.6.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.6.0)
+Current release: [v0.7.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.0)
 
 ## ✨ Features
 
@@ -75,7 +75,8 @@ Add, edit, or remove provider profiles directly from the UI:
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - Set **credential reference** and **API key** (masked by default)
 - Validate every configured runtime key in one click and jump directly to any provider that needs editing
-- **Test connection** via `llm.discoverModels` and import discovered models
+- **Test connection** via `llm.discoverModels`; discovered models are immediately added and enriched with live metadata plus exact presets
+- On OpenRouter routes, **Sync free models** reads the public live catalog, imports every usable `:free` text model, and removes expired `:free` entries
 - Duplicate a working provider into a new draft with a separate credential reference
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
@@ -156,7 +157,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -214,22 +215,25 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 2. **Duplicate a provider when useful** — start from a working route without reusing its credential reference
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
-5. **Test the connection** — click "Check connection" to discover models
-6. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
-7. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
-8. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
-9. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
-10. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
-11. **Apply presets** — auto-fill from the registry or select manually
-12. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
-13. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-14. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+5. **Test the connection** — click "Check connection" to discover models and immediately fill their disclosed or preset context, output, input, and reasoning metadata
+6. **Sync OpenRouter free models** — on an OpenRouter route, import the current usable `:free` catalog and remove expired `:free` variants without touching paid or manually named models
+7. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
+8. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
+9. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
+10. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
+11. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
+12. **Apply presets** — auto-fill from the registry or select manually
+13. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+14. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+15. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
 API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
 
 For full conversations, the host plugin automatically retries only explicit Cloudflare/WAF 403 pages after other DSH recovery handlers. Retries use bounded cancellable delays. If the gateway keeps blocking the request, the durable failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. This cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 
 Reasoning effort is a model capability declaration, not a protocol selector. `openai-responses` and `openai-completions` remain independently testable. The plugin adds `reasoningEfforts` only when needed and exposes each wire value for manual correction because gateways may spell or dispatch levels differently.
+
+OpenRouter free synchronization uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The action requires no API key. It preserves non-free models and manual fields on still-live free entries, while removing `:free` IDs that the current OpenRouter catalog no longer advertises.
 
 Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. The plugin never changes protocol based solely on reasoning capability.
 

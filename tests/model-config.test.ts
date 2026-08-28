@@ -9,6 +9,7 @@ import {
   duplicateModelIds,
   duplicateModelTemplate,
   mergeDiscoveredModels,
+  mergeDiscoveredModelsWithPresets,
   nextProviderCopyId,
   repairProviderCompatibility,
   ensureModelReasoning,
@@ -19,6 +20,7 @@ import {
   setInputMode,
   setReasoningEffort,
   setReasoningMode,
+  synchronizeOpenRouterFreeModels,
 } from '../src/client/model-config.ts'
 import { BUNDLED_PRESET_REGISTRY } from '../src/client/model-presets.ts'
 
@@ -193,13 +195,40 @@ describe('model configuration helpers', () => {
     const result = mergeDiscoveredModels([
       { id: 'known', contextWindow: 100, compat: { thinkingFormat: 'deepseek' } },
     ], [
-      { id: 'known', name: 'Known', contextWindow: 200, maxTokens: 50 },
-      { id: 'new', contextWindow: 300 },
+      { id: 'known', name: 'Known', contextWindow: 200, maxTokens: 50, input: ['text', 'image'] },
+      { id: 'new', contextWindow: 300, input: ['text'] },
     ])
     expect(result).toMatchObject({ added: 1, enriched: 1 })
     expect(result.models[0]).toEqual({
-      id: 'known', contextWindow: 100, maxTokens: 50, name: 'Known', compat: { thinkingFormat: 'deepseek' },
+      id: 'known', contextWindow: 100, maxTokens: 50, name: 'Known', input: ['text', 'image'], compat: { thinkingFormat: 'deepseek' },
     })
-    expect(result.models[1]).toEqual({ id: 'new', contextWindow: 300 })
+    expect(result.models[1]).toEqual({ id: 'new', contextWindow: 300, input: ['text'] })
+  })
+
+  it('fills missing discovered capacities from exact presets automatically', () => {
+    const result = mergeDiscoveredModelsWithPresets([], [
+      { id: 'gpt-5.6-sol', name: 'Gateway GPT' },
+    ], BUNDLED_PRESET_REGISTRY.presets)
+    expect(result).toMatchObject({ added: 1, enriched: 0, presetsApplied: 1 })
+    expect(result.models[0]).toMatchObject({
+      id: 'gpt-5.6-sol', name: 'Gateway GPT', contextWindow: 1050000, maxTokens: 128000, input: ['text', 'image'],
+    })
+  })
+
+  it('synchronizes current OpenRouter free variants and removes expired ones', () => {
+    const result = synchronizeOpenRouterFreeModels([
+      { id: 'paid/model', contextWindow: 10 },
+      { id: 'old/free:free', contextWindow: 20 },
+      { id: 'live/model:free', compat: { thinkingFormat: 'openrouter' } },
+    ], [
+      { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'] },
+      { id: 'new/model:free', contextWindow: 200, input: ['text'] },
+    ])
+    expect(result).toMatchObject({ added: 1, enriched: 1, removed: 1 })
+    expect(result.models).toEqual([
+      { id: 'paid/model', contextWindow: 10 },
+      { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'], compat: { thinkingFormat: 'openrouter' } },
+      { id: 'new/model:free', contextWindow: 200, input: ['text'] },
+    ])
   })
 })
