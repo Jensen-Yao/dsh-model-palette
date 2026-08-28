@@ -10,6 +10,7 @@ import {
   validateProviderApiKey,
   type ApiKeyValidationResult,
   type BatchApiKeyValidationResult,
+  type OpenRouterFreeModelCatalog,
   type ProtocolProbeResult,
 } from './config-api.ts'
 import {
@@ -25,6 +26,7 @@ import {
   duplicateModelIds,
   duplicateModelTemplate,
   inputMode,
+  importSelectedOpenRouterFreeModels,
   isRecord,
   mergeDiscoveredModelsWithPresets,
   modelRecords,
@@ -39,7 +41,6 @@ import {
   setReasoningEffort,
   setReasoningMode,
   stringField,
-  synchronizeOpenRouterFreeModels,
 } from './model-config.ts'
 import {
   BUNDLED_PRESET_REGISTRY,
@@ -134,6 +135,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [protocolTestModelId, setProtocolTestModelId] = useState('')
   const [apiKeyValidation, setApiKeyValidation] = useState<ApiKeyValidationResult | null>(null)
   const [batchApiKeyValidation, setBatchApiKeyValidation] = useState<BatchApiKeyValidationResult[] | null>(null)
+  const [openRouterFreeCatalog, setOpenRouterFreeCatalog] = useState<OpenRouterFreeModelCatalog | null>(null)
+  const [openRouterFreeSelection, setOpenRouterFreeSelection] = useState<string[]>([])
+  const [openRouterFreeQuery, setOpenRouterFreeQuery] = useState('')
   const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -162,6 +166,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
   const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
   const openRouterProfile = isOpenRouterProfile(providerId, draft)
+  const configuredModelIds = useMemo(() => new Set(models.flatMap(model => typeof model.id === 'string' ? [model.id] : [])), [models])
+  const visibleOpenRouterFreeModels = useMemo(() => {
+    const query = openRouterFreeQuery.trim().toLocaleLowerCase()
+    return (openRouterFreeCatalog?.models ?? []).filter(model => query === '' || [model.id, model.name]
+      .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
+  }, [openRouterFreeCatalog, openRouterFreeQuery])
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -192,6 +202,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
+    setOpenRouterFreeCatalog(null)
+    setOpenRouterFreeSelection([])
+    setOpenRouterFreeQuery('')
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
@@ -277,6 +290,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
+    setOpenRouterFreeCatalog(null)
+    setOpenRouterFreeSelection([])
+    setOpenRouterFreeQuery('')
     setError(null)
     setFeedback(null)
   }
@@ -304,6 +320,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setManualPresets({})
     setProtocolResults(null)
     setApiKeyValidation(null)
+    setOpenRouterFreeCatalog(null)
+    setOpenRouterFreeSelection([])
+    setOpenRouterFreeQuery('')
     setError(null)
     setFeedback(t('config.copyReady'))
   }
@@ -414,27 +433,55 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
   }
 
-  const syncOpenRouterFreeModels = async () => {
+  const scanOpenRouterFreeModels = async () => {
     if (busy !== null) return
     setBusy('openrouter-free')
     setError(null)
     setFeedback(null)
     try {
       const catalog = await fetchOpenRouterFreeModels()
-      const result = synchronizeOpenRouterFreeModels(models, catalog.models)
-      const presets = applyCandidateMetadata(result.models)
-      setFeedback(t('config.openRouterFreeApplied', {
+      setOpenRouterFreeCatalog(catalog)
+      setOpenRouterFreeSelection([])
+      setOpenRouterFreeQuery('')
+      setFeedback(t('config.openRouterFreeScanned', {
         count: catalog.models.length,
-        added: result.added,
-        enriched: result.enriched,
-        removed: result.removed,
-        presets,
+        unconfigured: catalog.models.filter(model => !configuredModelIds.has(model.id)).length,
       }))
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
       setBusy(null)
     }
+  }
+
+  const toggleOpenRouterFreeModel = (modelId: string) => {
+    setOpenRouterFreeSelection(current => current.includes(modelId)
+      ? current.filter(id => id !== modelId)
+      : [...current, modelId])
+  }
+
+  const selectVisibleOpenRouterFreeModels = () => {
+    const visibleIds = new Set(visibleOpenRouterFreeModels.map(model => model.id))
+    setOpenRouterFreeSelection(current => [...new Set([...current, ...visibleIds])])
+  }
+
+  const selectUnconfiguredOpenRouterFreeModels = () => {
+    setOpenRouterFreeSelection((openRouterFreeCatalog?.models ?? [])
+      .filter(model => !configuredModelIds.has(model.id))
+      .map(model => model.id))
+  }
+
+  const importOpenRouterFreeModels = () => {
+    if (openRouterFreeCatalog === null || openRouterFreeSelection.length === 0) return
+    const result = importSelectedOpenRouterFreeModels(models, openRouterFreeCatalog.models, openRouterFreeSelection)
+    const presets = applyCandidateMetadata(result.models)
+    setFeedback(t('config.openRouterFreeImported', {
+      selected: openRouterFreeSelection.length,
+      added: result.added,
+      enriched: result.enriched,
+      presets,
+    }))
+    setOpenRouterFreeSelection([])
   }
 
   const enableReasoningForProvider = () => {
@@ -856,12 +903,55 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </label>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
-            {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void syncOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeSyncing') : t('config.openRouterFreeSync')}</button>}
+            {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void scanOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeScanning') : t('config.openRouterFreeScan')}</button>}
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
+        {openRouterFreeCatalog !== null && (
+          <section className="dmp-config-free-picker">
+            <div className="dmp-config-free-picker-heading">
+              <div>
+                <strong>{t('config.openRouterFreePickerTitle')}</strong>
+                <span>{t('config.openRouterFreePickerSummary', {
+                  count: openRouterFreeCatalog.models.length,
+                  selected: openRouterFreeSelection.length,
+                  checkedAt: new Date(openRouterFreeCatalog.checkedAt).toLocaleString(),
+                })}</span>
+              </div>
+              <button type="button" onClick={() => { setOpenRouterFreeCatalog(null); setOpenRouterFreeSelection([]); setOpenRouterFreeQuery('') }}>{t('config.openRouterFreeClose')}</button>
+            </div>
+            <div className="dmp-config-free-picker-toolbar">
+              <input value={openRouterFreeQuery} onChange={event => setOpenRouterFreeQuery(event.currentTarget.value)} placeholder={t('config.openRouterFreeSearch')} />
+              <button type="button" onClick={selectVisibleOpenRouterFreeModels}>{t('config.openRouterFreeSelectVisible')}</button>
+              <button type="button" onClick={selectUnconfiguredOpenRouterFreeModels}>{t('config.openRouterFreeSelectNew')}</button>
+              <button type="button" disabled={openRouterFreeSelection.length === 0} onClick={() => setOpenRouterFreeSelection([])}>{t('config.openRouterFreeClear')}</button>
+            </div>
+            <div className="dmp-config-free-picker-list">
+              {visibleOpenRouterFreeModels.map(model => (
+                <label key={model.id}>
+                  <input type="checkbox" checked={openRouterFreeSelection.includes(model.id)} onChange={() => toggleOpenRouterFreeModel(model.id)} />
+                  <span className="dmp-config-free-picker-model">
+                    <strong>{model.name ?? model.id}</strong>
+                    <small>{model.id}</small>
+                  </span>
+                  <span className="dmp-config-free-picker-meta">
+                    {configuredModelIds.has(model.id) && <em>{t('config.openRouterFreeConfigured')}</em>}
+                    <small>{t('config.openRouterFreeContext', { value: model.contextWindow?.toLocaleString() ?? '?' })}</small>
+                    <small>{t('config.openRouterFreeOutput', { value: model.maxTokens?.toLocaleString() ?? '?' })}</small>
+                    <small>{model.input.join(' + ')}</small>
+                  </span>
+                </label>
+              ))}
+              {visibleOpenRouterFreeModels.length === 0 && <div className="dmp-config-empty">{t('config.openRouterFreeEmpty')}</div>}
+            </div>
+            <div className="dmp-config-free-picker-footer">
+              <span>{t('config.openRouterFreeImportHint')}</span>
+              <button className="dmp-media-primary" type="button" disabled={openRouterFreeSelection.length === 0} onClick={importOpenRouterFreeModels}>{t('config.openRouterFreeImportSelected', { count: openRouterFreeSelection.length })}</button>
+            </div>
+          </section>
+        )}
         {protocolResults !== null && (
           <div className="dmp-config-protocol-results">
             {protocolResults.map(result => <span className={result.available ? 'is-ok' : 'is-error'} key={result.protocol}>

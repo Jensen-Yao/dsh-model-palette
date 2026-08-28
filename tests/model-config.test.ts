@@ -15,6 +15,7 @@ import {
   ensureModelReasoning,
   hasUniversalReasoningEfforts,
   inputMode,
+  importSelectedOpenRouterFreeModels,
   setCompatField,
   setInputModality,
   setInputMode,
@@ -229,6 +230,23 @@ describe('model configuration helpers', () => {
       { id: 'paid/model', contextWindow: 10 },
       { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'], compat: { thinkingFormat: 'openrouter' } },
       { id: 'new/model:free', contextWindow: 200, input: ['text'] },
+    ])
+  })
+
+  it('imports only selected OpenRouter free variants without removing other models', () => {
+    const result = importSelectedOpenRouterFreeModels([
+      { id: 'paid/model', contextWindow: 10 },
+      { id: 'old/free:free', contextWindow: 20 },
+      { id: 'live/model:free', compat: { thinkingFormat: 'openrouter' } },
+    ], [
+      { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'] },
+      { id: 'new/model:free', contextWindow: 200, input: ['text'] },
+    ], ['live/model:free'])
+    expect(result).toMatchObject({ added: 0, enriched: 1 })
+    expect(result.models).toEqual([
+      { id: 'paid/model', contextWindow: 10 },
+      { id: 'old/free:free', contextWindow: 20 },
+      { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'], compat: { thinkingFormat: 'openrouter' } },
     ])
   })
 })

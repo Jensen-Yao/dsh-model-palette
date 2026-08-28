@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.7.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.0)
+Current release: [v0.7.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.1)
 
 ## ✨ Features
 
@@ -76,7 +76,7 @@ Add, edit, or remove provider profiles directly from the UI:
 - Set **credential reference** and **API key** (masked by default)
 - Validate every configured runtime key in one click and jump directly to any provider that needs editing
 - **Test connection** via `llm.discoverModels`; discovered models are immediately added and enriched with live metadata plus exact presets
-- On OpenRouter routes, **Sync free models** reads the public live catalog, imports every usable `:free` text model, and removes expired `:free` entries
+- On OpenRouter routes, **Check free models** opens a searchable live `:free` catalog so you can select exactly which models to import
 - Duplicate a working provider into a new draft with a separate credential reference
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
@@ -157,7 +157,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -216,7 +216,7 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
 5. **Test the connection** — click "Check connection" to discover models and immediately fill their disclosed or preset context, output, input, and reasoning metadata
-6. **Sync OpenRouter free models** — on an OpenRouter route, import the current usable `:free` catalog and remove expired `:free` variants without touching paid or manually named models
+6. **Choose OpenRouter free models** — scan the current usable `:free` catalog, search and inspect capacities, then import only the checked models
 7. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
 8. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
 9. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
@@ -233,7 +233,7 @@ For full conversations, the host plugin automatically retries only explicit Clou
 
 Reasoning effort is a model capability declaration, not a protocol selector. `openai-responses` and `openai-completions` remain independently testable. The plugin adds `reasoningEfforts` only when needed and exposes each wire value for manual correction because gateways may spell or dispatch levels differently.
 
-OpenRouter free synchronization uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The action requires no API key. It preserves non-free models and manual fields on still-live free entries, while removing `:free` IDs that the current OpenRouter catalog no longer advertises.
+OpenRouter free-model discovery uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The check requires no API key and changes no provider settings. The picker leaves everything unchecked by default, supports search and manual selection, previews context/output/input capabilities, and imports only the checked entries. Import fills missing metadata and presets without overwriting manual fields or deleting unselected local models.
 
 Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. The plugin never changes protocol based solely on reasoning capability.
 

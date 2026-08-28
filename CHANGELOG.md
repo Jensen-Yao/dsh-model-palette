@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - 2026-08-28
+
+- Split OpenRouter free-model discovery from configuration changes: checking the live catalog no longer imports or removes models automatically.
+- Add a searchable free-model picker with visible-result selection, unconfigured-model selection, capacity/input previews, and explicit selected-model import.
+- Preserve unselected and expired local entries while filling missing metadata and presets only for models the user chooses.
+
 ## 0.7.0 - 2026-08-28
 
 - Add one-click live synchronization of DSH-compatible OpenRouter `:free` text models without requiring or exposing an API key.

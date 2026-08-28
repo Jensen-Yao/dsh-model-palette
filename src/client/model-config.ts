@@ -423,6 +423,16 @@ export function mergeDiscoveredModelsWithPresets(
   return { ...merged, models: presetResult.models, presetsApplied: presetResult.applied }
 }
 
+/** Import only the selected live OpenRouter :free variants without removing any existing model. */
+export function importSelectedOpenRouterFreeModels(
+  models: readonly Record<string, unknown>[],
+  liveModels: readonly ModelCandidate[],
+  selectedIds: readonly string[],
+): { models: Record<string, unknown>[]; added: number; enriched: number } {
+  const selected = new Set(selectedIds)
+  return mergeDiscoveredModels(models, liveModels.filter(model => selected.has(model.id)))
+}
+
 /** Synchronize live OpenRouter :free variants while preserving every non-free and manually configured field. */
 export function synchronizeOpenRouterFreeModels(
   models: readonly Record<string, unknown>[],

@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.7.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.0)
+当前版本：[v0.7.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.1)
 
 ## ✨ 功能特性
 
@@ -76,7 +76,7 @@
 - 设置 **凭据引用** 与 **API key**（默认掩码显示）
 - 一键检查全部运行时 API key，并从结果直接跳到有问题的供应商修改
 - 通过 `llm.discoverModels` **测试连接**，探测到的模型会立即加入草稿，并自动补齐实时元数据与精确匹配预置
-- OpenRouter 线路提供 **同步免费模型**：读取公开实时目录，导入全部可用 `:free` 文本模型并清理已失效的旧 `:free` 条目
+- OpenRouter 线路提供 **检查免费模型**：读取公开实时目录，可搜索并手工勾选要导入的 `:free` 文本模型
 - 可复制已有供应商，自动生成独立的凭据引用草稿，避免覆盖原线路
 - 可筛选长模型列表、复制模型参数，并在保存前拒绝重复模型 ID
 - 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
@@ -157,7 +157,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -216,7 +216,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.0
 3. **配置端点** — 设置 Base URL、协议类型与凭据引用
 4. **管理 API key** — 输入新 key 或读取已存 key（仅回环）
 5. **检查连接** — 点击「检查连接」探测模型，并立即填入接口返回或预置提供的上下文、最大输出、输入与推理信息
-6. **同步 OpenRouter 免费模型** — 在 OpenRouter 线路导入当前可用 `:free` 目录并清理失效 `:free` 变体，不影响付费或手工命名模型
+6. **选择 OpenRouter 免费模型** — 扫描当前可用 `:free` 目录，搜索并查看容量后，只导入手工勾选的模型
 7. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
 8. **一键检查全部 API key** — 依次测试每个运行时凭据，并从结果直接打开失败供应商
 9. **检测实际协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
@@ -233,7 +233,7 @@ API key 验证会明确区分“可用”“无效”“被供应商或网关拒
 
 推理档位是模型能力声明，不等于协议选择。`openai-responses` 与 `openai-completions` 仍应按真实端点测试结果选择。插件只在需要时补写 `reasoningEfforts`，并开放每个档位的 wire value，因为不同供应商可能使用不同参数名或档位拼写。
 
-OpenRouter 免费同步使用公开 `/api/v1/models` 目录，只接收带明确 `:free` 标识、输出文本且至少支持一种 DSH 输入（`text` 或 `image`）的模型。该操作不需要 API key；仍在线的免费模型会保留你的手工字段，非免费模型完全不动，而实时目录不再提供的旧 `:free` ID 会被清理。
+OpenRouter 免费模型检查使用公开 `/api/v1/models` 目录，只接收带明确 `:free` 标识、输出文本且至少支持一种 DSH 输入（`text` 或 `image`）的模型。检查不需要 API key，也不会直接修改供应商配置。选择器默认全部不勾选，支持搜索、手工勾选，并展示上下文、最大输出和输入类型；只有勾选的条目才会导入。导入只补全缺失元数据和能力预置，不覆盖手工字段，也不删除未选中的本地模型。
 
 协议检测会发送真实请求并将最大输出限制为 16 token，可能产生少量费用；该上限可避免部分网关拒绝单 token 探测而造成误判。插件不会根据“是否推理”自动更改协议。
 
