@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5 - 2026-08-28
+
+- Raise live protocol and credential fallback probes to a 16-token output cap so gateways with minimum token validation do not produce false negatives.
+- Parse structured and double-encoded provider errors before truncating them, keeping protocol diagnostics concise and readable.
+- Cover BankOfAI-style `max_tokens > 2` validation and explicit Responses-to-Completions routing errors.
+- Validate credentials with the selected model instead of trusting a potentially public `/models` catalog.
+- Report the active DSH runtime credential separately from a different unsaved key so a valid draft cannot hide a failing conversation credential.
+- Exercise the streaming request path used by DSH conversations and classify Cloudflare block pages as gateway rejection instead of invalid credentials.
+
 ## 0.5.4 - 2026-08-28
 
 - Add Skin Center v2 compatibility markers and the stable `dsh-model-palette:open` launcher event.

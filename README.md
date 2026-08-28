@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.5.4](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.4)
+Current release: [v0.5.5](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.5)
 
 ## ✨ Features
 
@@ -152,7 +152,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.5
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -211,7 +211,7 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
 5. **Test the connection** — click "Check connection" to discover models
-6. **Validate the API key** — prefer an authenticated `/models` request and fall back to a minimal request with the selected model when necessary
+6. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
 7. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
 8. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
 9. **Apply presets** — auto-fill from the registry or select manually
@@ -219,9 +219,9 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 11. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
 12. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
-API key validation reports whether the credential is usable, invalid, blocked by a provider or gateway, unavailable because of quota/rate limits, or inconclusive because the endpoint/model does not support the check. The key stays on the plugin backend. If `/models` is unavailable, the fallback model request may incur a small charge.
+API key validation reports whether the credential is usable, invalid, blocked by a provider or gateway, unavailable because of quota/rate limits, or inconclusive because the endpoint/model does not support the check. It never treats a public `/models` response as proof that a key can run conversations, uses the same streaming mode as DSH conversations, and identifies Cloudflare block pages as gateway rejection rather than invalid credentials. The active DSH runtime credential is tested separately from a different unsaved input key, and both keys stay on the plugin backend. A successful minimal request does not guarantee that Cloudflare or another WAF will accept a larger full-conversation payload. Each request may incur a small charge.
 
-Live protocol probing sends real minimal API requests and may incur a small charge. The plugin never changes protocol based solely on reasoning capability.
+Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. The plugin never changes protocol based solely on reasoning capability.
 
 ### Media Tools Panel
 

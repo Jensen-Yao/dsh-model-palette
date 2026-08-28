@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.5.4](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.4)
+当前版本：[v0.5.5](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.5)
 
 ## ✨ 功能特性
 
@@ -152,7 +152,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.5
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -211,7 +211,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
 3. **配置端点** — 设置 Base URL、协议类型与凭据引用
 4. **管理 API key** — 输入新 key 或读取已存 key（仅回环）
 5. **测试连接** — 点击「检查连接」探测模型
-6. **验证 API key** — 优先请求带鉴权的 `/models`，端点不提供模型目录时再使用所选模型发送最小请求
+6. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
 7. **检测实际协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
 8. **配置模型** — 筛选长列表、复制参数，逐个设置上下文窗口、最大输出、输入类型
 9. **应用预置** — 从注册表自动补全或手动选择
@@ -219,9 +219,9 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
 11. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
 12. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
 
-API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“可能因额度/限流暂不可用”和“无法判断”（例如端点或模型不支持该检查）。key 只在插件后端使用；如果 `/models` 不可用，回退的最小模型请求可能产生少量费用。
+API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“可能因额度/限流暂不可用”和“无法判断”（例如端点或模型不支持该检查）。插件不会再把公开 `/models` 返回成功当成 key 可用于对话的证明，会使用与 DSH 对话一致的流式模式，并把 Cloudflare 拦截页识别为网关拒绝而不是 key 无效；DSH 当前运行时凭据与输入框中不同的待保存 key 会分开验证，且 key 始终只在插件后端使用。最小请求成功不代表 Cloudflare 或其他 WAF 一定接受体积更大的完整会话请求。每次请求可能产生少量费用。
 
-协议检测会产生真实的最小 API 请求，可能产生少量费用；插件不会根据“是否推理”自动更改协议。
+协议检测会发送真实请求并将最大输出限制为 16 token，可能产生少量费用；该上限可避免部分网关拒绝单 token 探测而造成误判。插件不会根据“是否推理”自动更改协议。
 
 ### 媒体工具面板
 

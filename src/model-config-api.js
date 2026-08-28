@@ -1,5 +1,8 @@
 const CONFIG_API_PATH = '/model-palette/api/config'
 const REQUEST_BODY_LIMIT = 8_192
+const PROBE_MAX_OUTPUT_TOKENS = 16
+const DIAGNOSTIC_LENGTH_LIMIT = 240
+const CLOUDFLARE_BLOCK_PATTERN = /(?:Attention Required!\s*\|\s*Cloudflare|cdn-cgi\/styles\/cf\.errors\.css|cf-error-details)/iu
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 const PROTOCOLS = ['openai-completions', 'openai-responses']
 const API_KEY_PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages']
@@ -86,11 +89,13 @@ async function validateApiKey(ctx, req, res) {
     const body = await readJsonBody(req)
     const baseURL = requireBaseURL(body?.baseURL)
     const protocol = requireProtocol(body?.protocol)
-    const model = optionalNonEmptyString(body?.model)
+    const model = requireNonEmptyString(body?.model, 'model')
     const ref = requireCredentialRef(body?.credentialRef)
-    const apiKey = optionalApiKey(body?.apiKey) ?? optionalApiKey((await ctx.credentials.resolve(ref))?.value)
-    if (apiKey === undefined) throw new Error(`credential ${ref} is not configured`)
-    const result = await validateCredential(baseURL, protocol, model, apiKey)
+    const draftApiKey = optionalApiKey(body?.apiKey)
+    const resolved = await ctx.credentials.resolve(ref)
+    const runtimeApiKey = optionalApiKey(resolved?.value)
+    if (runtimeApiKey === undefined && draftApiKey === undefined) throw new Error(`credential ${ref} is not configured`)
+    const result = await validateCredential(baseURL, protocol, model, runtimeApiKey, draftApiKey, resolved?.source)
     writeJson(res, 200, { ok: true, value: result })
   } catch (error) {
     writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
@@ -100,8 +105,8 @@ async function validateApiKey(ctx, req, res) {
 async function probeProtocol(baseURL, model, apiKey, protocol) {
   const path = protocol === 'openai-completions' ? '/chat/completions' : '/responses'
   const body = protocol === 'openai-completions'
-    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: 1, stream: false }
-    : { model, input: 'Reply only with OK.', max_output_tokens: 1 }
+    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: PROBE_MAX_OUTPUT_TOKENS, stream: true }
+    : { model, input: 'Reply only with OK.', max_output_tokens: PROBE_MAX_OUTPUT_TOKENS, stream: true }
   try {
     const response = await fetch(`${baseURL.replace(/\/+$/u, '')}${path}`, {
       method: 'POST',
@@ -116,26 +121,30 @@ async function probeProtocol(baseURL, model, apiKey, protocol) {
   }
 }
 
-async function validateCredential(baseURL, protocol, model, apiKey) {
-  const root = baseURL.replace(/\/+$/u, '')
-  const catalogResponse = await fetch(`${root}/models`, {
-    method: 'GET',
-    headers: headersForProtocol(apiKey, protocol),
-    signal: AbortSignal.timeout(15_000),
-  }).catch(error => ({ error }))
-  if ('error' in catalogResponse) {
-    return { protocol, model, status: 'unknown', checkedBy: 'models', message: errorMessage(catalogResponse.error, apiKey) }
+async function validateCredential(baseURL, protocol, model, runtimeApiKey, draftApiKey, credentialSource) {
+  if (runtimeApiKey === undefined) {
+    const draftResult = await validateModelRequest(baseURL, protocol, model, draftApiKey)
+    return { ...draftResult, credentialTarget: 'draft', runtimeConfigured: false }
   }
-  if (catalogResponse.ok) {
-    return { protocol, model, status: 'valid', checkedBy: 'models', httpStatus: catalogResponse.status, message: `HTTP ${catalogResponse.status}: model catalog accepted the API key` }
+  const runtimeResult = await validateModelRequest(baseURL, protocol, model, runtimeApiKey)
+  if (draftApiKey === undefined || draftApiKey === runtimeApiKey) {
+    return {
+      ...runtimeResult,
+      credentialTarget: 'runtime',
+      runtimeConfigured: true,
+      ...(credentialSource === undefined ? {} : { credentialSource }),
+      ...(draftApiKey === undefined ? {} : { runtimeMatchesDraft: true }),
+    }
   }
-  if (![404, 405, 501].includes(catalogResponse.status)) {
-    return validationResult(protocol, model, classifyApiKeyStatus(catalogResponse.status), 'models', catalogResponse.status, await responseMessage(catalogResponse, apiKey))
+  const draftResult = await validateModelRequest(baseURL, protocol, model, draftApiKey)
+  return {
+    ...runtimeResult,
+    credentialTarget: 'runtime',
+    runtimeConfigured: true,
+    ...(credentialSource === undefined ? {} : { credentialSource }),
+    runtimeMatchesDraft: false,
+    draft: validationAttempt(draftResult),
   }
-  if (model === undefined) {
-    return { protocol, status: 'unknown', checkedBy: 'models', httpStatus: catalogResponse.status, message: `HTTP ${catalogResponse.status}: model catalog is unavailable; select a model for a request test` }
-  }
-  return validateModelRequest(baseURL, protocol, model, apiKey)
 }
 
 async function validateModelRequest(baseURL, protocol, model, apiKey) {
@@ -145,10 +154,10 @@ async function validateModelRequest(baseURL, protocol, model, apiKey) {
       ? '/responses'
       : '/messages'
   const body = protocol === 'openai-completions'
-    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: 1, stream: false }
+    ? { model, messages: [{ role: 'user', content: 'Reply only with OK.' }], max_tokens: PROBE_MAX_OUTPUT_TOKENS, stream: true }
     : protocol === 'openai-responses'
-      ? { model, input: 'Reply only with OK.', max_output_tokens: 1 }
-      : { model, max_tokens: 1, messages: [{ role: 'user', content: 'Reply only with OK.' }] }
+      ? { model, input: 'Reply only with OK.', max_output_tokens: PROBE_MAX_OUTPUT_TOKENS, stream: true }
+      : { model, max_tokens: PROBE_MAX_OUTPUT_TOKENS, messages: [{ role: 'user', content: 'Reply only with OK.' }], stream: true }
   try {
     const response = await fetch(`${baseURL.replace(/\/+$/u, '')}${path}`, {
       method: 'POST',
@@ -156,10 +165,11 @@ async function validateModelRequest(baseURL, protocol, model, apiKey) {
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),
     })
-    const status = response.ok ? 'valid' : classifyApiKeyStatus(response.status)
-    return validationResult(protocol, model, status, 'request', response.status, response.ok
+    const message = response.ok
       ? `HTTP ${response.status}: minimal model request succeeded`
-      : await responseMessage(response, apiKey))
+      : await responseMessage(response, apiKey)
+    const status = response.ok ? 'valid' : classifyApiKeyStatus(response.status, message)
+    return validationResult(protocol, model, status, 'request', response.status, message)
   } catch (error) {
     return { protocol, model, status: 'unknown', checkedBy: 'request', message: errorMessage(error, apiKey) }
   }
@@ -173,26 +183,61 @@ function headersForProtocol(apiKey, protocol, includeContentType = false) {
   return headers
 }
 
-function classifyApiKeyStatus(status) {
+function classifyApiKeyStatus(status, message) {
   if (status === 401) return 'invalid'
   if (status === 403) return 'blocked'
+  if (isAuthenticationFailure(message)) return 'invalid'
   if (status === 402 || status === 408 || status === 429) return 'unavailable'
   return 'unknown'
 }
 
+function isAuthenticationFailure(message) {
+  return /(?:api[\s_-]*key|token|credential).*(?:invalid|incorrect|unauthori[sz]ed|expired|revoked)|(?:invalid|incorrect|unauthori[sz]ed|expired|revoked).*(?:api[\s_-]*key|token|credential)/iu.test(message)
+}
+
 function validationResult(protocol, model, status, checkedBy, httpStatus, message) {
-  return { protocol, ...(model === undefined ? {} : { model }), status, checkedBy, httpStatus, message }
+  return { protocol, model, status, checkedBy, httpStatus, message }
+}
+
+function validationAttempt(result) {
+  return {
+    status: result.status,
+    ...(result.httpStatus === undefined ? {} : { httpStatus: result.httpStatus }),
+    message: result.message,
+  }
 }
 
 async function responseMessage(response, secret = '') {
-  const text = redactDiagnostic((await response.text()).slice(0, 240), secret)
-  try {
-    const parsed = JSON.parse(text)
-    if (typeof parsed?.error?.message === 'string') return `HTTP ${response.status}: ${parsed.error.message}`
-  } catch {
-    // The remote reply is not JSON; its bounded text is the only useful diagnostic.
+  const text = redactDiagnostic(await response.text(), secret)
+  const detail = boundedDiagnostic(responseDetail(text))
+  return detail === '' ? `HTTP ${response.status}` : `HTTP ${response.status}: ${detail}`
+}
+
+function responseDetail(text) {
+  if (CLOUDFLARE_BLOCK_PATTERN.test(text)) {
+    return 'Cloudflare blocked the provider request before it reached the API; this does not prove the API key is invalid'
   }
-  return text === '' ? `HTTP ${response.status}` : `HTTP ${response.status}: ${text}`
+  let value = text
+  for (let attempt = 0; attempt < 2 && typeof value === 'string'; attempt += 1) {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return value
+    }
+  }
+  if (value !== null && typeof value === 'object') {
+    if (value.error !== null && typeof value.error === 'object' && typeof value.error.message === 'string') return value.error.message
+    if (typeof value.error === 'string') return value.error
+    if (typeof value.message === 'string') return value.message
+  }
+  return typeof value === 'string' ? value : text
+}
+
+function boundedDiagnostic(value) {
+  const normalized = value.replace(/\s+/gu, ' ').trim()
+  return normalized.length <= DIAGNOSTIC_LENGTH_LIMIT
+    ? normalized
+    : `${normalized.slice(0, DIAGNOSTIC_LENGTH_LIMIT - 1)}…`
 }
 
 function isTrustedBrowserRequest(req) {
@@ -281,11 +326,6 @@ function requireProtocol(value) {
 function requireNonEmptyString(value, label) {
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`${label} is required`)
   return value.trim()
-}
-
-function optionalNonEmptyString(value) {
-  if (value === undefined || value === '') return undefined
-  return requireNonEmptyString(value, 'model')
 }
 
 function optionalApiKey(value) {

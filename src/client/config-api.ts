@@ -18,11 +18,20 @@ export type ProtocolProbeResult = {
 
 export type ApiKeyValidationResult = {
   protocol: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
-  model?: string
+  model: string
   status: 'valid' | 'invalid' | 'blocked' | 'unavailable' | 'unknown'
-  checkedBy: 'models' | 'request'
+  checkedBy: 'request'
   httpStatus?: number
   message: string
+  credentialTarget: 'runtime' | 'draft'
+  runtimeConfigured: boolean
+  credentialSource?: string
+  runtimeMatchesDraft?: boolean
+  draft?: {
+    status: ApiKeyValidationResult['status']
+    httpStatus?: number
+    message: string
+  }
 }
 
 /** Reveal one stored credential through the plugin's direct-loopback-only route. */

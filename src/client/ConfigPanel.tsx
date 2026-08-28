@@ -425,7 +425,11 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setError(t('config.apiKeyValidationKeyRequired'))
       return
     }
-    if (!window.confirm(t('config.apiKeyValidationConfirm', { model: protocolTestModelValue || t('config.apiKeyValidationCatalog') }))) return
+    if (protocolTestModelValue === '') {
+      setError(t('config.protocolProbeModelRequired'))
+      return
+    }
+    if (!window.confirm(t('config.apiKeyValidationConfirm', { model: protocolTestModelValue }))) return
     setBusy('api-key-validation')
     setError(null)
     setFeedback(null)
@@ -688,8 +692,20 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         )}
         {apiKeyValidation !== null && (
           <div className={`dmp-config-key-validation is-${apiKeyValidation.status}`} role="status">
+            <strong>{apiKeyValidation.credentialTarget === 'runtime'
+              ? t('config.apiKeyValidationRuntimeTarget', { source: apiKeyValidation.credentialSource ?? '?' })
+              : t('config.apiKeyValidationDraftTarget')}</strong>
             <strong>{t(apiKeyValidationLabel(apiKeyValidation.status))}</strong>
             <span>{apiKeyValidation.message}</span>
+            {apiKeyValidation.runtimeConfigured === false && <span>{t('config.apiKeyValidationDraftOnly')}</span>}
+            {apiKeyValidation.runtimeMatchesDraft === false && <span>{t('config.apiKeyValidationMismatch')}</span>}
+            {apiKeyValidation.draft !== undefined && (
+              <>
+                <strong>{t('config.apiKeyValidationDraftResult')}: {t(apiKeyValidationLabel(apiKeyValidation.draft.status))}</strong>
+                <span>{apiKeyValidation.draft.message}</span>
+              </>
+            )}
+            {apiKeyValidation.status === 'valid' && <span>{t('config.apiKeyValidationScope')}</span>}
           </div>
         )}
       </section>
