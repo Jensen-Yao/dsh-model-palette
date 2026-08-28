@@ -7,6 +7,7 @@ export interface ModelPreset {
   contextWindow?: number
   maxTokens?: number
   input?: Array<'text' | 'image'>
+  reasoningEfforts?: Partial<Record<'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max', string | null>>
   sourceLabel: string
   sourceUrl: string
 }
@@ -51,6 +52,9 @@ export function applyModelPreset(
   if (preset.input !== undefined && (overwrite || !Array.isArray(next.input) || next.input.length === 0)) {
     next.input = [...preset.input]
   }
+  if (preset.reasoningEfforts !== undefined && (overwrite || next.reasoningEfforts === undefined)) {
+    next.reasoningEfforts = structuredClone(preset.reasoningEfforts)
+  }
   return next
 }
 
@@ -78,6 +82,7 @@ export function validateRegistry(value: unknown): ModelPresetRegistry {
     const contextWindow = optionalPositiveInteger(entry.contextWindow, 'contextWindow')
     const maxTokens = optionalPositiveInteger(entry.maxTokens, 'maxTokens')
     const input = entry.input === undefined ? undefined : validateInput(entry.input)
+    const reasoningEfforts = entry.reasoningEfforts === undefined ? undefined : validateReasoningEfforts(entry.reasoningEfforts)
     return {
       id: entry.id,
       name: entry.name,
@@ -85,6 +90,7 @@ export function validateRegistry(value: unknown): ModelPresetRegistry {
       ...(contextWindow === undefined ? {} : { contextWindow }),
       ...(maxTokens === undefined ? {} : { maxTokens }),
       ...(input === undefined ? {} : { input }),
+      ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
       sourceLabel: entry.sourceLabel,
       sourceUrl: entry.sourceUrl,
     }
@@ -108,6 +114,23 @@ function validateInput(value: unknown): Array<'text' | 'image'> {
     throw new TypeError('input must contain only text or image')
   }
   return [...new Set(value)] as Array<'text' | 'image'>
+}
+
+function validateReasoningEfforts(value: unknown): ModelPreset['reasoningEfforts'] {
+  if (!isRecord(value)) throw new TypeError('reasoningEfforts must be an object')
+  const levels = new Set(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+  const result: NonNullable<ModelPreset['reasoningEfforts']> = {}
+  for (const [level, wire] of Object.entries(value)) {
+    if (!levels.has(level) || wire !== null && (typeof wire !== 'string' || wire === '')) {
+      throw new TypeError('reasoningEfforts contains an invalid level or wire value')
+    }
+    if (wire === null && level !== 'off') throw new TypeError('only reasoningEfforts.off may be null')
+    result[level as keyof typeof result] = wire
+  }
+  if (Object.keys(result).length === 0 || !Object.keys(result).some(level => level !== 'off')) {
+    throw new TypeError('reasoningEfforts must offer at least one enabled level')
+  }
+  return result
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

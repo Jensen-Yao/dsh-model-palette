@@ -4,6 +4,19 @@ import { applyModelPreset, matchModelPreset } from './model-presets.ts'
 
 export const PROVIDER_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 export const CREDENTIAL_REF_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
+export const REASONING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export type ReasoningLevel = typeof REASONING_LEVELS[number]
+export type ReasoningEfforts = Partial<Record<ReasoningLevel, string | null>>
+
+export const UNIVERSAL_REASONING_EFFORTS: ReasoningEfforts = {
+  off: null,
+  minimal: 'minimal',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  xhigh: 'xhigh',
+  max: 'max',
+}
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -83,13 +96,38 @@ export function setOptionalPositiveInteger(source: Record<string, unknown>, key:
 }
 
 export function setInputModality(source: Record<string, unknown>, modality: 'text' | 'image', enabled: boolean): Record<string, unknown> {
+  return setNamedInputModality(source, 'input', modality, enabled)
+}
+
+export type InputMode = 'inherit' | 'text' | 'text-image' | 'image'
+
+export function inputMode(source: Record<string, unknown>, key = 'input'): InputMode {
+  const input = Array.isArray(source[key]) ? source[key] : []
+  const text = input.includes('text')
+  const image = input.includes('image')
+  if (text && image) return 'text-image'
+  if (text) return 'text'
+  if (image) return 'image'
+  return 'inherit'
+}
+
+export function setInputMode(source: Record<string, unknown>, mode: InputMode, key = 'input'): Record<string, unknown> {
   const next = structuredClone(source)
-  const current = Array.isArray(next.input)
-    ? next.input.filter((value): value is 'text' | 'image' => value === 'text' || value === 'image')
+  if (mode === 'inherit') delete next[key]
+  else if (mode === 'text') next[key] = ['text']
+  else if (mode === 'image') next[key] = ['image']
+  else next[key] = ['text', 'image']
+  return next
+}
+
+function setNamedInputModality(source: Record<string, unknown>, key: string, modality: 'text' | 'image', enabled: boolean): Record<string, unknown> {
+  const next = structuredClone(source)
+  const current = Array.isArray(next[key])
+    ? next[key].filter((value): value is 'text' | 'image' => value === 'text' || value === 'image')
     : []
   const values = enabled ? [...new Set([...current, modality])] : current.filter(value => value !== modality)
-  if (values.length === 0) delete next.input
-  else next.input = values
+  if (values.length === 0) delete next[key]
+  else next[key] = values
   return next
 }
 
@@ -105,6 +143,150 @@ export function setCompatField(source: Record<string, unknown>, key: string, val
 
 export function compatValue(source: Record<string, unknown>, key: string): unknown {
   return isRecord(source.compat) ? source.compat[key] : undefined
+}
+
+export function reasoningEffortsValue(source: Record<string, unknown>): false | ReasoningEfforts | undefined {
+  if (source.reasoningEfforts === false) return false
+  if (!isRecord(source.reasoningEfforts)) return undefined
+  const efforts: ReasoningEfforts = {}
+  for (const level of REASONING_LEVELS) {
+    const value = source.reasoningEfforts[level]
+    if (value === null || typeof value === 'string') efforts[level] = value
+  }
+  return efforts
+}
+
+export function hasUniversalReasoningEfforts(source: Record<string, unknown>): boolean {
+  const efforts = reasoningEffortsValue(source)
+  return efforts !== undefined && efforts !== false && REASONING_LEVELS.every(level => Object.hasOwn(efforts, level))
+}
+
+export function setReasoningMode(
+  source: Record<string, unknown>,
+  mode: 'inherit' | 'disabled' | 'all',
+): Record<string, unknown> {
+  const next = structuredClone(source)
+  if (mode === 'inherit') delete next.reasoningEfforts
+  else if (mode === 'disabled') next.reasoningEfforts = false
+  else next.reasoningEfforts = structuredClone(UNIVERSAL_REASONING_EFFORTS)
+  return next
+}
+
+export function setReasoningEffort(
+  source: Record<string, unknown>,
+  level: ReasoningLevel,
+  enabled: boolean,
+  wireValue?: string,
+): Record<string, unknown> {
+  const next = structuredClone(source)
+  const current = reasoningEffortsValue(next)
+  const efforts: ReasoningEfforts = current === undefined || current === false ? {} : structuredClone(current)
+  if (!enabled) delete efforts[level]
+  else if (level === 'off') efforts.off = wireValue?.trim() || null
+  else efforts[level] = wireValue?.trim() || level
+  if (!REASONING_LEVELS.some(candidate => candidate !== 'off' && Object.hasOwn(efforts, candidate))) delete next.reasoningEfforts
+  else next.reasoningEfforts = efforts
+  return next
+}
+
+/** Add selectable reasoning levels and provider-aware dispatch defaults without replacing manual compatibility values. */
+export function applyUniversalReasoningDefaults(
+  providerId: string,
+  profile: Record<string, unknown>,
+  model: Record<string, unknown>,
+): Record<string, unknown> {
+  return applyReasoningDispatchDefaults(providerId, profile, setReasoningMode(model, 'all'))
+}
+
+/** Add provider-aware reasoning dispatch compatibility without changing the model's offered levels. */
+export function applyReasoningDispatchDefaults(
+  providerId: string,
+  profile: Record<string, unknown>,
+  model: Record<string, unknown>,
+): Record<string, unknown> {
+  let next = structuredClone(model)
+  const protocol = stringField(profile, 'api')
+  if (protocol !== 'openai-completions') return next
+  const explicitFormat = compatValue(next, 'thinkingFormat')
+  const format = typeof explicitFormat === 'string' ? explicitFormat : inferThinkingFormat(providerId, profile, next)
+  if (format !== undefined) next = setCompatDefault(next, 'thinkingFormat', format)
+  if (format === 'qwen' || format === 'qwen-chat-template' || format === 'chat-template') {
+    next = setCompatDefault(next, 'supportsReasoningEffort', false)
+  } else if (format !== 'openrouter' && format !== 'ant-ling' && format !== 'string-thinking') {
+    next = setCompatDefault(next, 'supportsReasoningEffort', true)
+  }
+  return applyReasoningCompatibilityDefaults(protocol, next).model
+}
+
+/** Add universal reasoning controls to every explicitly declared model or override on one route. */
+export function applyUniversalReasoningToProvider(
+  providerId: string,
+  profile: Record<string, unknown>,
+): { profile: Record<string, unknown>; changed: number } {
+  const next = structuredClone(profile)
+  let changed = 0
+  const models = modelRecords(next).map((model) => {
+    const updated = applyUniversalReasoningDefaults(providerId, next, model)
+    if (JSON.stringify(updated) !== JSON.stringify(model)) changed += 1
+    return updated
+  })
+  if (models.length > 0) next.models = models
+  if (isRecord(next.modelOverrides)) {
+    const overrides = Object.fromEntries(Object.entries(next.modelOverrides).map(([modelId, value]) => {
+      if (!isRecord(value)) return [modelId, value]
+      const updated = applyUniversalReasoningDefaults(providerId, next, { id: modelId, ...value })
+      delete updated.id
+      if (JSON.stringify(updated) !== JSON.stringify(value)) changed += 1
+      return [modelId, updated]
+    }))
+    next.modelOverrides = overrides
+  }
+  return { profile: next, changed }
+}
+
+/** Ensure one selectable model has all reasoning levels, using modelOverrides for inherited catalogs. */
+export function ensureModelReasoning(
+  providerId: string,
+  profile: Record<string, unknown>,
+  modelId: string,
+): { profile: Record<string, unknown>; changed: boolean } {
+  const next = structuredClone(profile)
+  const models = modelRecords(next)
+  const position = models.findIndex(model => model.id === modelId)
+  if (position >= 0) {
+    const current = models[position] ?? {}
+    const updated = applyUniversalReasoningDefaults(providerId, next, current)
+    if (JSON.stringify(updated) === JSON.stringify(current)) return { profile: next, changed: false }
+    models[position] = updated
+    next.models = models
+    return { profile: next, changed: true }
+  }
+  const overrides = isRecord(next.modelOverrides) ? structuredClone(next.modelOverrides) : {}
+  const current = isRecord(overrides[modelId]) ? structuredClone(overrides[modelId]) : {}
+  const updated = applyUniversalReasoningDefaults(providerId, next, { id: modelId, ...current })
+  delete updated.id
+  if (JSON.stringify(updated) === JSON.stringify(current)) return { profile: next, changed: false }
+  overrides[modelId] = updated
+  next.modelOverrides = overrides
+  return { profile: next, changed: true }
+}
+
+function inferThinkingFormat(
+  providerId: string,
+  profile: Record<string, unknown>,
+  model: Record<string, unknown>,
+): string | undefined {
+  const identity = `${providerId} ${stringField(profile, 'baseURL')} ${stringField(model, 'id')} ${stringField(model, 'name')}`.toLocaleLowerCase()
+  if (identity.includes('openrouter')) return 'openrouter'
+  if (identity.includes('deepseek')) return 'deepseek'
+  if (identity.includes('qwen')) return 'qwen'
+  if (identity.includes('zhipu') || identity.includes('bigmodel') || /\bglm[-_\s]/u.test(identity)) return 'zai'
+  if (identity.includes('together')) return 'together'
+  return undefined
+}
+
+function setCompatDefault(source: Record<string, unknown>, key: string, value: unknown): Record<string, unknown> {
+  return compatValue(source, key) === undefined ? setCompatField(source, key, value) : structuredClone(source)
 }
 
 export interface CompatibilityRepairResult {

@@ -34,6 +34,20 @@ export type ApiKeyValidationResult = {
   }
 }
 
+export type BatchApiKeyValidationResult = {
+  provider: string
+  displayName: string
+  baseURL: string
+  credentialRef: string
+  protocol: ApiKeyValidationResult['protocol']
+  model: string
+  status: ApiKeyValidationResult['status'] | 'missing'
+  checkedBy: 'request'
+  httpStatus?: number
+  message: string
+  credentialSource?: string
+}
+
 /** Reveal one stored credential through the plugin's direct-loopback-only route. */
 export async function revealCredential(ref: string): Promise<string> {
   const response = await fetch(`${CONFIG_API_BASE}/credentials/reveal`, {
@@ -102,4 +116,25 @@ export async function validateProviderApiKey(input: {
     throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
   }
   return payload.value
+}
+
+/** Validate all configured runtime credentials without returning any credential to the browser. */
+export async function validateProviderApiKeys(input: {
+  providers: Array<Pick<BatchApiKeyValidationResult, 'provider' | 'displayName' | 'baseURL' | 'credentialRef' | 'protocol' | 'model'>>
+}): Promise<BatchApiKeyValidationResult[]> {
+  const response = await fetch(`${CONFIG_API_BASE}/credentials/validate-batch`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  let payload: ConfigApiSuccess<{ results: BatchApiKeyValidationResult[] }> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<{ results: BatchApiKeyValidationResult[] }> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value.results
 }

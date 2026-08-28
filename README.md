@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.5.5](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.5.5)
+Current release: [v0.6.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.6.0)
 
 ## ✨ Features
 
@@ -59,10 +59,11 @@ Current release: [v0.5.5](https://github.com/Jensen-Yao/dsh-model-palette/releas
 </td>
 <td width="50%">
 
-### 🧠 Reasoning Effort Selector
-- When the active model supports reasoning levels, a dropdown appears in the footer
-- Switch between effort levels (low, medium, high) on the fly
-- Provider-specific default effort applied automatically
+### 🧠 Universal Reasoning Effort Selector
+- The footer always offers `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`
+- If a model does not advertise levels yet, choosing one creates a live `reasoningEfforts` declaration before selection
+- Configure every level and provider wire value per model, or enable all declared models on a route with one click
+- Provider-aware defaults cover OpenAI, OpenRouter, DeepSeek, Qwen, GLM/Z.AI, Together, and manual gateways
 
 </td>
 </tr>
@@ -73,11 +74,13 @@ Current release: [v0.5.5](https://github.com/Jensen-Yao/dsh-model-palette/releas
 Add, edit, or remove provider profiles directly from the UI:
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - Set **credential reference** and **API key** (masked by default)
+- Validate every configured runtime key in one click and jump directly to any provider that needs editing
 - **Test connection** via `llm.discoverModels` and import discovered models
 - Duplicate a working provider into a new draft with a separate credential reference
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
 - List affected models missing `thinkingFormat` / `reasoning_content` replay settings and provide one-click repair in the config panel
+- Retry explicit Cloudflare/WAF 403 pages with bounded backoff and preserve a gateway-blocked diagnostic when retries are exhausted
 - Warn before discarding unsaved edits and protect drafts with a browser unload guard
 - Security: stored keys can only be revealed through direct `127.0.0.1` / `localhost` access
 
@@ -85,10 +88,11 @@ Add, edit, or remove provider profiles directly from the UI:
 <td width="50%">
 
 ### 📦 Model Presets
-- **Bundled presets** for verified context windows, max outputs, and input types
+- **44 bundled presets** for context windows, max outputs, text/vision input types, and known reasoning efforts
 - **Online refresh** from GitHub — always up-to-date
 - **Auto-fill** missing parameters for exact model matches
 - **Manual preset selection** for private gateway aliases
+- Provider default input and per-model input can be set to inherit, text, text + image, or image only
 - Unknown aliases are never guessed — only verified data is applied
 
 </td>
@@ -152,7 +156,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.5
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -200,7 +204,7 @@ This registers five agent tools:
 | Show favorites only | Click **Favorites only** in the left rail |
 | Show recent models | Click **Recent models** in the left rail |
 | Toggle favorite | Click the ★ star on any model row |
-| Switch reasoning effort | Use the dropdown in the footer (visible when the active model supports it) |
+| Switch reasoning effort | Use the footer dropdown; missing model declarations are added live |
 
 ### Configuration Panel
 
@@ -212,14 +216,20 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
 5. **Test the connection** — click "Check connection" to discover models
 6. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
-7. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
-8. **Configure models** — filter long lists, copy parameters, and set context window, max output, and input types
-9. **Apply presets** — auto-fill from the registry or select manually
-10. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
-11. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-12. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+7. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
+8. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
+9. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
+10. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
+11. **Apply presets** — auto-fill from the registry or select manually
+12. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+13. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+14. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
-API key validation reports whether the credential is usable, invalid, blocked by a provider or gateway, unavailable because of quota/rate limits, or inconclusive because the endpoint/model does not support the check. It never treats a public `/models` response as proof that a key can run conversations, uses the same streaming mode as DSH conversations, and identifies Cloudflare block pages as gateway rejection rather than invalid credentials. The active DSH runtime credential is tested separately from a different unsaved input key, and both keys stay on the plugin backend. A successful minimal request does not guarantee that Cloudflare or another WAF will accept a larger full-conversation payload. Each request may incur a small charge.
+API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
+
+For full conversations, the host plugin automatically retries only explicit Cloudflare/WAF 403 pages after other DSH recovery handlers. Retries use bounded cancellable delays. If the gateway keeps blocking the request, the durable failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. This cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
+
+Reasoning effort is a model capability declaration, not a protocol selector. `openai-responses` and `openai-completions` remain independently testable. The plugin adds `reasoningEfforts` only when needed and exposes each wire value for manual correction because gateways may spell or dispatch levels differently.
 
 Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. The plugin never changes protocol based solely on reasoning capability.
 

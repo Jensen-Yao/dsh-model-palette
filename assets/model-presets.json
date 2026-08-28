@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "updatedAt": "2026-08-26",
+  "version": 2,
+  "updatedAt": "2026-08-28",
   "presets": [
     {
       "id": "openai-gpt-5.6-sol",
@@ -9,6 +9,7 @@
       "contextWindow": 1050000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "OpenAI model docs",
       "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
     },
@@ -19,6 +20,7 @@
       "contextWindow": 1050000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "OpenAI model docs",
       "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
     },
@@ -29,6 +31,7 @@
       "contextWindow": 1050000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "OpenAI model docs",
       "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
     },
@@ -39,6 +42,7 @@
       "contextWindow": 1050000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
       "sourceLabel": "OpenAI model docs",
       "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.5"
     },
@@ -49,6 +53,7 @@
       "contextWindow": 1000000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
@@ -59,6 +64,7 @@
       "contextWindow": 1000000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
@@ -69,6 +75,7 @@
       "contextWindow": 1000000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
@@ -79,6 +86,7 @@
       "contextWindow": 1000000,
       "maxTokens": 128000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
@@ -89,6 +97,7 @@
       "contextWindow": 1000000,
       "maxTokens": 384000,
       "input": ["text"],
+      "reasoningEfforts": {"high": "high", "max": "max"},
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
@@ -99,6 +108,7 @@
       "contextWindow": 1000000,
       "maxTokens": 384000,
       "input": ["text", "image"],
+      "reasoningEfforts": {"high": "high", "max": "max"},
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
@@ -109,6 +119,7 @@
       "contextWindow": 1000000,
       "maxTokens": 384000,
       "input": ["text"],
+      "reasoningEfforts": {"high": "high", "max": "max"},
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
@@ -129,6 +140,7 @@
       "contextWindow": 1000000,
       "maxTokens": 131072,
       "input": ["text"],
+      "reasoningEfforts": {"low": "low", "high": "high", "max": "max"},
       "sourceLabel": "Z.ai model docs",
       "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
     },
@@ -169,6 +181,7 @@
       "contextWindow": 1000000,
       "maxTokens": 524288,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
       "sourceLabel": "MiniMax model docs",
       "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
     },
@@ -197,8 +210,9 @@
       "name": "Moonshot Kimi K3",
       "aliases": ["kimi-k3", "moonshotai/kimi-k3"],
       "contextWindow": 1048576,
-      "maxTokens": 1048576,
+      "maxTokens": 131072,
       "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "high": "high", "max": "max"},
       "sourceLabel": "Moonshot model docs",
       "sourceUrl": "https://platform.moonshot.ai/docs/models/kimi-k3"
     },
@@ -207,6 +221,7 @@
       "name": "Moonshot Kimi K2.7 Code",
       "aliases": ["kimi-k2.7-code", "moonshotai/kimi-k2.7-code"],
       "contextWindow": 262144,
+      "maxTokens": 262144,
       "input": ["text", "image"],
       "sourceLabel": "Moonshot model docs",
       "sourceUrl": "https://platform.moonshot.ai/docs/models"
@@ -216,6 +231,7 @@
       "name": "Moonshot Kimi K2.6",
       "aliases": ["kimi-k2.6", "moonshotai/kimi-k2.6"],
       "contextWindow": 262144,
+      "maxTokens": 262144,
       "input": ["text", "image"],
       "sourceLabel": "Moonshot model docs",
       "sourceUrl": "https://platform.moonshot.ai/docs/models"
@@ -225,9 +241,214 @@
       "name": "Moonshot Kimi K2.5",
       "aliases": ["kimi-k2.5", "moonshotai/kimi-k2.5"],
       "contextWindow": 262144,
+      "maxTokens": 262144,
       "input": ["text", "image"],
       "sourceLabel": "Moonshot model docs",
       "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "openai-gpt-5",
+      "name": "OpenAI GPT-5",
+      "aliases": ["gpt-5", "openai/gpt-5"],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"minimal": "minimal", "low": "low", "medium": "medium", "high": "high"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.2",
+      "name": "OpenAI GPT-5.2",
+      "aliases": ["gpt-5.2", "openai/gpt-5.2"],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.3-codex",
+      "name": "OpenAI GPT-5.3 Codex",
+      "aliases": ["gpt-5.3-codex", "openai/gpt-5.3-codex"],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.4",
+      "name": "OpenAI GPT-5.4",
+      "aliases": ["gpt-5.4", "openai/gpt-5.4"],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.4-pro",
+      "name": "OpenAI GPT-5.4 Pro",
+      "aliases": ["gpt-5.4-pro", "openai/gpt-5.4-pro"],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"medium": "medium", "high": "high", "xhigh": "xhigh"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-o3",
+      "name": "OpenAI o3",
+      "aliases": ["o3", "openai/o3"],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-o3-mini",
+      "name": "OpenAI o3-mini",
+      "aliases": ["o3-mini", "openai/o3-mini"],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": ["text"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-o4-mini",
+      "name": "OpenAI o4-mini",
+      "aliases": ["o4-mini", "openai/o4-mini"],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "anthropic-claude-opus-4.6",
+      "name": "Anthropic Claude Opus 4.6",
+      "aliases": ["claude-opus-4.6", "claude-opus-4-6", "anthropic/claude-opus-4.6"],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "anthropic-claude-sonnet-4.6",
+      "name": "Anthropic Claude Sonnet 4.6",
+      "aliases": ["claude-sonnet-4.6", "claude-sonnet-4-6", "anthropic/claude-sonnet-4.6"],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": ["text", "image"],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "anthropic-claude-haiku-4.5",
+      "name": "Anthropic Claude Haiku 4.5",
+      "aliases": ["claude-haiku-4.5", "claude-haiku-4-5", "anthropic/claude-haiku-4.5"],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": ["text", "image"],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "google-gemini-2.5-flash",
+      "name": "Google Gemini 2.5 Flash",
+      "aliases": ["gemini-2.5-flash", "google/gemini-2.5-flash"],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": ["text", "image"],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "google-gemini-2.5-pro",
+      "name": "Google Gemini 2.5 Pro",
+      "aliases": ["gemini-2.5-pro", "google/gemini-2.5-pro"],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": ["text", "image"],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-qwen3.6-flash",
+      "name": "Qwen 3.6 Flash",
+      "aliases": ["qwen3.6-flash", "qwen/qwen3.6-flash"],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-qwen3.6-plus",
+      "name": "Qwen 3.6 Plus",
+      "aliases": ["qwen3.6-plus", "qwen/qwen3.6-plus"],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-qwen3.7-max",
+      "name": "Qwen 3.7 Max",
+      "aliases": ["qwen3.7-max", "qwen/qwen3.7-max"],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": ["text"],
+      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-qwen3.7-plus",
+      "name": "Qwen 3.7 Plus",
+      "aliases": ["qwen3.7-plus", "qwen/qwen3.7-plus"],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-qwen3.8-max-preview",
+      "name": "Qwen 3.8 Max Preview",
+      "aliases": ["qwen3.8-max-preview", "qwen/qwen3.8-max-preview"],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "xai-grok-4.5",
+      "name": "xAI Grok 4.5",
+      "aliases": ["grok-4.5", "x-ai/grok-4.5", "xai/grok-4.5"],
+      "contextWindow": 500000,
+      "maxTokens": 500000,
+      "input": ["text", "image"],
+      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "xiaomi-mimo-v2.5-pro",

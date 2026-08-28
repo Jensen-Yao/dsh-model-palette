@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 - 2026-08-28
+
+- Retry explicit Cloudflare/WAF 403 block pages with bounded, cancellable backoff after other DSH recovery handlers have had a chance to act.
+- Relabel exhausted Cloudflare failures as provider blocking instead of leaving DSH to display them as invalid API keys.
+- Add one-click sequential validation for every configured runtime credential, with provider, credential source, protocol, model, diagnostics, and a direct edit action.
+- Expose all seven DSH reasoning efforts for the active model and automatically create a live `reasoningEfforts` declaration when the selected model did not advertise them.
+- Add per-model reasoning controls, editable provider wire values, provider-aware dispatch defaults, and a one-click action for every declared model on a route.
+- Expand the bundled registry to 44 verified model presets and apply known context, output, text/image input, and reasoning metadata without replacing explicit model settings.
+- Add provider-default and per-model input selectors for inherited, text-only, text-and-image, and image-only routes.
+
 ## 0.5.5 - 2026-08-28
 
 - Raise live protocol and credential fallback probes to a 16-token output cap so gateways with minimum token validation do not produce false negatives.

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   ensureSelectionCompatibility,
+  ensureSelectionReasoning,
   mayNeedReasoningCompatibility,
 } from '../src/client/selection-compatibility.ts'
 
@@ -70,5 +71,27 @@ describe('selection compatibility preflight', () => {
         mutate: vi.fn(),
       },
     } as never, 'bankofai', 'deepseek-v4-flash')).resolves.toEqual([])
+  })
+
+  it('adds universal reasoning to declared and inherited catalog models', async () => {
+    const declared = namespace({ api: 'openai-responses', models: [{ id: 'gpt-custom' }] })
+    const mutate = vi.fn(async (_request: unknown) => ({ result: { ok: true, value: declared } }))
+    await expect(ensureSelectionReasoning({ settings: {
+      describe: vi.fn(async () => ({ result: { ok: true, value: { namespaces: [declared] } } })),
+      mutate,
+    } } as never, 'bankofai', 'gpt-custom')).resolves.toBe(true)
+    const declaredMutation = mutate.mock.calls[0]?.[0] as unknown as { ops: Array<{ value: { models: Array<{ reasoningEfforts: unknown }> } }> }
+    expect(declaredMutation.ops[0]?.value.models[0]?.reasoningEfforts).toMatchObject({
+      off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max',
+    })
+
+    const inherited = { ...declared, user: { providers: {} }, value: { providers: { openai: { api: 'openai-responses' } } } }
+    const inheritedMutate = vi.fn(async (_request: unknown) => ({ result: { ok: true, value: inherited } }))
+    await expect(ensureSelectionReasoning({ settings: {
+      describe: vi.fn(async () => ({ result: { ok: true, value: { namespaces: [inherited] } } })),
+      mutate: inheritedMutate,
+    } } as never, 'openai', 'gpt-5.6')).resolves.toBe(true)
+    const inheritedMutation = inheritedMutate.mock.calls[0]?.[0] as unknown as { ops: Array<{ value: { modelOverrides: Record<string, { reasoningEfforts: Record<string, unknown> }> } }> }
+    expect(inheritedMutation.ops[0]?.value.modelOverrides['gpt-5.6']?.reasoningEfforts.max).toBe('max')
   })
 })

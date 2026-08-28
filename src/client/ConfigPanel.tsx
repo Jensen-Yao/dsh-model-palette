@@ -5,28 +5,38 @@ import type {
 import {
   probeProviderProtocols,
   revealCredential,
+  validateProviderApiKeys,
   validateProviderApiKey,
   type ApiKeyValidationResult,
+  type BatchApiKeyValidationResult,
   type ProtocolProbeResult,
 } from './config-api.ts'
 import {
   CREDENTIAL_REF_PATTERN,
   PROVIDER_ID_PATTERN,
+  REASONING_LEVELS,
   applyMissingPresets,
+  applyReasoningDispatchDefaults,
+  applyUniversalReasoningDefaults,
+  applyUniversalReasoningToProvider,
   compatValue,
   deriveCredentialRef,
   duplicateModelIds,
   duplicateModelTemplate,
+  inputMode,
   isRecord,
   mergeDiscoveredModels,
   modelRecords,
   nextProviderCopyId,
   providerProfiles,
   repairProviderCompatibility,
+  reasoningEffortsValue,
   setCompatField,
-  setInputModality,
+  setInputMode,
   setOptionalPositiveInteger,
   setOptionalString,
+  setReasoningEffort,
+  setReasoningMode,
   stringField,
 } from './model-config.ts'
 import {
@@ -76,14 +86,22 @@ function draftSignature(providerId: string, draft: Record<string, unknown>): str
   return JSON.stringify({ providerId, draft })
 }
 
-function apiKeyValidationLabel(status: ApiKeyValidationResult['status']): string {
+function apiKeyValidationLabel(status: ApiKeyValidationResult['status'] | 'missing'): string {
   switch (status) {
     case 'valid': return 'config.apiKeyValidationValid'
     case 'invalid': return 'config.apiKeyValidationInvalid'
     case 'blocked': return 'config.apiKeyValidationBlocked'
     case 'unavailable': return 'config.apiKeyValidationUnavailable'
     case 'unknown': return 'config.apiKeyValidationUnknown'
+    case 'missing': return 'config.apiKeyValidationMissing'
   }
+}
+
+function firstConfiguredModelId(profile: Record<string, unknown>): string {
+  const declared = modelRecords(profile).find(model => typeof model.id === 'string' && model.id.trim() !== '')
+  if (typeof declared?.id === 'string') return declared.id.trim()
+  const overrides = isRecord(profile.modelOverrides) ? Object.keys(profile.modelOverrides) : []
+  return overrides.find(id => id.trim() !== '')?.trim() ?? ''
 }
 
 export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
@@ -104,7 +122,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [protocolResults, setProtocolResults] = useState<ProtocolProbeResult[] | null>(null)
   const [protocolTestModelId, setProtocolTestModelId] = useState('')
   const [apiKeyValidation, setApiKeyValidation] = useState<ApiKeyValidationResult | null>(null)
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'api-key-validation' | 'reveal' | 'presets' | null>('load')
+  const [batchApiKeyValidation, setBatchApiKeyValidation] = useState<BatchApiKeyValidationResult[] | null>(null)
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'protocol-probe' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -130,6 +149,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     : undefined
   const credentialRef = stringField(draft, 'apiKeyEnv') || deriveCredentialRef(providerId || 'provider')
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
+  const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -174,6 +194,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     if (!force && !confirmDiscard()) return
     setBusy('load')
     setError(null)
+    setBatchApiKeyValidation(null)
     try {
       const response = await api.settings.describe({})
       if (!response.result.ok) throw new Error(response.result.error.message)
@@ -320,14 +341,19 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const autoApplyPresets = () => {
     const result = applyMissingPresets(models, registry.presets)
-    setModels(result.models)
+    setModels(result.models.map(model => model.reasoningEfforts === undefined
+      ? model
+      : applyReasoningDispatchDefaults(providerId || 'provider', draft, model)))
     setFeedback(t('config.presetsApplied', { count: result.applied }))
   }
 
   const applyPreset = (index: number, presetId: string) => {
     const preset = registry.presets.find(candidate => candidate.id === presetId)
     if (preset === undefined) return
-    updateModel(index, applyModelPreset(models[index] ?? {}, preset, true))
+    const updated = applyModelPreset(models[index] ?? {}, preset, true)
+    updateModel(index, updated.reasoningEfforts === undefined
+      ? updated
+      : applyReasoningDispatchDefaults(providerId || 'provider', draft, updated))
     setManualPresets(current => ({ ...current, [index]: preset.id }))
   }
 
@@ -365,6 +391,19 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     const result = mergeDiscoveredModels(models, discovered)
     setModels(result.models)
     setFeedback(t('config.discoveryApplied', { added: result.added, enriched: result.enriched }))
+  }
+
+  const enableReasoningForProvider = () => {
+    const result = applyUniversalReasoningToProvider(providerId || 'provider', draft)
+    setDraft(result.profile)
+    setProtocolResults(null)
+    setApiKeyValidation(null)
+    setFeedback(t('config.reasoningProviderApplied', { count: result.changed }))
+  }
+
+  const enableReasoningForModel = (index: number) => {
+    updateModel(index, applyUniversalReasoningDefaults(providerId || 'provider', draft, models[index] ?? {}))
+    setFeedback(t('config.reasoningModelApplied'))
   }
 
   const probeProtocols = async () => {
@@ -443,6 +482,66 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       })
       setApiKeyValidation(result)
       setFeedback(t('config.apiKeyValidationDone'))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const validateAllApiKeys = async () => {
+    if (busy !== null || providerIds.length === 0) return
+    if (!window.confirm(t('config.apiKeyBatchConfirm', { count: providerIds.length }))) return
+    setBusy('api-key-batch')
+    setError(null)
+    setFeedback(null)
+    try {
+      const localResults: BatchApiKeyValidationResult[] = []
+      const requests: Parameters<typeof validateProviderApiKeys>[0]['providers'] = []
+      for (const id of providerIds) {
+        const profile = profiles[id] ?? {}
+        const displayName = stringField(profile, 'displayName') || id
+        const baseURL = stringField(profile, 'baseURL').trim()
+        const apiProtocol = stringField(profile, 'api')
+        const ref = stringField(profile, 'apiKeyEnv') || deriveCredentialRef(id)
+        const model = firstConfiguredModelId(profile)
+        let localMessage = ''
+        if (baseURL === '') localMessage = t('config.apiKeyBatchNoBaseUrl')
+        else {
+          try { new URL(baseURL) } catch { localMessage = t('config.apiKeyBatchInvalidBaseUrl') }
+        }
+        if (!PROTOCOLS.includes(apiProtocol as typeof PROTOCOLS[number])) localMessage = t('config.apiKeyBatchInvalidProtocol')
+        if (localMessage !== '') {
+          localResults.push({
+            provider: id,
+            displayName,
+            baseURL,
+            credentialRef: ref,
+            protocol: PROTOCOLS.includes(apiProtocol as typeof PROTOCOLS[number])
+              ? apiProtocol as BatchApiKeyValidationResult['protocol']
+              : 'openai-completions',
+            model,
+            status: 'unknown',
+            checkedBy: 'request',
+            message: localMessage,
+          })
+          continue
+        }
+        requests.push({
+          provider: id,
+          displayName,
+          baseURL,
+          credentialRef: ref,
+          protocol: apiProtocol as BatchApiKeyValidationResult['protocol'],
+          model,
+        })
+      }
+      const remoteResults = requests.length === 0 ? [] : await validateProviderApiKeys({ providers: requests })
+      const resultByProvider = new Map([...localResults, ...remoteResults].map(result => [result.provider, result]))
+      const ordered = providerIds.flatMap(id => resultByProvider.get(id) ?? [])
+      setBatchApiKeyValidation(ordered)
+      const problems = ordered.filter(result => result.status !== 'valid').length
+      setFeedback(t(problems === 0 ? 'config.apiKeyBatchAllValid' : 'config.apiKeyBatchProblems', { count: problems }))
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
@@ -585,6 +684,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         </div>
         <div className="dmp-config-toolbar-actions">
           {dirty && <span className="dmp-config-dirty">{t('config.unsaved')}</span>}
+          <button type="button" disabled={busy !== null || providerIds.length === 0} onClick={() => void validateAllApiKeys()}>{busy === 'api-key-batch' ? t('config.apiKeyBatchRunning') : t('config.apiKeyBatch')}</button>
           <button type="button" disabled={busy !== null} onClick={() => void load()}>{t('config.reload')}</button>
           <button type="button" disabled={busy !== null} onClick={startCreate}>{t('config.addProvider')}</button>
         </div>
@@ -592,6 +692,33 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
       {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
       {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+      {batchApiKeyValidation !== null && (
+        <section className="dmp-config-batch-results" aria-label={t('config.apiKeyBatchResults')}>
+          <div className="dmp-config-batch-heading">
+            <div>
+              <strong>{t('config.apiKeyBatchResults')}</strong>
+              <span>{batchProblemCount === 0 ? t('config.apiKeyBatchAllValid') : t('config.apiKeyBatchProblems', { count: batchProblemCount })}</span>
+            </div>
+            <button type="button" disabled={busy !== null} onClick={() => setBatchApiKeyValidation(null)}>{t('config.apiKeyBatchClose')}</button>
+          </div>
+          <div className="dmp-config-batch-list">
+            {batchApiKeyValidation.map(result => (
+              <article className={`is-${result.status}`} key={result.provider}>
+                <div>
+                  <strong>{result.displayName}</strong>
+                  <span>{result.provider} · {result.credentialRef} · {result.protocol} · {result.model}</span>
+                  <small>{result.message}</small>
+                </div>
+                <div>
+                  <span>{t(apiKeyValidationLabel(result.status))}</span>
+                  {result.credentialSource !== undefined && <small>{result.credentialSource}</small>}
+                  <button type="button" disabled={busy !== null} onClick={() => selectProvider(result.provider)}>{t('config.apiKeyBatchEdit')}</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {compatibilityRepair.changed && (
         <div className="dmp-config-compat-warning" role="status">
           <div>
@@ -642,6 +769,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             </select>
           </label>
           <div className="dmp-config-protocol-note">{t('config.protocolNote')}</div>
+          <label className="dmp-media-field">
+            <span>{t('config.providerDefaultInput')}</span>
+            <select value={inputMode(draft, 'defaultInput')} disabled={readOnly} onChange={event => setDraft(current => setInputMode(current, event.currentTarget.value as ReturnType<typeof inputMode>, 'defaultInput'))}>
+              <option value="inherit">{t('config.inputDshDefault')}</option>
+              <option value="text">{t('config.inputText')}</option>
+              <option value="text-image">{t('config.inputTextImage')}</option>
+              <option value="image">{t('config.inputImageOnly')}</option>
+            </select>
+          </label>
           <label className="dmp-media-field">
             <span>{t('config.credentialRef')}</span>
             <input value={credentialRef} disabled={readOnly} onChange={event => updateProfileString('apiKeyEnv', event.currentTarget.value)} placeholder={deriveCredentialRef(providerId || 'provider')} />
@@ -718,6 +854,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             <input className="dmp-config-model-search" value={modelQuery} onChange={event => setModelQuery(event.currentTarget.value)} placeholder={t('config.searchModels')} aria-label={t('config.searchModels')} />
             <button type="button" disabled={busy !== null} onClick={() => void refreshPresets()}>{t('config.refreshPresets')}</button>
             <button type="button" disabled={busy !== null || models.length === 0} onClick={autoApplyPresets}>{t('config.autoPreset')}</button>
+            <button type="button" disabled={busy !== null || models.length === 0} onClick={enableReasoningForProvider}>{t('config.reasoningProviderEnable')}</button>
             <button type="button" disabled={busy !== null} onClick={addModel}>{t('config.addModel')}</button>
           </div>
         </div>
@@ -729,7 +866,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             const automatic = sourcePreset(model, registry.presets)
             const selectedPresetId = manualPresets[index] ?? automatic?.id ?? ''
             const selectedPreset = registry.presets.find(preset => preset.id === selectedPresetId)
-            const input = Array.isArray(model.input) ? model.input : []
+            const modelInputMode = inputMode(model)
+            const reasoningEfforts = reasoningEffortsValue(model)
+            const reasoningMode = reasoningEfforts === undefined ? 'inherit' : reasoningEfforts === false ? 'disabled' : 'custom'
             return (
               <article className="dmp-config-model" key={`${String(model.id)}-${index}`}>
                 <div className="dmp-config-model-top">
@@ -760,12 +899,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                       try { updateModel(index, setOptionalPositiveInteger(model, 'maxTokens', event.currentTarget.value)); setError(null) } catch (cause) { setError(messageOf(cause)) }
                     }} placeholder="32768" />
                   </label>
-                  <fieldset className="dmp-config-inputs">
-                    <legend>{t('config.inputTypes')}</legend>
-                    <label><input type="checkbox" checked={input.includes('text')} disabled={readOnly} onChange={event => updateModel(index, setInputModality(model, 'text', event.currentTarget.checked))} /> Text</label>
-                    <label><input type="checkbox" checked={input.includes('image')} disabled={readOnly} onChange={event => updateModel(index, setInputModality(model, 'image', event.currentTarget.checked))} /> Image</label>
-                    <small>{t('config.inputInherit')}</small>
-                  </fieldset>
+                  <label className="dmp-media-field">
+                    <span>{t('config.inputTypes')}</span>
+                    <select value={modelInputMode} disabled={readOnly} onChange={event => updateModel(index, setInputMode(model, event.currentTarget.value as ReturnType<typeof inputMode>))}>
+                      <option value="inherit">{t('config.inputInherit')}</option>
+                      <option value="text">{t('config.inputText')}</option>
+                      <option value="text-image">{t('config.inputTextImage')}</option>
+                      <option value="image">{t('config.inputImageOnly')}</option>
+                    </select>
+                  </label>
                   <div className="dmp-config-preset">
                     <label className="dmp-media-field">
                       <span>{t('config.preset')}</span>
@@ -776,8 +918,52 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                     </label>
                     <button type="button" disabled={readOnly || selectedPreset === undefined} onClick={() => applyPreset(index, selectedPresetId)}>{t('config.applyPreset')}</button>
                     {selectedPreset !== undefined && <a href={selectedPreset.sourceUrl} target="_blank" rel="noreferrer">{selectedPreset.sourceLabel}</a>}
+                    {selectedPreset !== undefined && <small>{[
+                      selectedPreset.input?.join(' + '),
+                      selectedPreset.reasoningEfforts === undefined ? undefined : t('config.presetReasoningLevels', { count: Object.keys(selectedPreset.reasoningEfforts).length }),
+                    ].filter(Boolean).join(' · ')}</small>}
                   </div>
                 </div>
+
+                <details className="dmp-config-reasoning" open={reasoningMode === 'custom'}>
+                  <summary>{t('config.reasoningTitle')}</summary>
+                  <div className="dmp-config-reasoning-toolbar">
+                    <label className="dmp-media-field">
+                      <span>{t('config.reasoningMode')}</span>
+                      <select value={reasoningMode} disabled={readOnly} onChange={event => {
+                        const mode = event.currentTarget.value
+                        if (mode === 'inherit' || mode === 'disabled') updateModel(index, setReasoningMode(model, mode))
+                        else enableReasoningForModel(index)
+                      }}>
+                        <option value="inherit">{t('config.reasoningInherit')}</option>
+                        <option value="disabled">{t('config.reasoningDisabled')}</option>
+                        <option value="custom">{t('config.reasoningAll')}</option>
+                      </select>
+                    </label>
+                    <button type="button" disabled={readOnly} onClick={() => enableReasoningForModel(index)}>{t('config.reasoningEnableAll')}</button>
+                    <small>{t('config.reasoningDescription')}</small>
+                  </div>
+                  {reasoningEfforts !== undefined && reasoningEfforts !== false && (
+                    <div className="dmp-config-reasoning-grid">
+                      {REASONING_LEVELS.map(level => {
+                        const enabled = Object.hasOwn(reasoningEfforts, level)
+                        const wireValue = reasoningEfforts[level]
+                        return (
+                          <label key={level}>
+                            <span><input type="checkbox" checked={enabled} disabled={readOnly} onChange={event => updateModel(index, setReasoningEffort(model, level, event.currentTarget.checked))} /> {level}</span>
+                            <input
+                              value={wireValue ?? ''}
+                              disabled={readOnly || !enabled}
+                              onChange={event => updateModel(index, setReasoningEffort(model, level, true, event.currentTarget.value))}
+                              placeholder={level === 'off' ? t('config.reasoningOffWire') : level}
+                              aria-label={t('config.reasoningWireValue', { level })}
+                            />
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </details>
 
                 <details className="dmp-config-compat">
                   <summary>{t('config.compatibility')}</summary>

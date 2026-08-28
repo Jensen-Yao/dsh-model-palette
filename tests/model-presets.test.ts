@@ -26,11 +26,32 @@ describe('model presets', () => {
       contextWindow: 42,
       maxTokens: 131072,
       input: ['text'],
+      reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
       compat: { supportsDeveloperRole: false },
+    })
+  })
+
+  it('applies verified input and reasoning metadata without replacing manual declarations', () => {
+    const preset = matchModelPreset('gpt-5.6-sol', BUNDLED_PRESET_REGISTRY.presets)!
+    expect(applyModelPreset({ id: 'gpt-5.6-sol' }, preset, false)).toMatchObject({
+      input: ['text', 'image'],
+      reasoningEfforts: { off: 'none', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+    })
+    expect(applyModelPreset({ id: 'gpt-5.6-sol', reasoningEfforts: false }, preset, false).reasoningEfforts).toBe(false)
+
+    const glmPreset = matchModelPreset('glm-5.3', BUNDLED_PRESET_REGISTRY.presets)!
+    expect(glmPreset).toMatchObject({
+      input: ['text'],
+      reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
     })
   })
 
   it('rejects malformed online registries', () => {
     expect(() => validateRegistry({ version: 1, updatedAt: '2026-08-26', presets: [{ id: 'bad' }] })).toThrow('invalid model preset entry')
+    expect(() => validateRegistry({
+      version: 1,
+      updatedAt: '2026-08-28',
+      presets: [{ id: 'bad', name: 'Bad', aliases: ['bad'], reasoningEfforts: { low: null }, sourceLabel: 'x', sourceUrl: 'https://example.com' }],
+    })).toThrow('only reasoningEfforts.off may be null')
   })
 })

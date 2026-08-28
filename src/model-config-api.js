@@ -1,6 +1,7 @@
 const CONFIG_API_PATH = '/model-palette/api/config'
-const REQUEST_BODY_LIMIT = 8_192
+const REQUEST_BODY_LIMIT = 65_536
 const PROBE_MAX_OUTPUT_TOKENS = 16
+const BATCH_PROVIDER_LIMIT = 100
 const DIAGNOSTIC_LENGTH_LIMIT = 240
 const CLOUDFLARE_BLOCK_PATTERN = /(?:Attention Required!\s*\|\s*Cloudflare|cdn-cgi\/styles\/cf\.errors\.css|cf-error-details)/iu
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -44,6 +45,10 @@ export function createModelConfigApiHandler(ctx) {
     }
     if (pathname === `${CONFIG_API_PATH}/credentials/validate`) {
       await validateApiKey(ctx, req, res)
+      return
+    }
+    if (pathname === `${CONFIG_API_PATH}/credentials/validate-batch`) {
+      await validateApiKeysBatch(ctx, req, res)
       return
     }
     if (pathname !== `${CONFIG_API_PATH}/credentials/reveal`) {
@@ -97,6 +102,60 @@ async function validateApiKey(ctx, req, res) {
     if (runtimeApiKey === undefined && draftApiKey === undefined) throw new Error(`credential ${ref} is not configured`)
     const result = await validateCredential(baseURL, protocol, model, runtimeApiKey, draftApiKey, resolved?.source)
     writeJson(res, 200, { ok: true, value: result })
+  } catch (error) {
+    writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
+  }
+}
+
+async function validateApiKeysBatch(ctx, req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const providers = requireBatchProviders(body?.providers)
+    const results = []
+    for (const provider of providers) {
+      let model = provider.model
+      if (model === '') {
+        try {
+          model = (await ctx.llm.listModels(provider.provider))[0]?.id ?? ''
+        } catch (error) {
+          results.push({
+            ...provider,
+            status: 'unknown',
+            checkedBy: 'request',
+            message: `could not resolve a runtime model for provider ${provider.provider}: ${errorMessage(error)}`,
+          })
+          continue
+        }
+        if (model === '') {
+          results.push({
+            ...provider,
+            status: 'unknown',
+            checkedBy: 'request',
+            message: `provider ${provider.provider} exposes no model for a live credential check`,
+          })
+          continue
+        }
+      }
+      const resolved = await ctx.credentials.resolve(provider.credentialRef)
+      const apiKey = optionalApiKey(resolved?.value)
+      if (apiKey === undefined) {
+        results.push({
+          ...provider,
+          status: 'missing',
+          checkedBy: 'request',
+          message: `credential ${provider.credentialRef} is not configured`,
+        })
+        continue
+      }
+      const result = await validateModelRequest(provider.baseURL, provider.protocol, model, apiKey)
+      results.push({
+        ...provider,
+        model,
+        ...result,
+        ...(resolved?.source === undefined ? {} : { credentialSource: resolved.source }),
+      })
+    }
+    writeJson(res, 200, { ok: true, value: { results } })
   } catch (error) {
     writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
   }
@@ -321,6 +380,37 @@ function requireBaseURL(value) {
 function requireProtocol(value) {
   if (typeof value !== 'string' || !API_KEY_PROTOCOLS.includes(value)) throw new Error('protocol is invalid')
   return value
+}
+
+function requireBatchProviders(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > BATCH_PROVIDER_LIMIT) {
+    throw new Error(`providers must contain from 1 to ${BATCH_PROVIDER_LIMIT} entries`)
+  }
+  return value.map((entry, index) => {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`providers[${index}] is invalid`)
+    const provider = requireNonEmptyString(entry.provider, `providers[${index}].provider`)
+    if (!/^[a-z0-9][a-z0-9-]*$/u.test(provider)) throw new Error(`providers[${index}].provider is invalid`)
+    const displayName = optionalDisplayName(entry.displayName) ?? provider
+    return {
+      provider,
+      displayName,
+      baseURL: requireBaseURL(entry.baseURL),
+      credentialRef: requireCredentialRef(entry.credentialRef),
+      protocol: requireProtocol(entry.protocol),
+      model: optionalNonEmptyString(entry.model, `providers[${index}].model`) ?? '',
+    }
+  })
+}
+
+function optionalDisplayName(value) {
+  if (value === undefined || value === '') return undefined
+  if (typeof value !== 'string' || value.trim().length > 120) throw new Error('displayName is invalid')
+  return value.trim()
+}
+
+function optionalNonEmptyString(value, label) {
+  if (value === undefined || value === '') return undefined
+  return requireNonEmptyString(value, label)
 }
 
 function requireNonEmptyString(value, label) {

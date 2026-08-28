@@ -230,4 +230,56 @@ describe('model configuration credential API', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('checks all configured runtime credentials without returning any key', async () => {
+    const originalFetch = globalThis.fetch
+    const calls = []
+    globalThis.fetch = vi.fn(async (url, init) => {
+      calls.push({ url, init })
+      return init.headers.authorization === 'Bearer valid-secret'
+        ? new Response(JSON.stringify({ id: 'ok' }), { status: 200 })
+        : new Response(JSON.stringify({ error: { message: 'Incorrect API key' } }), { status: 401 })
+    })
+    const resolve = vi.fn(async (ref) => ({
+      GOOD_API_KEY: { value: 'valid-secret', source: 'file' },
+      BAD_API_KEY: { value: 'bad-secret', source: 'env' },
+    })[ref])
+    try {
+      const response = await invoke(createModelConfigApiHandler({ credentials: { resolve }, llm: { listModels: vi.fn() } }), { providers: [
+        { provider: 'good', displayName: 'Good', baseURL: 'https://good.example/v1', credentialRef: 'GOOD_API_KEY', protocol: 'openai-responses', model: 'gpt-test' },
+        { provider: 'bad', displayName: 'Bad', baseURL: 'https://bad.example/v1', credentialRef: 'BAD_API_KEY', protocol: 'openai-completions', model: 'bad-model' },
+        { provider: 'missing', displayName: 'Missing', baseURL: 'https://missing.example/v1', credentialRef: 'MISSING_API_KEY', protocol: 'anthropic-messages', model: 'claude-test' },
+      ] }, { url: '/model-palette/api/config/credentials/validate-batch' })
+      expect(response.status).toBe(200)
+      expect(response.body.value.results).toEqual([
+        expect.objectContaining({ provider: 'good', status: 'valid', credentialSource: 'file', httpStatus: 200 }),
+        expect.objectContaining({ provider: 'bad', status: 'invalid', credentialSource: 'env', httpStatus: 401 }),
+        expect.objectContaining({ provider: 'missing', status: 'missing', message: 'credential MISSING_API_KEY is not configured' }),
+      ])
+      expect(calls).toHaveLength(2)
+      expect(JSON.stringify(response.body)).not.toContain('valid-secret')
+      expect(JSON.stringify(response.body)).not.toContain('bad-secret')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('uses the live DSH catalog when a configured provider inherits its model list', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      expect(JSON.parse(init.body).model).toBe('gpt-runtime')
+      return new Response('{}', { status: 200 })
+    })
+    try {
+      const response = await invoke(createModelConfigApiHandler({
+        credentials: { resolve: vi.fn(async () => ({ value: 'stored-secret' })) },
+        llm: { listModels: vi.fn(async () => [{ id: 'gpt-runtime', name: 'GPT Runtime', provider: 'openai' }]) },
+      }), { providers: [
+        { provider: 'openai', displayName: 'OpenAI', baseURL: 'https://api.example/v1', credentialRef: 'OPENAI_API_KEY', protocol: 'openai-responses', model: '' },
+      ] }, { url: '/model-palette/api/config/credentials/validate-batch' })
+      expect(response.body.value.results[0]).toMatchObject({ status: 'valid', model: 'gpt-runtime' })
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })

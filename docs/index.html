@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.5.4 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.5.4：DeepSeek Harness Web 的全局模型面板，兼容 Skin Center v2，支持供应商配置与 OpenRouter 媒体工具。" />
+<title>dsh-model-palette v0.6.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.6.0：全模型推理档位、全部 API key 巡检、Cloudflare 403 恢复、44 项模型预置与文本/视觉输入配置。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -543,7 +543,7 @@
 </nav>
 
 <header class="hero">
-  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.5.4</div>
+  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.6.0</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -597,9 +597,13 @@
         <div class="effort">
           <span>推理档位</span>
           <select id="demo-effort">
+            <option>关闭 · off</option>
+            <option>最小 · minimal</option>
             <option>低 · low</option>
             <option selected>中 · medium</option>
             <option>高 · high</option>
+            <option>超高 · xhigh</option>
+            <option>最大 · max</option>
           </select>
         </div>
       </div>
@@ -661,9 +665,10 @@
       <div class="ico">🧠</div>
       <h3>推理档位选择器</h3>
       <ul>
-        <li>活动模型支持时自动出现</li>
-        <li>低 / 中 / 高随时切换</li>
-        <li>应用供应商默认档位</li>
+        <li>所有活动模型均可手工选择七档</li>
+        <li>缺失声明会实时写入 reasoningEfforts</li>
+        <li>逐档编辑供应商 wire value</li>
+        <li>OpenAI / OpenRouter / DeepSeek / Qwen 等线路感知</li>
       </ul>
     </div>
     <div class="card">
@@ -675,7 +680,9 @@
       <li>协议、Base URL、密钥一站式配置</li>
       <li>连接测试 + 模型一键导入</li>
       <li>API key 实际可用性验证</li>
+      <li>全部 API key 一键巡检并直达编辑</li>
       <li>真实请求检测 Completions / Responses</li>
+      <li>Cloudflare/WAF 403 有限退避恢复</li>
       <li>已知 DeepSeek 方言网关回传自动修复</li>
       <li>未保存提示与重复 ID 防护</li>
       <li>密钥仅回环可查看，默认掩码</li>
@@ -685,9 +692,10 @@
       <div class="ico">📦</div>
       <h3>在线模型预置</h3>
       <ul>
-        <li>已核验的上下文 / 输出 / 输入预置</li>
+        <li>44 项上下文 / 输出 / 输入 / 推理预置</li>
         <li>GitHub 在线刷新，离线自动回退</li>
         <li>自动补全缺失参数</li>
+        <li>供应商默认和单模型文本/视觉输入</li>
         <li>绝不猜测未知别名</li>
       </ul>
     </div>
@@ -699,7 +707,7 @@
   <div class="sec-head">
     <div class="tag">Skin Center v2</div>
     <h2>皮肤负责外观，插件负责能力</h2>
-    <p>v0.5.4 保持标准 DSH 插件协议，同时为 v2 皮肤提供稳定的打开入口和语义标记。</p>
+    <p>v0.6.0 保持标准 DSH 插件协议，同时为 v2 皮肤提供稳定的打开入口和语义标记。</p>
   </div>
   <div class="compat-panel">
     <div class="card">
@@ -742,14 +750,14 @@ window.dispatchEvent(new CustomEvent(
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.5.4
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.6.0
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -830,14 +838,21 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>验证 API key</h4>
-          <p>点击「验证 API key」后优先检查带鉴权的 /models；如果供应商没有模型目录，再使用当前协议和所选模型执行最小请求，并区分无效、拒绝、限流与无法判断。</p>
+          <p>使用当前协议和所选模型发送最小流式请求，不再用可能公开的 /models 误判；「一键检查全部 API key」会依次检查全部运行时凭据并直达有问题的供应商。</p>
         </div>
       </div>
       <div class="step">
         <div class="n"></div>
         <div>
           <h4>配置模型参数并应用预置</h4>
-          <p>用模型筛选快速定位，复制已有参数后填写新 ID，再设置上下文窗口、最大输出、输入类型与兼容参数。</p>
+          <p>从 44 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；供应商默认输入和单模型输入均可精确设置。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>全模型推理与网关恢复</h4>
+          <p>单模型或整条线路可一键启用七档推理并编辑 wire value；明确的 Cloudflare/WAF 403 会有限重试，最终仍失败时显示网关拦截而非 key 无效。</p>
         </div>
       </div>
       <div class="step">

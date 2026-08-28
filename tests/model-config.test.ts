@@ -2,14 +2,23 @@ import { describe, expect, it } from 'vitest'
 import {
   applyMissingPresets,
   applyReasoningCompatibilityDefaults,
+  applyReasoningDispatchDefaults,
+  applyUniversalReasoningDefaults,
+  applyUniversalReasoningToProvider,
   deriveCredentialRef,
   duplicateModelIds,
   duplicateModelTemplate,
   mergeDiscoveredModels,
   nextProviderCopyId,
   repairProviderCompatibility,
+  ensureModelReasoning,
+  hasUniversalReasoningEfforts,
+  inputMode,
   setCompatField,
   setInputModality,
+  setInputMode,
+  setReasoningEffort,
+  setReasoningMode,
 } from '../src/client/model-config.ts'
 import { BUNDLED_PRESET_REGISTRY } from '../src/client/model-presets.ts'
 
@@ -43,6 +52,14 @@ describe('model configuration helpers', () => {
       input: ['image'],
       compat: { maxTokensField: 'max_tokens', supportsDeveloperRole: false },
     })
+  })
+
+  it('represents inherited, text, visual, and image-only input modes', () => {
+    expect(inputMode({})).toBe('inherit')
+    expect(inputMode(setInputMode({}, 'text'))).toBe('text')
+    expect(inputMode(setInputMode({}, 'text-image'))).toBe('text-image')
+    expect(inputMode(setInputMode({}, 'image'))).toBe('image')
+    expect(setInputMode({ defaultInput: ['text', 'image'] }, 'inherit', 'defaultInput')).toEqual({})
   })
 
   it('repairs DeepSeek reasoning replay compatibility for custom OpenAI gateways', () => {
@@ -106,6 +123,59 @@ describe('model configuration helpers', () => {
         requiresReasoningContentOnAssistantMessages: false,
         thinkingFormat: 'deepseek',
       },
+    })
+  })
+
+  it('enables every reasoning level with provider-aware compatibility defaults', () => {
+    const deepseek = applyUniversalReasoningDefaults('bankofai', {
+      api: 'openai-completions', baseURL: 'https://api.bankofai.example/v1',
+    }, { id: 'deepseek-v4-flash' })
+    expect(hasUniversalReasoningEfforts(deepseek)).toBe(true)
+    expect(deepseek.compat).toEqual({
+      thinkingFormat: 'deepseek',
+      supportsReasoningEffort: true,
+      requiresReasoningContentOnAssistantMessages: true,
+      supportsDeveloperRole: false,
+    })
+
+    const openrouter = applyUniversalReasoningDefaults('openrouter', {
+      api: 'openai-completions', baseURL: 'https://openrouter.ai/api/v1',
+    }, { id: 'openai/gpt-test' })
+    expect(openrouter.compat).toEqual({ thinkingFormat: 'openrouter' })
+  })
+
+  it('adds provider dispatch compatibility without replacing preset effort maps', () => {
+    const result = applyReasoningDispatchDefaults('qwen-token-plan', {
+      api: 'openai-completions', baseURL: 'https://example.com/v1',
+    }, { id: 'qwen3.7-plus', reasoningEfforts: { high: 'HIGH' } })
+    expect(result).toEqual({
+      id: 'qwen3.7-plus',
+      reasoningEfforts: { high: 'HIGH' },
+      compat: { thinkingFormat: 'qwen', supportsReasoningEffort: false },
+    })
+  })
+
+  it('supports inherit, disabled, all, and manual reasoning maps', () => {
+    const all = setReasoningMode({ id: 'gpt' }, 'all')
+    expect(hasUniversalReasoningEfforts(all)).toBe(true)
+    expect(setReasoningMode(all, 'disabled').reasoningEfforts).toBe(false)
+    expect(setReasoningMode(all, 'inherit')).toEqual({ id: 'gpt' })
+    expect(setReasoningEffort({ id: 'gpt' }, 'high', true, 'high-plus')).toEqual({
+      id: 'gpt', reasoningEfforts: { high: 'high-plus' },
+    })
+  })
+
+  it('updates declared models and inherited catalog overrides', () => {
+    const declared = applyUniversalReasoningToProvider('custom', {
+      api: 'openai-responses', models: [{ id: 'gpt-custom' }, { id: 'other', reasoningEfforts: false }],
+    })
+    expect(declared.changed).toBe(2)
+    expect((declared.profile.models as Array<Record<string, unknown>>).every(hasUniversalReasoningEfforts)).toBe(true)
+
+    const inherited = ensureModelReasoning('openai', { api: 'openai-responses' }, 'gpt-5.6')
+    expect(inherited.changed).toBe(true)
+    expect(inherited.profile.modelOverrides).toEqual({
+      'gpt-5.6': { reasoningEfforts: expect.objectContaining({ off: null, minimal: 'minimal', max: 'max' }) },
     })
   })
 

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { ConfigPanel } from './ConfigPanel.tsx'
 import { MediaPanel } from './MediaPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
-import { ensureSelectionCompatibility, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
+import { REASONING_LEVELS } from './model-config.ts'
+import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
 import { MODEL_PALETTE_PLUGIN_ID, type ModelPaletteView } from './skin-v2.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
@@ -60,6 +61,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const [favorites, setFavorites] = useStoredList(FAVORITES_KEY)
   const [recents, setRecents] = useStoredList(RECENTS_KEY)
   const [error, setError] = useState<string | null>(null)
+  const [effortBusy, setEffortBusy] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([])
 
@@ -177,18 +179,35 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
   const chooseEffort = async (value: string) => {
     if (snapshot.current === null) return
-    const selection: Selection = {
-      provider: snapshot.current.provider,
-      model: snapshot.current.model,
-      ...(value === '' ? {} : { reasoningEffort: value }),
+    setEffortBusy(true)
+    setError(null)
+    try {
+      const alreadyOffered = current?.model.reasoning?.efforts.some(effort => effort.id === value) === true
+      if (value !== '' && !alreadyOffered) {
+        const changed = await ensureSelectionReasoning(api, snapshot.current.provider, snapshot.current.model)
+        if (changed) load()
+      }
+      const selection: Selection = {
+        provider: snapshot.current.provider,
+        model: snapshot.current.model,
+        ...(value === '' ? {} : { reasoningEffort: value }),
+      }
+      if (!await select(selection)) setError(t('palette.selectFailed'))
+    } catch (cause) {
+      setError(t('palette.reasoningEnableFailed', { message: messageOf(cause) }))
+    } finally {
+      setEffortBusy(false)
     }
-    if (!await select(selection)) setError(t('palette.selectFailed'))
   }
 
   const currentLabel = current?.model.name ?? snapshot.current?.model ?? t('trigger.fallback')
   const providerLabel = current?.provider.name ?? snapshot.current?.provider
   const currentReasoning = current?.model.reasoning
   const currentEffort = snapshot.current?.reasoningEffort ?? currentReasoning?.defaultEffort ?? ''
+  const reasoningOptions = REASONING_LEVELS.map((level) => currentReasoning?.efforts.find(effort => effort.id === level) ?? {
+    id: level,
+    name: `${level.charAt(0).toUpperCase()}${level.slice(1)}`,
+  })
 
   return (
     <div className="dmp-launcher" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID}>
@@ -352,12 +371,12 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 <strong>{currentLabel}</strong>
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
-              {currentReasoning !== undefined && (
+              {snapshot.current !== null && (
                 <label className="dmp-effort">
                   <span>{t('palette.effort')}</span>
-                  <select value={currentEffort} onChange={(event) => void chooseEffort(event.currentTarget.value)}>
-                    {currentReasoning.defaultEffort === undefined && <option value="">{t('palette.providerDefault')}</option>}
-                    {currentReasoning.efforts.map((effort) => <option key={effort.id} value={effort.id}>{effort.name}</option>)}
+                  <select value={currentEffort} disabled={effortBusy} onChange={(event) => void chooseEffort(event.currentTarget.value)}>
+                    <option value="">{t('palette.providerDefault')}</option>
+                    {reasoningOptions.map((effort) => <option key={effort.id} value={effort.id}>{effort.name}</option>)}
                   </select>
                 </label>
               )}
