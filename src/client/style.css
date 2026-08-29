@@ -121,6 +121,12 @@
 .dmp-relay-details dt { color: var(--dsw-alias-label-tertiary); font-size: 10px; }
 .dmp-relay-details dd { min-width: 0; display: flex; align-items: center; gap: 7px; margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; }
 .dmp-relay-details code, .dmp-relay-base-example code { min-width: 0; overflow: hidden; color: var(--dsw-alias-label-primary); text-overflow: ellipsis; white-space: nowrap; }
+.dmp-relay-strategies { display: grid; gap: 7px; padding: 9px; border: 1px solid var(--dsw-alias-border-inverted); border-radius: 9px; background: var(--dsw-alias-bg-layer-1); }
+.dmp-relay-strategies strong { color: var(--dsw-alias-label-secondary); font-size: 10.5px; }
+.dmp-relay-strategies ol { display: grid; gap: 5px; margin: 0; padding-left: 20px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 15px; }
+.dmp-relay-strategies li { padding-left: 2px; }
+.dmp-relay-strategies li code { margin-right: 6px; color: var(--dsw-alias-brand-primary); }
+.dmp-relay-strategies li span { color: var(--dsw-alias-label-tertiary); }
 .dmp-relay-details button, .dmp-relay-actions button, .dmp-relay-copy-code { flex: none; min-height: 29px; padding: 0 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); cursor: pointer; font: inherit; font-size: 10.5px; }
 .dmp-relay-details button:hover, .dmp-relay-actions button:hover, .dmp-relay-copy-code:hover { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); }
 .dmp-relay-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }

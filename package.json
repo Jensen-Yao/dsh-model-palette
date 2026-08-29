@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Global model command palette and provider/model configuration panel for DeepSeek Harness, with selective request retries, OpenRouter free-model import, loopback relays, online capacity presets, and optional media tools.",
   "type": "module",
   "main": "lib/index.js",

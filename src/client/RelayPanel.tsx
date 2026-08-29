@@ -15,8 +15,25 @@ const BAI_RELAY_PLUGIN_CONFIG = `- id: dsh-model-palette
       upstreamRetries: 2
       retryDelaysMs: [250, 1000]
       retryBodyLimitBytes: 16777216
-      upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
-      hostHeader: api.b.ai`
+      strategies:
+        - id: aws-global-accelerator
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 0
+        - id: aws-global-accelerator-next-address
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 1
+        - id: direct-api
+          upstreamHost: api.b.ai
+          hostHeader: api.b.ai
+          tlsServerName: api.b.ai
+          certificateHost: api.b.ai
+          addressIndex: 0`
 
 const GENERIC_RELAY_CONFIG = `- id: dsh-model-palette
   config:
@@ -95,10 +112,18 @@ export function RelayPanel({ onOpenConfig, t }: RelayPanelProps) {
         </div>
         <dl className="dmp-relay-details">
           <div><dt>{t('relay.localBaseUrl')}</dt><dd><code>{baiBaseURL}</code><button type="button" onClick={() => void copy('url', baiBaseURL)}>{copied === 'url' ? t('relay.copied') : t('relay.copy')}</button></dd></div>
-          <div><dt>{t('relay.upstream')}</dt><dd><code>a18ccd091ab831ac3.awsglobalaccelerator.com</code></dd></div>
+          <div><dt>{t('relay.upstream')}</dt><dd><code>a18ccd091ab831ac3.awsglobalaccelerator.com → api.b.ai</code></dd></div>
           <div><dt>{t('relay.hostHeader')}</dt><dd><code>api.b.ai</code></dd></div>
           <div><dt>{t('relay.allowedPath')}</dt><dd><code>/v1/*</code></dd></div>
         </dl>
+        <div className="dmp-relay-strategies">
+          <strong>{t('relay.strategyTitle')}</strong>
+          <ol>
+            <li><code>aws-global-accelerator</code><span>{t('relay.strategyAccelerator')}</span></li>
+            <li><code>aws-global-accelerator-next-address</code><span>{t('relay.strategyNextAddress')}</span></li>
+            <li><code>direct-api</code><span>{t('relay.strategyDirect')}</span></li>
+          </ol>
+        </div>
         <p className="dmp-relay-note">{t('relay.retryPolicy')}</p>
         <p className="dmp-relay-note">{t('relay.statusHint')}</p>
         <div className="dmp-relay-actions">

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 - 2026-08-29
+
+- Keep B.AI failover inside the same provider and model instead of suggesting a provider switch.
+- Add a three-step B.AI connection strategy chain: rotating AWS Global Accelerator DNS addresses followed by direct `api.b.ai`.
+- Retry transient B.AI HTTP failures, Cloudflare block pages, DNS errors, and socket failures on the next strategy with fresh HTTPS connections.
+- Preserve original upstream status and response bodies for non-replayable or terminal failures, and expose the strategy chain in the Relay sidebar and bilingual documentation.
+
 ## 0.9.2 - 2026-08-29
 
 - Reopen each relay attempt with a fresh HTTPS socket so an upstream `ECONNRESET` does not immediately surface as a misleading 502.

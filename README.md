@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.9.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.2)
+Current release: [v0.9.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.3)
 
 ## ✨ Features
 
@@ -130,7 +130,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.3
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -165,7 +165,7 @@ This registers five agent tools:
 
 ### B.AI direct-connection recovery without a VPN
 
-If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials. The relay also opens a fresh HTTPS socket for every attempt, replays request bodies up to 16 MiB, and retries transient socket failures twice before returning a clear 503. Press `Alt+M` and open Relay config to copy a `127.0.0.1` Base URL and provider template using the current DSH port.
+If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through a reachable B.AI entry while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials. “Switching strategy” always stays inside B.AI: the provider, model, API key, and request path remain unchanged; only the connection host, DNS address, or direct-versus-accelerator route changes. The relay opens a fresh HTTPS socket for every attempt, dynamically resolves and rotates DNS addresses, and moves replayable requests to the next B.AI strategy after a transient failure. Press `Alt+M` and open Relay config to copy a `127.0.0.1` Base URL and provider template using the current DSH port.
 
 Change the affected B.AI provider `baseURL` to the following value and restart `dsh web`:
 
@@ -186,7 +186,7 @@ llm-pi-ai:
         - id: deepseek-v4-flash
 ```
 
-The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI destination; it is not an open proxy. A 401 from `/v1/models` means the request reached B.AI, so check the credential first. A timeout or TLS error means the relay's upstream path is still unavailable. If B.AI changes its accelerator entry, override the default with `baiRelay.upstreamHost` in the plugin configuration.
+The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI destination; it is not an open proxy. Its default strategies are: the current DNS address for the AWS Global Accelerator entry, the next address for that same accelerator hostname, and direct `api.b.ai`. `503`, `502`, `504`, explicit Cloudflare 403 pages, rate limits, and transient socket failures move to the next B.AI strategy; the relay returns `503 UPSTREAM_TRANSIENT` only after all attempts fail. A 401 from `/v1/models` means the request reached B.AI, so check the credential first. Large non-replayable requests preserve the original B.AI HTTP error instead of being replayed. If B.AI changes its accelerator entry, override the full chain with `baiRelay.strategies` in the plugin configuration.
 
 The built-in relay retry settings belong to the plugin config, not the provider profile:
 
@@ -197,9 +197,28 @@ The built-in relay retry settings belong to the plugin config, not the provider 
       upstreamRetries: 2
       retryDelaysMs: [250, 1000]
       retryBodyLimitBytes: 16777216
+      strategies:
+        - id: aws-global-accelerator
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 0
+        - id: aws-global-accelerator-next-address
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 1
+        - id: direct-api
+          upstreamHost: api.b.ai
+          hostHeader: api.b.ai
+          tlsServerName: api.b.ai
+          certificateHost: api.b.ai
+          addressIndex: 0
 ```
 
-The relay returns `503 UPSTREAM_TRANSIENT` after its own retries are exhausted. This is separate from the provider/model request-retry rules below.
+`upstreamRetries` is the number of extra attempts for the same B.AI request; the default `2` covers the three strategies above in order. Relay transport recovery and the provider/model request-retry rules below are separate layers, and neither layer switches to another provider.
 
 ### Extend the relay to another provider
 

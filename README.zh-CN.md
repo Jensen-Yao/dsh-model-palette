@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.9.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.2)
+当前版本：[v0.9.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.3)
 
 ## ✨ 功能特性
 
@@ -130,7 +130,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.3
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -155,7 +155,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.2
 
 ### B.AI 无 VPN 连接修复
 
-如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。中继每次尝试都会新建 HTTPS 连接，会重放不超过 16 MiB 的请求体，并对瞬态 socket 错误自动重试两次，耗尽后返回明确的 503。按 `Alt+M` 后打开侧栏「中继配置」，可以直接复制适配当前 DSH 端口的 `127.0.0.1` Base URL 与 provider 模板。
+如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的可达入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。这里的“策略切换”始终发生在 B.AI 内部：请求的 provider、模型、API key 和请求路径都不变，只更换连接主机、DNS 地址或直连方式。中继每次尝试都会新建 HTTPS 连接，会动态读取并轮换 DNS 地址，对可重放请求体自动尝试下一条 B.AI 策略。按 `Alt+M` 后打开侧栏「中继配置」，可以直接复制适配当前 DSH 端口的 `127.0.0.1` Base URL 与 provider 模板。
 
 把对应 B.AI provider 的 `baseURL` 改为下面的值，然后重启 `dsh web`：
 
@@ -176,7 +176,7 @@ llm-pi-ai:
         - id: deepseek-v4-flash
 ```
 
-中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定上游为 B.AI，不是通用开放代理。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential；`ECONNRESET` 等瞬态错误会在新连接上重试，重试耗尽后返回 `503 UPSTREAM_TRANSIENT` 和 `Retry-After: 1`，不会再误报 key 无效。连接超时或 TLS 错误仍表示中继上游不可达。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.upstreamHost` 覆盖默认入口。
+中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定目标为 B.AI，不是通用开放代理。默认策略依次是：AWS Global Accelerator 的当前 DNS 地址、同一加速域名的下一个 DNS 地址、`api.b.ai` 直连。`503`、`502`、`504`、明确的 Cloudflare 403、限流和 `ECONNRESET` 等瞬态失败会转到下一条 B.AI 策略；只有全部策略失败后才返回 `503 UPSTREAM_TRANSIENT`。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential，不应把它当作线路失败。不可重放的大请求不会伪造重试，而是保留 B.AI 原始 HTTP 错误。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.strategies` 覆盖整条策略链。
 
 内置中继的重试参数属于插件配置，不属于 provider 配置：
 
@@ -187,9 +187,28 @@ llm-pi-ai:
       upstreamRetries: 2
       retryDelaysMs: [250, 1000]
       retryBodyLimitBytes: 16777216
+      strategies:
+        - id: aws-global-accelerator
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 0
+        - id: aws-global-accelerator-next-address
+          upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
+          hostHeader: api.b.ai
+          tlsServerName: a18ccd091ab831ac3.awsglobalaccelerator.com
+          certificateHost: api.b.ai
+          addressIndex: 1
+        - id: direct-api
+          upstreamHost: api.b.ai
+          hostHeader: api.b.ai
+          tlsServerName: api.b.ai
+          certificateHost: api.b.ai
+          addressIndex: 0
 ```
 
-中继自身的传输恢复与下面的供应商/模型请求重试是两层机制；前者处理建立上游连接时的 socket 错误，后者处理 DSH 请求路径已经收到的失败。
+`upstreamRetries` 表示在同一 B.AI 请求中最多额外尝试多少次；默认的 `2` 会依次覆盖上面三条策略。中继自身的传输恢复与下面的供应商/模型请求重试是两层机制；前者处理建立上游连接时的 socket 错误或 B.AI 网关瞬态响应，后者处理 DSH 请求路径已经收到的失败。两者都不会把请求切换到其他 provider。
 
 ### 扩展到其他供应商
 
