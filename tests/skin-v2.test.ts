@@ -58,6 +58,20 @@ describe('Skin Center v2 bridge', () => {
     bridge.dispose()
   })
 
+  it('opens the relay configuration view through the skin bridge', () => {
+    const target = new EventTarget() as TestTarget
+    const bridge = installModelPaletteSkinBridge(target)
+    const opened: string[] = []
+    bridge.register((view) => {
+      opened.push(view)
+      return true
+    })
+
+    expect(bridge.api.open('relay')).toBe(true)
+    expect(opened).toEqual(['relay'])
+    bridge.dispose()
+  })
+
   it('announces readiness for skins that activate before the palette mounts', () => {
     const target = new EventTarget() as TestTarget
     const bridge = installModelPaletteSkinBridge(target)

@@ -68,7 +68,7 @@ export interface PaletteProps {
   api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
   isLoopback: boolean
   skinBridge?: {
-    register(open: (view: 'models' | 'media' | 'config') => boolean): () => void
+    register(open: (view: 'models' | 'media' | 'config' | 'relay') => boolean): () => void
   }
   t: (key: string, params?: Record<string, unknown>) => string
 }

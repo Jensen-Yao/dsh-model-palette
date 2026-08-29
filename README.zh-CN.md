@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.7.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.2)
+当前版本：[v0.8.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.8.0)
 
 ## ✨ 功能特性
 
@@ -82,6 +82,7 @@
 - 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
 - 配置页会列出这类模型缺失的 `thinkingFormat` / `reasoning_content` 设置，并支持一键修复应用
 - 明确的 Cloudflare/WAF 403 会自动有限重试；最终仍失败时显示网关拦截，不再误报 key 无效
+- 侧栏提供独立的「中继配置」页：说明内置 B.AI 中继、复制当前端口的 Base URL 与配置模板，并支持为其他供应商声明固定目标中继
 - 切换供应商、重新读取或离开页面前会提示未保存修改
 - 安全设计：已存的 key 仅在直连 `127.0.0.1` / `localhost` 时可查看
 
@@ -126,13 +127,13 @@
 
 本项目仍然是标准 DSH 客户端插件。`skin.json`、`skin.css`、`patches.css` 和 `hooks.mjs` 由 Skin Center v2 统一拥有和加载；`dsh-model-palette` 不冒充皮肤，也不再自创第二套皮肤清单。启用 v2 皮肤后，模型面板仍通过原生插槽、文档级 Portal 和快捷键工作。
 
-插件会在入口和对话框根节点输出 `data-dsh-plugin="dsh-model-palette"`，皮肤可以据此稳定覆盖插件区域，而不必依赖构建生成的 class 名。插件仍由普通 DSH `dsh.client` 协议发现和挂载；v2 桥接会在插件激活时安装，即使对话区稍后才挂载也能工作。v2 皮肤可以通过下面的稳定浏览器事件打开模型、媒体或配置页：
+插件会在入口和对话框根节点输出 `data-dsh-plugin="dsh-model-palette"`，皮肤可以据此稳定覆盖插件区域，而不必依赖构建生成的 class 名。插件仍由普通 DSH `dsh.client` 协议发现和挂载；v2 桥接会在插件激活时安装，即使对话区稍后才挂载也能工作。v2 皮肤可以通过下面的稳定浏览器事件打开模型、媒体、配置或中继页：
 
 ```js
 window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
 ```
 
-`view` 可选值为 `models`、`media`、`config`；省略或传入未知值时打开模型页。也可以调用页面桥接，适合需要直接切页的 v2 `hooks.mjs`：
+`view` 可选值为 `models`、`media`、`config`、`relay`；省略或传入未知值时打开模型页。也可以调用页面桥接，适合需要直接切页的 v2 `hooks.mjs`：
 
 ```js
 window.__DSH_MODEL_PALETTE__?.open('config')
@@ -157,7 +158,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -182,7 +183,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.2
 
 ### B.AI 无 VPN 连接修复
 
-如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。
+如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。按 `Alt+M` 后打开侧栏「中继配置」，可以直接复制适配当前 DSH 端口的 `127.0.0.1` Base URL 与 provider 模板。
 
 把对应 B.AI provider 的 `baseURL` 改为下面的值，然后重启 `dsh web`：
 
@@ -204,6 +205,25 @@ llm-pi-ai:
 ```
 
 中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定上游为 B.AI，不是通用开放代理。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential；连接超时或 TLS 错误才表示中继上游仍不可达。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.upstreamHost` 覆盖默认入口。
+
+### 扩展到其他供应商
+
+遇到其他「key 有效但官方域名在本机无法访问」的供应商时，可在插件配置中声明具名固定目标中继。每个中继都有独立 ID、固定 HTTPS 连接主机、原 API Host、TLS SNI、证书校验名称和允许路径；插件不会接受浏览器动态指定目标。
+
+```yaml
+- id: dsh-model-palette
+  config:
+    providerRelays:
+      example-provider:
+        upstreamHost: reachable-entry.example.net
+        hostHeader: api.provider.example
+        tlsServerName: reachable-entry.example.net
+        certificateHost: api.provider.example
+        allowedPathPrefix: /v1/
+        timeoutMs: 180000
+```
+
+重启 `dsh web` 后，把对应 provider 的 Base URL 改为 `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`。如果 DSH 不是运行在 `3080` 端口，以「中继配置」页显示的当前回环地址为准。只应配置经过核验、确实连接到同一供应商 API 的替代入口；不要把未知网站、密钥或动态 URL 写入中继配置。
 
 注册的五个 Agent 工具：
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 - 2026-08-29
+
+- Add a visible Relay configuration view below Media tools and Model config, with the built-in B.AI route, copyable provider/config templates, request-flow explanation, and diagnostics.
+- Add configurable named `providerRelays` so another provider with an unreachable canonical route can use a fixed, loopback-only HTTPS upstream without modifying plugin source.
+- Keep configurable relays fail-closed with explicit host, TLS name, certificate name, and allowed-path validation; reject non-loopback and forwarded requests.
+- Extend the Skin Center bridge with the `relay` view and document the fourth top-level panel in both READMEs and the project site.
+
 ## 0.7.2 - 2026-08-29
 
 - Add a loopback-only B.AI relay for networks where `api.b.ai` DNS answers or direct TLS routing are blocked.

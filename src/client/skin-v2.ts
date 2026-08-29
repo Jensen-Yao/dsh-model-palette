@@ -6,7 +6,7 @@ export const MODEL_PALETTE_GLOBAL_KEY = '__DSH_MODEL_PALETTE__'
 export const MODEL_PALETTE_SKIN_BRIDGE_VERSION = 2
 const MODEL_PALETTE_BRIDGE_KEY = '__dshModelPaletteBridge'
 
-export type ModelPaletteView = 'models' | 'media' | 'config'
+export type ModelPaletteView = 'models' | 'media' | 'config' | 'relay'
 
 export interface ModelPaletteApi {
   readonly id: typeof MODEL_PALETTE_PLUGIN_ID
@@ -50,7 +50,7 @@ export interface ModelPaletteSkinBridge {
 }
 
 function normalizeView(value: unknown): ModelPaletteView {
-  return value === 'media' || value === 'config' || value === 'models' ? value : 'models'
+  return value === 'media' || value === 'config' || value === 'relay' || value === 'models' ? value : 'models'
 }
 
 function eventView(event: Event): ModelPaletteView {

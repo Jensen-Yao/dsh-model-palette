@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.7.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.2)
+Current release: [v0.8.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.8.0)
 
 ## ✨ Features
 
@@ -82,6 +82,7 @@ Add, edit, or remove provider profiles directly from the UI:
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
 - List affected models missing `thinkingFormat` / `reasoning_content` replay settings and provide one-click repair in the config panel
 - Retry explicit Cloudflare/WAF 403 pages with bounded backoff and preserve a gateway-blocked diagnostic when retries are exhausted
+- Open a dedicated Relay config view from the sidebar to inspect the built-in B.AI route, copy current-port loopback templates, and define fixed-destination relays for other providers
 - Warn before discarding unsaved edits and protect drafts with a browser unload guard
 - Security: stored keys can only be revealed through direct `127.0.0.1` / `localhost` access
 
@@ -126,13 +127,13 @@ Add, edit, or remove provider profiles directly from the UI:
 
 The package remains a standard DSH client plugin. Skin Center v2 owns `skin.json`, `skin.css`, `patches.css`, and `hooks.mjs`; `dsh-model-palette` does not pretend to be a skin and does not add a second skin manifest. When a v2 skin is active, the palette stays usable through the native slot, document-level portal, and keyboard shortcut.
 
-The client exposes `data-dsh-plugin="dsh-model-palette"` on its launcher and dialog roots so v2 skins can target the plugin without generated class names. The normal DSH client loader discovers and mounts the bundle through `dsh.client`; the v2 bridge is installed at plugin activation and remains usable even when the composer mounts later. A v2 skin can open the model, media, or config view through this stable browser event:
+The client exposes `data-dsh-plugin="dsh-model-palette"` on its launcher and dialog roots so v2 skins can target the plugin without generated class names. The normal DSH client loader discovers and mounts the bundle through `dsh.client`; the v2 bridge is installed at plugin activation and remains usable even when the composer mounts later. A v2 skin can open the model, media, config, or relay view through this stable browser event:
 
 ```js
 window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
 ```
 
-`view` accepts `models`, `media`, or `config`; omitted or unknown values open the model view. Hooks that need direct view switching can also use the page bridge:
+`view` accepts `models`, `media`, `config`, or `relay`; omitted or unknown values open the model view. Hooks that need direct view switching can also use the page bridge:
 
 ```js
 window.__DSH_MODEL_PALETTE__?.open('config')
@@ -157,7 +158,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -192,7 +193,7 @@ This registers five agent tools:
 
 ### B.AI direct-connection recovery without a VPN
 
-If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials.
+If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials. Press `Alt+M` and open Relay config to copy a `127.0.0.1` Base URL and provider template using the current DSH port.
 
 Change the affected B.AI provider `baseURL` to the following value and restart `dsh web`:
 
@@ -214,6 +215,25 @@ llm-pi-ai:
 ```
 
 The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI destination; it is not an open proxy. A 401 from `/v1/models` means the request reached B.AI, so check the credential first. A timeout or TLS error means the relay's upstream path is still unavailable. If B.AI changes its accelerator entry, override the default with `baiRelay.upstreamHost` in the plugin configuration.
+
+### Extend the relay to another provider
+
+For another provider whose key works but canonical domain is unreachable locally, declare a named fixed-destination relay in plugin configuration. Each relay has an ID, fixed HTTPS connection host, original API Host, TLS SNI, certificate validation name, and allowed path prefix. Browser requests cannot choose an upstream dynamically.
+
+```yaml
+- id: dsh-model-palette
+  config:
+    providerRelays:
+      example-provider:
+        upstreamHost: reachable-entry.example.net
+        hostHeader: api.provider.example
+        tlsServerName: reachable-entry.example.net
+        certificateHost: api.provider.example
+        allowedPathPrefix: /v1/
+        timeoutMs: 180000
+```
+
+After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`. If DSH uses another port, copy the current loopback address from Relay config. Configure only a verified alternate entry for the same provider API; never place an unknown site, secret, or dynamic URL in relay configuration.
 
 ## 🎮 Using the Palette
 

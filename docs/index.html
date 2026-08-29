@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.7.2 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.7.2：OpenRouter 实时免费模型选择导入、B.AI 无 VPN 本机中继、连接检查自动填容量、全模型推理档位与 API key 巡检。" />
+<title>dsh-model-palette v0.8.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.8.0：可扩展固定目标供应商中继、OpenRouter 实时免费模型选择导入、连接检查自动填容量、全模型推理档位与 API key 巡检。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -536,6 +536,7 @@
     <a href="#features">功能特性</a>
     <a href="#install">安装</a>
     <a href="#usage">使用指南</a>
+    <a href="#relay">中继配置</a>
     <a href="#media">媒体工具</a>
     <a href="#skin-v2">皮肤 v2</a>
   </div>
@@ -543,7 +544,7 @@
 </nav>
 
 <header class="hero">
-  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.7.2</div>
+  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.8.0</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -623,7 +624,7 @@
   <div class="pills">
     <div class="pill"><div class="num">1</div><div class="lbl">个全局快捷键 Alt+M</div></div>
     <div class="pill"><div class="num">1</div><div class="lbl">个模糊搜索入口</div></div>
-    <div class="pill"><div class="num">3</div><div class="lbl">大视图：模型 / 配置 / 媒体</div></div>
+    <div class="pill"><div class="num">4</div><div class="lbl">大视图：模型 / 配置 / 中继 / 媒体</div></div>
     <div class="pill"><div class="num">5</div><div class="lbl">个 OpenRouter 媒体工具</div></div>
   </div>
 
@@ -681,6 +682,7 @@
       <li>连接测试后自动导入并补齐容量</li>
       <li>OpenRouter 实时 :free 模型选择导入</li>
       <li>B.AI 无 VPN 本机中继</li>
+      <li>可扩展固定目标供应商中继</li>
       <li>API key 实际可用性验证</li>
       <li>全部 API key 一键巡检并直达编辑</li>
       <li>真实请求检测 Completions / Responses</li>
@@ -701,6 +703,17 @@
         <li>绝不猜测未知别名</li>
       </ul>
     </div>
+    <div class="card">
+      <div class="ico">↗️</div>
+      <h3>中继配置中心</h3>
+      <ul>
+        <li>侧栏直接查看内置 B.AI 中继</li>
+        <li>按当前 DSH 端口复制回环 Base URL</li>
+        <li>复制 provider 与插件配置模板</li>
+        <li>为其他供应商声明具名固定目标中继</li>
+        <li>回环限定、路径白名单与 TLS 名称校验</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -709,7 +722,7 @@
   <div class="sec-head">
     <div class="tag">Skin Center v2</div>
     <h2>皮肤负责外观，插件负责能力</h2>
-    <p>v0.7.2 保持标准 DSH 插件协议，并加入实时免费模型选择导入与 B.AI 无 VPN 本机中继。</p>
+    <p>v0.8.0 保持标准 DSH 插件协议，并加入独立中继配置页与可扩展的固定目标供应商中继。</p>
   </div>
   <div class="compat-panel">
     <div class="card">
@@ -752,14 +765,14 @@ window.dispatchEvent(new CustomEvent(
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -782,12 +795,13 @@ dsh web</pre>
   <div class="sec-head">
     <div class="tag">Usage</div>
     <h2>使用指南</h2>
-    <p>面板、配置与媒体工具，三大视图各司其职。</p>
+    <p>模型、配置、中继与媒体工具，四大视图各司其职。</p>
   </div>
 
   <div class="tabs">
     <button class="tab active" data-tab="usage-quick">🎮 快速上手</button>
     <button class="tab" data-tab="usage-config">⚙️ 模型配置</button>
+    <button class="tab" data-tab="usage-relay">↗️ 中继配置</button>
     <button class="tab" data-tab="usage-media">🖼️ 媒体工具</button>
   </div>
 
@@ -802,7 +816,7 @@ dsh web</pre>
       <div class="key-row"><span class="action">查看最近模型</span><span>点击「最近使用」</span></div>
       <div class="key-row"><span class="action">收藏 / 取消收藏</span><span>点击 ★</span></div>
       <div class="key-row"><span class="action">切换推理档位</span><span>底部下拉框</span></div>
-      <div class="key-row"><span class="action">切换三大视图</span><span>左侧栏顶部</span></div>
+      <div class="key-row"><span class="action">切换四大视图</span><span>左侧栏顶部</span></div>
     </div>
   </div>
 
@@ -881,6 +895,26 @@ dsh web</pre>
     </div>
   </div>
 
+  <div class="tab-pane" id="usage-relay">
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="ico">B</div>
+        <h3>内置 B.AI 中继</h3>
+        <p>显示当前 DSH 地址对应的本机 Base URL、固定 AWS 加速入口、原 Host、允许路径和 401 / 502 / 504 诊断含义。</p>
+      </div>
+      <div class="card">
+        <div class="ico">📋</div>
+        <h3>复制即用</h3>
+        <p>一键复制 B.AI provider 模板与高级插件配置，再跳到模型配置页检查连接，不需要手工拼端口和路径。</p>
+      </div>
+      <div class="card">
+        <div class="ico">＋</div>
+        <h3>供应商扩展</h3>
+        <p>通过 providerRelays 增加具名固定目标中继，分别设置连接主机、原 API Host、TLS SNI、证书名称和路径白名单。</p>
+      </div>
+    </div>
+  </div>
+
   <div class="tab-pane" id="usage-media">
     <div class="grid grid-3">
       <div class="card">
@@ -906,6 +940,41 @@ dsh web</pre>
       <div class="key-row"><span class="action">密钥安全</span><span>OpenRouter 凭据仅在宿主解析</span></div>
       <div class="key-row"><span class="action">Agent 工具</span><span>5 个工具保留给模型驱动工作流</span></div>
     </div>
+  </div>
+</section>
+
+<!-- Provider relays -->
+<section class="block" id="relay">
+  <div class="sec-head">
+    <div class="tag">Provider Relays</div>
+    <h2>中继是插件内置能力，不是另一个插件</h2>
+    <p>DSH 请求先到本机 dsh-model-palette 后端，再由固定目标中继连接经过核验的供应商入口；API key 仍由 DSH credentials 管理。</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="relay-bai">B.AI 内置中继</button>
+    <button class="tab" data-tab="relay-generic">扩展其他供应商</button>
+  </div>
+  <div class="tab-pane active" id="relay-bai">
+    <pre><span class="cm"># 在模型配置中使用；端口以中继配置页显示为准</span>
+baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+
+<span class="cm"># 401 = 已到达 B.AI，检查 credential</span>
+<span class="cm"># 502 / 504 / TLS = 中继上游仍不可达</span></pre>
+  </div>
+  <div class="tab-pane" id="relay-generic">
+    <pre>- id: dsh-model-palette
+  config:
+    providerRelays:
+      example-provider:
+        upstreamHost: reachable-entry.example.net
+        hostHeader: api.provider.example
+        tlsServerName: reachable-entry.example.net
+        certificateHost: api.provider.example
+        allowedPathPrefix: /v1/
+        timeoutMs: 180000
+
+<span class="cm"># Provider Base URL</span>
+http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
   </div>
 </section>
 

@@ -7,6 +7,8 @@ import {
   BAI_RELAY_PATH,
   BAI_UPSTREAM_HOST,
   createBaiRelayHandler,
+  createProviderRelayHandler,
+  PROVIDER_RELAY_PATH,
 } from '../src/bai-relay.js'
 
 function responseRecorder() {
@@ -88,5 +90,69 @@ describe('B.AI loopback relay', () => {
     expect(response.status).toBe(403)
     expect(response.body).toContain('loopback')
     expect(requestMock).not.toHaveBeenCalled()
+  })
+
+  it('creates a configurable fixed-destination provider relay', async () => {
+    const upstreamRequest = new EventEmitter()
+    upstreamRequest.setTimeout = vi.fn()
+    upstreamRequest.destroy = vi.fn()
+    upstreamRequest.write = vi.fn(() => true)
+    upstreamRequest.end = vi.fn()
+    const upstreamResponse = Readable.from(['{"data":[]}'])
+    Object.assign(upstreamResponse, {
+      statusCode: 200,
+      statusMessage: 'OK',
+      headers: { 'content-type': 'application/json' },
+    })
+    const requestMock = vi.spyOn(https, 'request').mockImplementation((options, callback) => {
+      process.nextTick(() => callback(upstreamResponse))
+      return upstreamRequest
+    })
+    const response = responseRecorder()
+    await createProviderRelayHandler('example-provider', {
+      upstreamHost: 'reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+    })(requestWith({ url: `${PROVIDER_RELAY_PATH}/example-provider/v1/models` }), response)
+
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      hostname: 'reachable-entry.example.net',
+      servername: 'reachable-entry.example.net',
+      path: '/v1/models',
+      headers: expect.objectContaining({ host: 'api.provider.example' }),
+    }), expect.any(Function))
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects provider relay paths outside the configured prefix', async () => {
+    const requestMock = vi.spyOn(https, 'request')
+    const response = responseRecorder()
+    await createProviderRelayHandler('example-provider', {
+      upstreamHost: 'reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+    })(requestWith({ url: `${PROVIDER_RELAY_PATH}/example-provider/admin` }), response)
+
+    expect(response.status).toBe(404)
+    expect(requestMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects unsafe provider relay configuration at load time', () => {
+    expect(() => createProviderRelayHandler('Bad ID', {
+      upstreamHost: 'reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+    })).toThrow('relay ids')
+    expect(() => createProviderRelayHandler('example-provider', {
+      upstreamHost: 'https://reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+    })).toThrow('DNS hostname')
+    expect(() => createProviderRelayHandler('example-provider', {
+      upstreamHost: 'reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+      allowedPathPrefix: '/',
+    })).toThrow('start and end')
+    expect(() => createProviderRelayHandler('example-provider', {
+      upstreamHost: 'reachable-entry.example.net',
+      hostHeader: 'api.provider.example',
+      allowedPathPrefix: '/../',
+    })).toThrow('traversal')
   })
 })
