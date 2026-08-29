@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.7.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.1)
+Current release: [v0.7.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.2)
 
 ## ✨ Features
 
@@ -157,7 +157,7 @@ The `ready` event fires after the plugin component mounts; when the bridge exist
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.2
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -189,6 +189,31 @@ This registers five agent tools:
 | `openrouter_generate_video` | Submit asynchronous video generation |
 | `openrouter_video_status` | Poll a video job's status |
 | `openrouter_download_video` | Download a completed video to the configured output directory |
+
+### B.AI direct-connection recovery without a VPN
+
+If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials.
+
+Change the affected B.AI provider `baseURL` to the following value and restart `dsh web`:
+
+```yaml
+llm-pi-ai:
+  providers:
+    bailsb:
+      apiKeyEnv: BAILSB_API_KEY
+      api: openai-responses
+      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      models:
+        - id: deepseek-v4-flash
+    baiwhr:
+      apiKeyEnv: BAIWHR_API_KEY
+      api: openai-responses
+      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      models:
+        - id: deepseek-v4-flash
+```
+
+The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI destination; it is not an open proxy. A 401 from `/v1/models` means the request reached B.AI, so check the credential first. A timeout or TLS error means the relay's upstream path is still unavailable. If B.AI changes its accelerator entry, override the default with `baiRelay.upstreamHost` in the plugin configuration.
 
 ## 🎮 Using the Palette
 

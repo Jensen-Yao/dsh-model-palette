@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 - 2026-08-29
+
+- Add a loopback-only B.AI relay for networks where `api.b.ai` DNS answers or direct TLS routing are blocked.
+- Relay B.AI `/v1/*` requests through the provider's AWS Global Accelerator hostname with the `api.b.ai` host header and certificate-name verification.
+- Keep provider credentials in DSH and forward them only from the local DSH process; reject forwarded or non-loopback requests before contacting B.AI.
+
 ## 0.7.1 - 2026-08-28
 
 - Split OpenRouter free-model discovery from configuration changes: checking the live catalog no longer imports or removes models automatically.

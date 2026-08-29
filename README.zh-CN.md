@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.7.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.1)
+当前版本：[v0.7.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.7.2)
 
 ## ✨ 功能特性
 
@@ -157,7 +157,7 @@ openModelPaletteWhenReady('media')
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.2
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -179,6 +179,31 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.7.1
       preferredImageModels: []
       preferredVideoModels: []
 ```
+
+### B.AI 无 VPN 连接修复
+
+如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。
+
+把对应 B.AI provider 的 `baseURL` 改为下面的值，然后重启 `dsh web`：
+
+```yaml
+llm-pi-ai:
+  providers:
+    bailsb:
+      apiKeyEnv: BAILSB_API_KEY
+      api: openai-responses
+      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      models:
+        - id: deepseek-v4-flash
+    baiwhr:
+      apiKeyEnv: BAIWHR_API_KEY
+      api: openai-responses
+      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      models:
+        - id: deepseek-v4-flash
+```
+
+中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定上游为 B.AI，不是通用开放代理。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential；连接超时或 TLS 错误才表示中继上游仍不可达。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.upstreamHost` 覆盖默认入口。
 
 注册的五个 Agent 工具：
 
