@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.8.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.8.0)
+Current release: [v0.9.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.0)
 
 ## ✨ Features
 
@@ -31,7 +31,7 @@ Current release: [v0.8.0](https://github.com/Jensen-Yao/dsh-model-palette/releas
 
 ### 🎯 Global Command Palette
 - **<kbd>Alt+M</kbd>** shortcut works from anywhere
-- Renders at the document level — skins that hide native composer controls cannot hide the palette
+- Renders in a document-level dialog independent from the composer layout
 - One unified fuzzy search over model names, model IDs, provider names, and provider IDs
 - Arrow-key navigation and Enter to select
 
@@ -81,7 +81,9 @@ Add, edit, or remove provider profiles directly from the UI:
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
 - List affected models missing `thinkingFormat` / `reasoning_content` replay settings and provide one-click repair in the config panel
-- Retry explicit Cloudflare/WAF 403 pages with bounded backoff and preserve a gateway-blocked diagnostic when retries are exhausted
+- Configure transient request retries per provider and override them per model; B.AI and BankOfAI aliases start at 50 retries
+- Keep unselected routes on their existing DSH recovery policy and never retry permanent 401, quota, request, missing-model, or context-limit failures
+- Preserve a gateway-blocked diagnostic when explicit Cloudflare/WAF 403 retries are exhausted
 - Open a dedicated Relay config view from the sidebar to inspect the built-in B.AI route, copy current-port loopback templates, and define fixed-destination relays for other providers
 - Warn before discarding unsaved edits and protect drafts with a browser unload guard
 - Security: stored keys can only be revealed through direct `127.0.0.1` / `localhost` access
@@ -123,42 +125,12 @@ Add, edit, or remove provider profiles directly from the UI:
 </tr>
 </table>
 
-## Skin Center v2 compatibility
-
-The package remains a standard DSH client plugin. Skin Center v2 owns `skin.json`, `skin.css`, `patches.css`, and `hooks.mjs`; `dsh-model-palette` does not pretend to be a skin and does not add a second skin manifest. When a v2 skin is active, the palette stays usable through the native slot, document-level portal, and keyboard shortcut.
-
-The client exposes `data-dsh-plugin="dsh-model-palette"` on its launcher and dialog roots so v2 skins can target the plugin without generated class names. The normal DSH client loader discovers and mounts the bundle through `dsh.client`; the v2 bridge is installed at plugin activation and remains usable even when the composer mounts later. A v2 skin can open the model, media, config, or relay view through this stable browser event:
-
-```js
-window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
-```
-
-`view` accepts `models`, `media`, `config`, or `relay`; omitted or unknown values open the model view. Hooks that need direct view switching can also use the page bridge:
-
-```js
-window.__DSH_MODEL_PALETTE__?.open('config')
-```
-
-If a skin can activate before this plugin, use the `dsh-model-palette:ready` handshake instead of making one optional-chaining call:
-
-```js
-function openModelPaletteWhenReady(view = 'models') {
-  const retry = () => window.__DSH_MODEL_PALETTE__?.open(view)
-  window.addEventListener('dsh-model-palette:ready', retry, { once: true })
-  if (retry() === true) window.removeEventListener('dsh-model-palette:ready', retry)
-}
-
-openModelPaletteWhenReady('media')
-```
-
-The `ready` event fires after the plugin component mounts; when the bridge exists but the component does not, `open()` queues the request. The event and page bridge stay local to the current browser page and carry no credentials or conversation content. The launcher deliberately avoids a class name containing `seat`, because workbook skins may hide native composer seat carriers with `[class*="seat"]`. `skinManifestVersion: 2` remains a `skin.json` concern; this project remains a normal DSH `dsh.client` plugin and does not pretend to be a skin.
-
 ## 🚀 Quick Start
 
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -265,16 +237,20 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 7. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
 8. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
 9. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
-10. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
-11. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
-12. **Apply presets** — auto-fill from the registry or select manually
-13. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
-14. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-15. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+10. **Configure provider retries** — keep the DSH policy or set an exact transient-failure retry count for the route
+11. **Override retries per model** — inherit, explicitly disable retries, or set a model-only count
+12. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
+13. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
+14. **Apply presets** — auto-fill from the registry or select manually
+15. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+16. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+17. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
 API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
 
-For full conversations, the host plugin automatically retries only explicit Cloudflare/WAF 403 pages after other DSH recovery handlers. Retries use bounded cancellable delays. If the gateway keeps blocking the request, the durable failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. This cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
+Selective request retry rules live in the plugin's `dsh-model-palette` settings namespace and apply live. A provider rule owns recovery only for that route; an exact model override wins over it. B.AI/BankOfAI aliases (`b.ai`, `bai`, `bailsb`, `baiwhr`, and `bankofai`) default to 50 retries. `N` means retries after the first failed request, so `50` can produce at most `51` billable attempts. Only transport errors, timeouts, rate limits, server errors, empty responses, and explicit Cloudflare/WAF 403 pages retry. Invalid credentials, quota exhaustion, malformed requests, missing models, and context overflow remain terminal. Setting a model override to `0` explicitly disables recovery for that model; routes without plugin rules continue through the normal DSH recovery chain.
+
+If an explicit Cloudflare/WAF 403 keeps failing after its retry budget, the failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. Retries cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 
 Reasoning effort is a model capability declaration, not a protocol selector. `openai-responses` and `openai-completions` remain independently testable. The plugin adds `reasoningEfforts` only when needed and exposes each wire value for manual correction because gateways may spell or dispatch levels differently.
 
@@ -330,13 +306,13 @@ dsh-model-palette/
 │   │   ├── model-presets.ts  # Preset registry management
 │   │   ├── config-api.ts     # Config API client
 │   │   ├── media-api.ts      # Media API client
-│   │   ├── skin-v2.ts         # Skin Center v2 page bridge
 │   │   ├── locales.ts        # i18n (en & zh)
 │   │   ├── types.ts          # TypeScript types
 │   │   └── style.css         # Component styles
 │   ├── index.js              # Plugin entry point (server-side)
 │   ├── openrouter-media.js   # OpenRouter media backend
 │   ├── model-config-api.js   # Model config API backend
+│   ├── request-retry-settings.js # Live provider/model retry settings
 │   └── media-protocol.ts     # Shared protocol constants
 ├── assets/
 │   ├── icon.svg              # Plugin icon

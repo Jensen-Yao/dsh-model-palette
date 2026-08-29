@@ -1,11 +1,17 @@
 # Changelog
 
+## 0.9.0 - 2026-08-29
+
+- Add live provider-level transient request retry rules with exact per-model overrides in the configuration panel.
+- Preset B.AI and BankOfAI route aliases to 50 retries while leaving every unconfigured route on its existing DSH recovery policy.
+- Keep permanent authentication, quota, request, missing-model, and context-limit failures terminal; retry only transport, timeout, rate-limit, server, empty-response, and explicit Cloudflare/WAF failures.
+- Make configured retry counts exact instead of stacking them with the native DSH retry executor, and show the `N + 1` request/cost warning in the UI.
+
 ## 0.8.0 - 2026-08-29
 
 - Add a visible Relay configuration view below Media tools and Model config, with the built-in B.AI route, copyable provider/config templates, request-flow explanation, and diagnostics.
 - Add configurable named `providerRelays` so another provider with an unreachable canonical route can use a fixed, loopback-only HTTPS upstream without modifying plugin source.
 - Keep configurable relays fail-closed with explicit host, TLS name, certificate name, and allowed-path validation; reject non-loopback and forwarded requests.
-- Extend the Skin Center bridge with the `relay` view and document the fourth top-level panel in both READMEs and the project site.
 
 ## 0.7.2 - 2026-08-29
 
@@ -43,13 +49,6 @@
 - Validate credentials with the selected model instead of trusting a potentially public `/models` catalog.
 - Report the active DSH runtime credential separately from a different unsaved key so a valid draft cannot hide a failing conversation credential.
 - Exercise the streaming request path used by DSH conversations and classify Cloudflare block pages as gateway rejection instead of invalid credentials.
-
-## 0.5.4 - 2026-08-28
-
-- Add Skin Center v2 compatibility markers and the stable `dsh-model-palette:open` launcher event.
-- Add the `dsh-model-palette:ready` handshake for skins that activate before the palette component mounts.
-- Rename the composer launcher class so workbook skins cannot hide it with native `seat` layout selectors.
-- Install a versioned page bridge during client activation and expose stable model, media, and config view controls for v2 skin hooks.
 
 ## 0.5.3 - 2026-08-27
 

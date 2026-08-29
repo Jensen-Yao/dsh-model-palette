@@ -58,6 +58,8 @@ interface ConfigPanelProps {
 }
 
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
+const RETRY_SETTINGS_NAMESPACE = 'dsh-model-palette'
+const MAX_REQUEST_RETRIES = 1_000
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const
 const THINKING_FORMATS = [
   'openai', 'deepseek', 'openrouter', 'together', 'zai', 'qwen',
@@ -71,6 +73,49 @@ function messageOf(error: unknown): string {
 
 function cloneProfile(value: unknown): Record<string, unknown> {
   return isRecord(value) ? structuredClone(value) : { api: 'openai-completions', models: [] }
+}
+
+interface RequestRetryDraft {
+  enabled: boolean
+  maxRetries: number
+  models: Record<string, number>
+}
+
+function requestRetryProfiles(value: unknown): Record<string, Record<string, unknown>> {
+  if (!isRecord(value) || !isRecord(value.requestRetries) || !isRecord(value.requestRetries.providers)) return {}
+  return Object.fromEntries(Object.entries(value.requestRetries.providers)
+    .filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])))
+}
+
+function cloneRequestRetryDraft(value: unknown): RequestRetryDraft {
+  if (!isRecord(value)) return { enabled: false, maxRetries: 0, models: {} }
+  const models = isRecord(value.models)
+    ? Object.fromEntries(Object.entries(value.models).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isInteger(entry[1]) && entry[1] >= 0 && entry[1] <= MAX_REQUEST_RETRIES))
+    : {}
+  return {
+    enabled: value.enabled !== false,
+    maxRetries: typeof value.maxRetries === 'number' && Number.isInteger(value.maxRetries) && value.maxRetries >= 0 && value.maxRetries <= MAX_REQUEST_RETRIES
+      ? value.maxRetries
+      : 0,
+    models,
+  }
+}
+
+function requestRetrySignature(value: RequestRetryDraft): string {
+  return JSON.stringify(value)
+}
+
+function parseRequestRetryCount(value: string): number {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > MAX_REQUEST_RETRIES) {
+    throw new Error(`request retries must be an integer from 0 to ${MAX_REQUEST_RETRIES}`)
+  }
+  return parsed
+}
+
+function modelRetryMode(value: RequestRetryDraft, modelId: string): 'inherit' | 'disabled' | 'custom' {
+  if (!Object.hasOwn(value.models, modelId)) return 'inherit'
+  return value.models[modelId] === 0 ? 'disabled' : 'custom'
 }
 
 function positiveIntegerText(value: unknown): string {
@@ -119,10 +164,13 @@ function isOpenRouterProfile(providerId: string, profile: Record<string, unknown
 
 export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
+  const [retryNamespace, setRetryNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<Record<string, unknown>>({ api: 'openai-completions', models: [] })
   const [baselineSignature, setBaselineSignature] = useState('')
+  const [retryDraft, setRetryDraft] = useState<RequestRetryDraft>({ enabled: false, maxRetries: 0, models: {} })
+  const [retryBaselineSignature, setRetryBaselineSignature] = useState('')
   const [previousProviderId, setPreviousProviderId] = useState('')
   const [modelQuery, setModelQuery] = useState('')
   const [credential, setCredential] = useState<CredentialView | null>(null)
@@ -163,7 +211,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     ? protocolResults.find(result => result.available)?.protocol
     : undefined
   const credentialRef = stringField(draft, 'apiKeyEnv') || deriveCredentialRef(providerId || 'provider')
-  const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '')
+  const retryDirty = retryBaselineSignature !== '' && requestRetrySignature(retryDraft) !== retryBaselineSignature
+  const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '' || retryDirty)
   const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
   const openRouterProfile = isOpenRouterProfile(providerId, draft)
   const configuredModelIds = useMemo(() => new Set(models.flatMap(model => typeof model.id === 'string' ? [model.id] : [])), [models])
@@ -185,15 +234,22 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const confirmDiscard = useCallback(() => !dirty || window.confirm(t('config.discardConfirm')), [dirty, t])
 
-  const openProvider = useCallback((id: string, view: SettingsNamespaceView | null = namespace) => {
-    if (view === null) return
+  const openProvider = useCallback((
+    id: string,
+    view: SettingsNamespaceView | null = namespace,
+    nextRetryNamespace: SettingsNamespaceView | null = retryNamespace,
+  ) => {
+    if (view === null || nextRetryNamespace === null) return
     const nextProfiles = providerProfiles(view.user ?? view.value)
     const profile = cloneProfile(nextProfiles[id])
+    const nextRetryDraft = cloneRequestRetryDraft(requestRetryProfiles(nextRetryNamespace.value)[id])
     const ref = stringField(profile, 'apiKeyEnv') || deriveCredentialRef(id)
     setProviderId(id)
     setCreating(false)
     setDraft(profile)
     setBaselineSignature(draftSignature(id, profile))
+    setRetryDraft(nextRetryDraft)
+    setRetryBaselineSignature(requestRetrySignature(nextRetryDraft))
     setPreviousProviderId(id)
     setModelQuery('')
     setKeyDraft('')
@@ -208,7 +264,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
-  }, [describeCredential, namespace])
+  }, [describeCredential, namespace, retryNamespace])
 
   const selectProvider = (id: string) => {
     if (confirmDiscard()) openProvider(id)
@@ -224,16 +280,22 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       if (!response.result.ok) throw new Error(response.result.error.message)
       const view = response.result.value.namespaces.find(candidate => candidate.ns === SETTINGS_NAMESPACE)
       if (view === undefined) throw new Error(t('config.namespaceMissing'))
+      const nextRetryNamespace = response.result.value.namespaces.find(candidate => candidate.ns === RETRY_SETTINGS_NAMESPACE)
+      if (nextRetryNamespace === undefined) throw new Error(t('config.retryNamespaceMissing'))
       setNamespace(view)
+      setRetryNamespace(nextRetryNamespace)
       const ids = Object.keys(providerProfiles(view.user ?? view.value)).sort((left, right) => left.localeCompare(right))
       const selected = ids.includes(providerId) ? providerId : ids[0]
-      if (selected !== undefined) openProvider(selected, view)
+      if (selected !== undefined) openProvider(selected, view, nextRetryNamespace)
       else {
         const empty = { api: 'openai-completions', models: [] }
+        const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
         setProviderId('')
         setCreating(true)
         setDraft(empty)
         setBaselineSignature(draftSignature('', empty))
+        setRetryDraft(emptyRetry)
+        setRetryBaselineSignature(requestRetrySignature(emptyRetry))
         setPreviousProviderId('')
         setModelQuery('')
         setProtocolResults(null)
@@ -277,11 +339,14 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const startCreate = () => {
     if (!confirmDiscard()) return
     const empty = { api: 'openai-completions', models: [] }
+    const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
     setPreviousProviderId(creating ? previousProviderId : providerId)
     setCreating(true)
     setProviderId('')
     setDraft(empty)
     setBaselineSignature(draftSignature('', empty))
+    setRetryDraft(emptyRetry)
+    setRetryBaselineSignature(requestRetrySignature(emptyRetry))
     setModelQuery('')
     setCredential(null)
     setKeyDraft('')
@@ -313,6 +378,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setCreating(true)
     setProviderId(id)
     setDraft(profile)
+    setRetryDraft(structuredClone(retryDraft))
+    setRetryBaselineSignature(requestRetrySignature({ enabled: false, maxRetries: 0, models: {} }))
     setModelQuery('')
     setCredential(null)
     setKeyDraft('')
@@ -348,6 +415,37 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setModels(models.map((model, position) => position === index ? next : model))
   }
 
+  const updateProviderRetryCount = (value: string) => {
+    try {
+      setRetryDraft(current => ({ ...current, maxRetries: parseRequestRetryCount(value) }))
+      setError(null)
+    } catch {
+      setError(t('config.retryCountInvalid', { max: MAX_REQUEST_RETRIES }))
+    }
+  }
+
+  const updateModelRetryMode = (modelId: string, mode: 'inherit' | 'disabled' | 'custom') => {
+    setRetryDraft((current) => {
+      const models = { ...current.models }
+      if (mode === 'inherit') delete models[modelId]
+      else if (mode === 'disabled') models[modelId] = 0
+      else models[modelId] = models[modelId] !== undefined && models[modelId] > 0
+        ? models[modelId]
+        : current.enabled && current.maxRetries > 0 ? current.maxRetries : 3
+      return { ...current, models }
+    })
+  }
+
+  const updateModelRetryCount = (modelId: string, value: string) => {
+    try {
+      const maxRetries = parseRequestRetryCount(value)
+      setRetryDraft(current => ({ ...current, models: { ...current.models, [modelId]: maxRetries } }))
+      setError(null)
+    } catch {
+      setError(t('config.retryCountInvalid', { max: MAX_REQUEST_RETRIES }))
+    }
+  }
+
   const addModel = () => {
     setModels([...models, { id: '' }])
     setModelQuery('')
@@ -363,7 +461,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   }
 
   const removeModel = (index: number) => {
+    const modelId = typeof models[index]?.id === 'string' ? models[index].id.trim() : ''
     setModels(models.filter((_model, position) => position !== index))
+    if (modelId !== '') {
+      setRetryDraft((current) => {
+        const nextModels = { ...current.models }
+        delete nextModels[modelId]
+        return { ...current, models: nextModels }
+      })
+    }
     setManualPresets({})
   }
 
@@ -661,7 +767,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   }
 
   const deleteProvider = async () => {
-    if (namespace === null || creating || busy !== null || !confirmDiscard()) return
+    if (namespace === null || retryNamespace === null || creating || busy !== null || !confirmDiscard()) return
     if (!window.confirm(t('config.deleteConfirm', { provider: providerId }))) return
     setBusy('delete')
     setError(null)
@@ -673,17 +779,27 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         expectedRevision: namespace.revision,
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
+      const retryResponse = await api.settings.mutate({
+        ns: RETRY_SETTINGS_NAMESPACE,
+        ops: [{ op: 'unset', path: ['requestRetries', 'providers', providerId] }],
+        expectedRevision: retryNamespace.revision,
+      })
+      if (!retryResponse.result.ok) throw new Error(retryResponse.result.error.message)
       setNamespace(response.result.value)
+      setRetryNamespace(retryResponse.result.value)
       const remaining = Object.keys(providerProfiles(response.result.value.user ?? response.result.value.value))
         .filter(id => id !== providerId)
         .sort((left, right) => left.localeCompare(right))
       const next = remaining[0]
       if (next === undefined) {
         const empty = { api: 'openai-completions', models: [] }
+        const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
         setCreating(true)
         setProviderId('')
         setDraft(empty)
         setBaselineSignature(draftSignature('', empty))
+        setRetryDraft(emptyRetry)
+        setRetryBaselineSignature(requestRetrySignature(emptyRetry))
         setPreviousProviderId('')
         setModelQuery('')
         setCredential(null)
@@ -693,7 +809,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setProtocolTestModelId('')
         setApiKeyValidation(null)
       } else {
-        openProvider(next, response.result.value)
+        openProvider(next, response.result.value, retryResponse.result.value)
       }
       setFeedback(t('config.deleted'))
     } catch (cause) {
@@ -704,7 +820,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   }
 
   const save = async () => {
-    if (namespace === null || busy !== null) return
+    if (namespace === null || retryNamespace === null || busy !== null) return
     setBusy('save')
     setError(null)
     setFeedback(null)
@@ -726,6 +842,13 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       const profile = structuredClone(draft)
       profile.apiKeyEnv = ref
       profile.models = models.map(model => ({ ...model, id: String(model.id).trim() }))
+      const savedModelIds = new Set((profile.models as Record<string, unknown>[]).map(model => String(model.id)))
+      const savedRetryDraft: RequestRetryDraft = {
+        ...retryDraft,
+        models: Object.fromEntries(Object.entries(retryDraft.models)
+          .filter(([modelId]) => savedModelIds.has(modelId.trim()))
+          .map(([modelId, maxRetries]) => [modelId.trim(), maxRetries])),
+      }
       const repaired = repairProviderCompatibility(profile)
       const savedProfile = repaired.profile
       const response = await api.settings.mutate({
@@ -734,9 +857,23 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         expectedRevision: namespace.revision,
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
+      let nextRetryNamespace = retryNamespace
+      if (retryDirty) {
+        const retryResponse = await api.settings.mutate({
+          ns: RETRY_SETTINGS_NAMESPACE,
+          ops: [{ op: 'set', path: ['requestRetries', 'providers', id], value: savedRetryDraft }],
+          expectedRevision: retryNamespace.revision,
+        })
+        if (!retryResponse.result.ok) throw new Error(retryResponse.result.error.message)
+        nextRetryNamespace = retryResponse.result.value
+        setRetryNamespace(nextRetryNamespace)
+      }
       setNamespace(response.result.value)
       setDraft(savedProfile)
       setBaselineSignature(draftSignature(id, savedProfile))
+      const appliedRetryDraft = cloneRequestRetryDraft(requestRetryProfiles(nextRetryNamespace.value)[id])
+      setRetryDraft(appliedRetryDraft)
+      setRetryBaselineSignature(requestRetrySignature(appliedRetryDraft))
       setApiKeyValidation(null)
       if (key !== '') {
         const stored = await api.credentials.set({ ref, value: key })
@@ -757,7 +894,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
   }
 
-  const readOnly = namespace === null || busy !== null
+  const readOnly = namespace === null || retryNamespace === null || busy !== null
   const presetStatusText = presetState === 'online'
     ? t('config.presetsOnline', { date: registry.updatedAt, count: registry.presets.length })
     : presetState === 'loading'
@@ -980,6 +1117,34 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         )}
       </section>
 
+      <section className="dmp-config-card dmp-config-retry-card">
+        <div className="dmp-config-card-heading">
+          <div><h3>{t('config.retryTitle')}</h3><p>{t('config.retryDescription')}</p></div>
+          {retryDraft.enabled && retryDraft.maxRetries === 50 && <span className="dmp-config-retry-preset">{t('config.retryPreset50')}</span>}
+        </div>
+        <div className="dmp-config-provider-grid">
+          <label className="dmp-media-field">
+            <span>{t('config.retryProviderMode')}</span>
+            <select value={retryDraft.enabled ? 'custom' : 'inherit'} disabled={readOnly} onChange={event => setRetryDraft(current => ({
+              ...current,
+              enabled: event.currentTarget.value === 'custom',
+              maxRetries: event.currentTarget.value === 'custom' && current.maxRetries === 0 ? 3 : current.maxRetries,
+            }))}>
+              <option value="inherit">{t('config.retryProviderInherit')}</option>
+              <option value="custom">{t('config.retryProviderCustom')}</option>
+            </select>
+          </label>
+          <label className="dmp-media-field">
+            <span>{t('config.retryProviderCount')}</span>
+            <input type="number" min="0" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.maxRetries} disabled={readOnly || !retryDraft.enabled} onChange={event => updateProviderRetryCount(event.currentTarget.value)} />
+          </label>
+          <div className="dmp-config-retry-note dmp-config-span-2">
+            <strong>{t('config.retrySafetyTitle')}</strong>
+            <span>{t('config.retrySafetyDescription', { retries: retryDraft.maxRetries, attempts: retryDraft.maxRetries + 1 })}</span>
+          </div>
+        </div>
+      </section>
+
       <section className="dmp-config-card dmp-config-model-card">
         <div className="dmp-config-card-heading">
           <div><h3>{t('config.modelsTitle')}</h3><p>{t('config.modelsDescription')}</p></div>
@@ -1001,6 +1166,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             const selectedPresetId = manualPresets[index] ?? automatic?.id ?? ''
             const selectedPreset = registry.presets.find(preset => preset.id === selectedPresetId)
             const modelInputMode = inputMode(model)
+            const modelId = typeof model.id === 'string' ? model.id.trim() : ''
+            const retryMode = modelRetryMode(retryDraft, modelId)
             const reasoningEfforts = reasoningEffortsValue(model)
             const reasoningMode = reasoningEfforts === undefined ? 'inherit' : reasoningEfforts === false ? 'disabled' : 'custom'
             return (
@@ -1045,6 +1212,17 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                       <option value="image">{t('config.inputImageOnly')}</option>
                     </select>
                   </label>
+                  <div className="dmp-config-model-retry">
+                    <label className="dmp-media-field">
+                      <span>{t('config.retryModelMode')}</span>
+                      <select value={retryMode} disabled={readOnly || modelId === ''} onChange={event => updateModelRetryMode(modelId, event.currentTarget.value as 'inherit' | 'disabled' | 'custom')}>
+                        <option value="inherit">{t('config.retryModelInherit')}</option>
+                        <option value="disabled">{t('config.retryModelDisabled')}</option>
+                        <option value="custom">{t('config.retryModelCustom')}</option>
+                      </select>
+                    </label>
+                    {retryMode === 'custom' && <input type="number" min="1" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.models[modelId]} disabled={readOnly || modelId === ''} onChange={event => updateModelRetryCount(modelId, event.currentTarget.value)} aria-label={t('config.retryModelCount')} />}
+                  </div>
                   <div className="dmp-config-preset">
                     <label className="dmp-media-field">
                       <span>{t('config.preset')}</span>

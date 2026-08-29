@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.8.0 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.8.0：可扩展固定目标供应商中继、OpenRouter 实时免费模型选择导入、连接检查自动填容量、全模型推理档位与 API key 巡检。" />
+<title>dsh-model-palette v0.9.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.9.0：按供应商与模型配置精确请求重试、B.AI/BankOfAI 50 次预置、可扩展中继、OpenRouter 免费模型导入与 API key 巡检。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -538,13 +538,13 @@
     <a href="#usage">使用指南</a>
     <a href="#relay">中继配置</a>
     <a href="#media">媒体工具</a>
-    <a href="#skin-v2">皮肤 v2</a>
+    <a href="#retry">请求重试</a>
   </div>
   <a class="btn nav-cta" href="#install">开始使用</a>
 </nav>
 
 <header class="hero">
-  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.8.0</div>
+  <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.9.0</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -636,7 +636,7 @@
       <h3>全局命令面板</h3>
       <ul>
         <li>任意界面 <kbd>Alt+M</kbd> 唤起</li>
-        <li>文档级渲染，皮肤无法隐藏</li>
+        <li>文档级对话框，不依赖输入区内部布局</li>
         <li>名称 / ID / 供应商 / 描述 模糊搜索</li>
         <li>方向键导航，回车即选</li>
       </ul>
@@ -686,7 +686,9 @@
       <li>API key 实际可用性验证</li>
       <li>全部 API key 一键巡检并直达编辑</li>
       <li>真实请求检测 Completions / Responses</li>
-      <li>Cloudflare/WAF 403 有限退避恢复</li>
+      <li>供应商级请求重试与模型级精确覆盖</li>
+      <li>B.AI / BankOfAI 默认 50 次，其他线路不受影响</li>
+      <li>永久错误不重试，Cloudflare/WAF 403 保留清晰诊断</li>
       <li>已知 DeepSeek 方言网关回传自动修复</li>
       <li>未保存提示与重复 ID 防护</li>
       <li>密钥仅回环可查看，默认掩码</li>
@@ -717,37 +719,36 @@
   </div>
 </section>
 
-<!-- Skin Center v2 -->
-<section class="block" id="skin-v2">
+<!-- Selective request retries -->
+<section class="block" id="retry">
   <div class="sec-head">
-    <div class="tag">Skin Center v2</div>
-    <h2>皮肤负责外观，插件负责能力</h2>
-    <p>v0.8.0 保持标准 DSH 插件协议，并加入独立中继配置页与可扩展的固定目标供应商中继。</p>
+    <div class="tag">Route-aware Retry</div>
+    <h2>只重试你选中的供应商和模型</h2>
+    <p>供应商规则与精确模型覆盖实时生效；未配置线路继续走 DSH 原有恢复策略，不会被全局“连坐”。</p>
   </div>
   <div class="compat-panel">
     <div class="card">
-      <div class="ico">🎨</div>
-      <h3>不伪装成皮肤</h3>
+      <div class="ico">↻</div>
+      <h3>简单但足够精确</h3>
       <ul>
-        <li>继续通过 <code>dsh.client</code> 正常安装和加载</li>
-        <li>不添加第二份 <code>skin.json</code> 或修改皮肤清单</li>
-        <li>入口、浮层和对话框提供 <code>data-dsh-plugin="dsh-model-palette"</code></li>
-        <li>修复 Excel 风格皮肤按 <code>seat</code> 选择器误隐藏入口的问题</li>
+        <li>供应商可保持 DSH 原策略或启用插件规则</li>
+        <li>模型可继承、明确禁用或设置独立次数</li>
+        <li><code>b.ai</code>、<code>bailsb</code>、<code>baiwhr</code>、<code>bankofai</code> 等预置 50 次</li>
+        <li>网络、超时、429、5xx、空响应和明确 WAF 403 才会重试</li>
       </ul>
     </div>
-    <pre><span class="cm">// Skin Center v2 hooks.mjs</span>
-const palette = window.__DSH_MODEL_PALETTE__
-palette?.open('models')
-palette?.open('media')
-palette?.open('config')
-
-<span class="cm">// or dispatch a stable page event</span>
-window.dispatchEvent(new CustomEvent(
-  'dsh-model-palette:open',
-  { detail: { view: 'media' } },
-))</pre>
+    <pre><span class="cm"># ~/.dsh/settings.yaml（也可直接在插件界面配置）</span>
+dsh-model-palette:
+  requestRetries:
+    providers:
+      bankofai:
+        enabled: true
+        maxRetries: 50
+        models:
+          deepseek-v4-flash: 12
+          no-retry-model: 0</pre>
   </div>
-  <div class="compat-note"><strong>✓ v2 ready</strong><span>皮肤可以早于插件激活；调用失败时请求会排队，并在 <code>dsh-model-palette:ready</code> 事件后自动接续。</span></div>
+  <div class="compat-note"><strong>费用可见</strong><span><code>N</code> 表示第一次失败后的重试次数，因此 50 次重试最多产生 51 次请求。401、余额不足、参数错误、模型不存在和上下文超限直接结束。</span></div>
 </section>
 
 <!-- Install -->
@@ -765,14 +766,14 @@ window.dispatchEvent(new CustomEvent(
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -874,8 +875,15 @@ dsh web</pre>
       <div class="step">
         <div class="n"></div>
         <div>
-          <h4>全模型推理与网关恢复</h4>
-          <p>单模型或整条线路可一键启用七档推理并编辑 wire value；明确的 Cloudflare/WAF 403 会有限重试，最终仍失败时显示网关拦截而非 key 无效。</p>
+          <h4>配置供应商与模型重试</h4>
+          <p>供应商可保持 DSH 原策略或设置 N 次瞬态失败重试；每个模型还能继承、明确禁用或使用独立次数。B.AI / BankOfAI 常见线路默认 50 次。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <div>
+          <h4>启用全模型推理档位</h4>
+          <p>单模型或整条线路可一键启用七档推理并编辑 wire value；协议仍以真实 Completions / Responses 测试结果为准。</p>
         </div>
       </div>
       <div class="step">

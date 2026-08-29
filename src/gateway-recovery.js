@@ -1,12 +1,15 @@
+import { resolveRequestRetryRule } from './request-retry-settings.js'
+
 const CLOUDFLARE_BLOCK_PATTERN = /(?:Attention Required!\s*\|\s*Cloudflare|\bCloudflare\b|cf-error-details|cdn-cgi\/styles\/cf\.errors\.css)/iu
 const DEFAULT_DELAYS_MS = [750, 1_500, 3_000]
+const RETRYABLE_CODES = new Set(['EMPTY_RESPONSE', 'RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT'])
 const BLOCKED_CODE = 'PROVIDER_BLOCKED'
 const BLOCKED_MESSAGE = 'Cloudflare/WAF blocked the provider request before it reached the API. The API key was not proven invalid; retry later or review the gateway, request content, size, and rate limits.'
 
 /** Register recovery for Cloudflare/WAF responses misclassified as authentication failures. */
-export function registerGatewayRecovery(ctx, config = {}) {
+export function registerGatewayRecovery(ctx, config = {}, retrySettings) {
   if (config.enabled === false) return
-  const handler = createGatewayRecoveryHandler(ctx, config)
+  const handler = createGatewayRecoveryHandler(ctx, config, retrySettings)
   const dispose = ctx.on('agent/request-error', handler.recover)
   ctx.effect(() => async () => {
     dispose()
@@ -15,7 +18,7 @@ export function registerGatewayRecovery(ctx, config = {}) {
 }
 
 /** Create the request-error listener separately so retry behavior remains unit-testable. */
-export function createGatewayRecoveryHandler(ctx, config = {}) {
+export function createGatewayRecoveryHandler(ctx, config = {}, retrySettings = { get: () => ({}) }) {
   const delaysMs = resolveDelays(config.delaysMs)
   const maxRetries = resolveMaxRetries(config.maxRetries, delaysMs.length)
   const lifetime = new AbortController()
@@ -23,11 +26,15 @@ export function createGatewayRecoveryHandler(ctx, config = {}) {
   const active = new Set()
 
   async function recover(payload, next) {
+    const model = typeof payload.agent?.options?.model === 'string' ? payload.agent.options.model : ''
+    const rule = resolveRequestRetryRule(retrySettings.get(), payload.provider, model)
+    if (rule !== undefined) return recoverConfigured(payload, model, rule)
+
     const downstream = await next()
     if (downstream?.kind === 'retry') return downstream
     if (!isCloudflareBlock(payload.failure)) return downstream
 
-    const key = `${payload.turn}:${payload.step}:${payload.provider}`
+    const key = `gateway:${payload.turn}:${payload.step}:${payload.provider}:${model}`
     const agentRetries = retries.get(payload.agent) ?? new Map()
     retries.set(payload.agent, agentRetries)
     const retry = agentRetries.get(key) ?? 0
@@ -51,6 +58,35 @@ export function createGatewayRecoveryHandler(ctx, config = {}) {
     }
   }
 
+  async function recoverConfigured(payload, model, rule) {
+    if (!isRetryableFailure(payload.failure) || payload.signal.aborted || lifetime.signal.aborted) return undefined
+
+    const key = `configured:${payload.turn}:${payload.step}:${payload.provider}:${model}`
+    const agentRetries = retries.get(payload.agent) ?? new Map()
+    retries.set(payload.agent, agentRetries)
+    const retry = agentRetries.get(key) ?? 0
+    if (retry >= rule.maxRetries) {
+      agentRetries.delete(key)
+      if (isCloudflareBlock(payload.failure)) relabelCloudflareFailure(payload.failure)
+      if (retry > 0) {
+        ctx.logger?.warn?.(`dsh-model-palette: ${rule.source} retry limit reached for "${payload.provider}/${model || '?'}" after ${retry} attempts`)
+      }
+      return undefined
+    }
+
+    const delayMs = resolveRetryDelay(payload.failure, delaysMs, retry)
+    agentRetries.set(key, retry + 1)
+    ctx.logger?.warn?.(`dsh-model-palette: transient request failure for "${payload.provider}/${model || '?'}"; retrying in ${delayMs}ms (${retry + 1}/${rule.maxRetries}, ${rule.source} rule)`)
+    const pending = cancellableDelay(delayMs, AbortSignal.any([payload.signal, lifetime.signal]))
+    active.add(pending)
+    try {
+      if (!await pending) return undefined
+      return { kind: 'retry' }
+    } finally {
+      active.delete(pending)
+    }
+  }
+
   return {
     recover,
     async dispose() {
@@ -66,6 +102,16 @@ export function isCloudflareBlock(failure) {
   const message = typeof failure.message === 'string' ? failure.message : ''
   const isForbidden = failure.status === 403 || /\b403\b/u.test(message)
   return isForbidden && CLOUDFLARE_BLOCK_PATTERN.test(message)
+}
+
+/** Retry only provider-neutral transient failures plus explicit HTTP transient statuses. */
+export function isRetryableFailure(failure) {
+  if (failure === null || typeof failure !== 'object') return false
+  if (isCloudflareBlock(failure)) return true
+  const code = typeof failure.code === 'string' ? failure.code.toLocaleUpperCase() : ''
+  if (RETRYABLE_CODES.has(code)) return true
+  const status = failure.status
+  return status === 408 || status === 425 || status === 429 || (typeof status === 'number' && status >= 500 && status <= 599)
 }
 
 function relabelCloudflareFailure(failure) {
@@ -88,6 +134,12 @@ function resolveMaxRetries(value, availableDelays) {
     throw new Error('dsh-model-palette: gatewayRecovery.maxRetries must be an integer from 0 to 10')
   }
   return value
+}
+
+function resolveRetryDelay(failure, delaysMs, retry) {
+  const providerDelay = failure?.providerRetryAfterMs
+  if (Number.isFinite(providerDelay) && providerDelay > 0 && providerDelay <= 60_000) return Math.round(providerDelay)
+  return delaysMs[Math.min(retry, delaysMs.length - 1)]
 }
 
 function cancellableDelay(delayMs, signal) {

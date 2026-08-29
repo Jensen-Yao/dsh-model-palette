@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.8.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.8.0)
+当前版本：[v0.9.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.0)
 
 ## ✨ 功能特性
 
@@ -31,7 +31,7 @@
 
 ### 🎯 全局命令面板
 - 任意位置可用 **<kbd>Alt+M</kbd>** 快捷键唤起
-- 对话框渲染在文档层，隐藏原生输入控件的皮肤无法一并隐藏面板
+- 对话框渲染在文档层，不依赖输入区内部布局
 - 统一的模糊搜索：模型名、模型 ID、供应商名、供应商 ID 一次搜索搞定
 - 方向键导航 + 回车选择
 
@@ -81,7 +81,9 @@
 - 可筛选长模型列表、复制模型参数，并在保存前拒绝重复模型 ID
 - 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
 - 配置页会列出这类模型缺失的 `thinkingFormat` / `reasoning_content` 设置，并支持一键修复应用
-- 明确的 Cloudflare/WAF 403 会自动有限重试；最终仍失败时显示网关拦截，不再误报 key 无效
+- 可按供应商设置瞬态请求重试次数，并按模型覆盖；B.AI 与 BankOfAI 常见线路 ID 默认预置 50 次
+- 未选中的线路继续使用 DSH 原有恢复策略；401、余额不足、参数错误、模型不存在与上下文超限不会重试
+- 明确的 Cloudflare/WAF 403 最终仍失败时显示网关拦截，不再误报 key 无效
 - 侧栏提供独立的「中继配置」页：说明内置 B.AI 中继、复制当前端口的 Base URL 与配置模板，并支持为其他供应商声明固定目标中继
 - 切换供应商、重新读取或离开页面前会提示未保存修改
 - 安全设计：已存的 key 仅在直连 `127.0.0.1` / `localhost` 时可查看
@@ -123,42 +125,12 @@
 </tr>
 </table>
 
-## Skin Center v2 兼容
-
-本项目仍然是标准 DSH 客户端插件。`skin.json`、`skin.css`、`patches.css` 和 `hooks.mjs` 由 Skin Center v2 统一拥有和加载；`dsh-model-palette` 不冒充皮肤，也不再自创第二套皮肤清单。启用 v2 皮肤后，模型面板仍通过原生插槽、文档级 Portal 和快捷键工作。
-
-插件会在入口和对话框根节点输出 `data-dsh-plugin="dsh-model-palette"`，皮肤可以据此稳定覆盖插件区域，而不必依赖构建生成的 class 名。插件仍由普通 DSH `dsh.client` 协议发现和挂载；v2 桥接会在插件激活时安装，即使对话区稍后才挂载也能工作。v2 皮肤可以通过下面的稳定浏览器事件打开模型、媒体、配置或中继页：
-
-```js
-window.dispatchEvent(new CustomEvent('dsh-model-palette:open', { detail: { view: 'media' } }))
-```
-
-`view` 可选值为 `models`、`media`、`config`、`relay`；省略或传入未知值时打开模型页。也可以调用页面桥接，适合需要直接切页的 v2 `hooks.mjs`：
-
-```js
-window.__DSH_MODEL_PALETTE__?.open('config')
-```
-
-如果皮肤可能早于本插件激活，请使用 `dsh-model-palette:ready` 做一次就绪握手，而不要只调用一次可选链：
-
-```js
-function openModelPaletteWhenReady(view = 'models') {
-  const retry = () => window.__DSH_MODEL_PALETTE__?.open(view)
-  window.addEventListener('dsh-model-palette:ready', retry, { once: true })
-  if (retry() === true) window.removeEventListener('dsh-model-palette:ready', retry)
-}
-
-openModelPaletteWhenReady('media')
-```
-
-`ready` 事件在插件组件挂载后发出；如果桥接已安装但组件尚未挂载，`open()` 会先排队。事件和页面桥接只在当前浏览器页面内传播，不携带密钥或对话内容。入口 class 刻意不再包含 `seat`，因为 Excel 工作簿皮肤可能使用 `[class*="seat"]` 隐藏原生输入区的布局载体；此前的 `dmp-seat` 会因此被误隐藏。`skinManifestVersion: 2` 仍只属于皮肤的 `skin.json`，本项目仍按 DSH 的 `dsh.client` 插件协议加载，不把普通插件伪装成皮肤。
-
 ## 🚀 快速开始
 
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.8.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -265,16 +237,20 @@ llm-pi-ai:
 7. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
 8. **一键检查全部 API key** — 依次测试每个运行时凭据，并从结果直接打开失败供应商
 9. **检测实际协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
-10. **配置模型** — 筛选长列表、复制参数，设置上下文窗口、最大输出、输入模态与推理 wire value
-11. **启用全档推理** — 为单模型或当前线路全部已声明模型补齐七个 DSH 推理档位
-12. **应用预置** — 从 44 项注册表自动补全或手动选择，连同文本/视觉输入和已知推理档位一起适配
-13. **修复已知方言兼容项** — DeepSeek 兼容端点缺少历史 `reasoning_content` 回传配置时，点击「修复并应用」；正常切换模型时插件也会自动预检
-14. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
-15. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
+10. **配置供应商重试** — 保持 DSH 原策略，或为当前线路设置精确的瞬态失败重试次数
+11. **按模型覆盖重试** — 可继承、明确禁用，或为单个模型设置独立次数
+12. **配置模型** — 筛选长列表、复制参数，设置上下文窗口、最大输出、输入模态与推理 wire value
+13. **启用全档推理** — 为单模型或当前线路全部已声明模型补齐七个 DSH 推理档位
+14. **应用预置** — 从 44 项注册表自动补全或手动选择，连同文本/视觉输入和已知推理档位一起适配
+15. **修复已知方言兼容项** — DeepSeek 兼容端点缺少历史 `reasoning_content` 回传配置时，点击「修复并应用」；正常切换模型时插件也会自动预检
+16. **保存** — 重复模型 ID 会被拒绝，未保存修改会明确显示
+17. **删除供应商** — 二次确认后删除配置；关联 credential 会保留，不会误删密钥
 
 API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“暂不可用”“未配置”和“无法判断”。插件不会把公开 `/models` 成功当成 key 可用于对话的证明，而是使用与 DSH 对话一致的最小流式请求；“一键检查全部 API key”会依次测试运行时凭据以降低限流压力，并显示供应商、credential ref、来源、协议、模型与诊断。DSH 当前运行时凭据与输入框中不同的待保存 key 会分开验证，且 key 始终只在插件后端使用。每次请求可能产生少量费用。
 
-完整对话遇到明确的 Cloudflare/WAF 403 时，插件会先让 DSH 其他恢复处理器执行，再使用有限、可取消的退避自动重试。重试后仍被拦截，会把持久错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。这不是绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
+选择性重试规则保存在插件自己的 `dsh-model-palette` settings 命名空间并实时生效。供应商规则只接管该线路，精确模型覆盖优先于供应商规则。B.AI / BankOfAI 常见 ID（`b.ai`、`bai`、`bailsb`、`baiwhr`、`bankofai`）默认预置 50 次。`N` 表示第一次失败后的重试次数，因此 `50` 最多可能产生 `51` 次可计费请求。只有网络错误、超时、限流、服务器错误、空响应和明确的 Cloudflare/WAF 403 会重试；无效凭据、余额或配额耗尽、请求参数错误、模型不存在和上下文超限会直接结束。模型覆盖设为 `0` 时会明确禁止该模型恢复；没有插件规则的线路继续走 DSH 原有恢复链路。
+
+明确的 Cloudflare/WAF 403 用尽重试次数后，会把错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。重试不能绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
 
 推理档位是模型能力声明，不等于协议选择。`openai-responses` 与 `openai-completions` 仍应按真实端点测试结果选择。插件只在需要时补写 `reasoningEfforts`，并开放每个档位的 wire value，因为不同供应商可能使用不同参数名或档位拼写。
 
@@ -330,13 +306,13 @@ dsh-model-palette/
 │   │   ├── model-presets.ts  # 预置注册表管理
 │   │   ├── config-api.ts     # 配置 API 客户端
 │   │   ├── media-api.ts      # 媒体 API 客户端
-│   │   ├── skin-v2.ts         # Skin Center v2 页面桥接
 │   │   ├── locales.ts        # i18n（中 / 英）
 │   │   ├── types.ts          # TypeScript 类型定义
 │   │   └── style.css         # 组件样式
 │   ├── index.js              # 插件入口（服务端）
 │   ├── openrouter-media.js   # OpenRouter 媒体后端
 │   ├── model-config-api.js   # 模型配置 API 后端
+│   ├── request-retry-settings.js # 实时供应商 / 模型重试设置
 │   └── media-protocol.ts     # 共享协议常量
 ├── assets/
 │   ├── icon.svg              # 插件图标

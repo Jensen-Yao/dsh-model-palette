@@ -6,11 +6,11 @@ import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { REASONING_LEVELS } from './model-config.ts'
 import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
-import { MODEL_PALETTE_PLUGIN_ID, type ModelPaletteView } from './skin-v2.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
 const RECENTS_KEY = 'dsh-model-palette:recents:v1'
+type ModelPaletteView = 'models' | 'media' | 'config' | 'relay'
 
 function readStoredList(key: string): string[] {
   try {
@@ -49,7 +49,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, skinBridge, t }: PaletteProps) {
+export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
@@ -104,8 +104,6 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     setOpen(false)
     setError(null)
   }
-
-  useEffect(() => skinBridge?.register(show), [show, skinBridge])
 
   useEffect(() => {
     if (!open || view !== 'models') return
@@ -211,7 +209,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   })
 
   return (
-    <div className="dmp-launcher" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID}>
+    <div className="dmp-launcher">
       <button
         type="button"
         className="dmp-trigger"
@@ -227,10 +225,10 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       </button>
 
       {open && createPortal(
-        <div className="dmp-overlay" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID} data-dsh-model-palette-view={view} role="presentation" onMouseDown={(event) => {
+        <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" data-dsh-plugin={MODEL_PALETTE_PLUGIN_ID} role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'config' ? 'config.title' : 'relay.title')}>
+          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'config' ? 'config.title' : 'relay.title')}>
             <header className="dmp-header">
               <div>
                 <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'config' ? 'config.title' : 'relay.title')}</h2>
