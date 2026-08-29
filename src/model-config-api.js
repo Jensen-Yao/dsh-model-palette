@@ -6,6 +6,7 @@ const CATALOG_TIMEOUT_MS = 20_000
 const BATCH_PROVIDER_LIMIT = 100
 const PROTOCOL_MODEL_LIMIT = 100
 const PROTOCOL_PROBE_CONCURRENCY = 4
+const MODEL_RESOLVE_CONCURRENCY = 8
 const DIAGNOSTIC_LENGTH_LIMIT = 240
 const CLOUDFLARE_BLOCK_PATTERN = /(?:Attention Required!\s*\|\s*Cloudflare|cdn-cgi\/styles\/cf\.errors\.css|cf-error-details)/iu
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -57,6 +58,10 @@ export function createModelConfigApiHandler(ctx) {
     }
     if (pathname === `${CONFIG_API_PATH}/models/openrouter/free`) {
       await listOpenRouterFreeModels(res)
+      return
+    }
+    if (pathname === `${CONFIG_API_PATH}/models/resolve`) {
+      await resolveProviderModels(ctx, req, res)
       return
     }
     if (pathname !== `${CONFIG_API_PATH}/credentials/reveal`) {
@@ -174,6 +179,33 @@ async function probeModelProtocols(baseURL, model, apiKey) {
     ? completions.available ? 'both' : 'responses-preferred'
     : completions.available ? 'completions-only' : 'unsupported'
   return { model, responses, completions, classification }
+}
+
+async function resolveProviderModels(ctx, req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const provider = requireNonEmptyString(body?.provider, 'provider')
+    const ids = requireProtocolModels(body?.models)
+    const models = []
+    for (let offset = 0; offset < ids.length; offset += MODEL_RESOLVE_CONCURRENCY) {
+      models.push(...await Promise.all(ids.slice(offset, offset + MODEL_RESOLVE_CONCURRENCY).map(async (id) => {
+        const resolved = await ctx.llm.resolveModelInfo(provider, id)
+        const input = stringArray(resolved.inputModalities).filter(modality => modality === 'text' || modality === 'image')
+        const contextWindow = positiveInteger(resolved.context?.contextWindow)
+        const maxTokens = positiveInteger(resolved.defaultMaxTokens)
+        return {
+          id,
+          ...(typeof resolved.name === 'string' && resolved.name.trim() !== '' ? { name: resolved.name.trim() } : {}),
+          ...(contextWindow === undefined ? {} : { contextWindow }),
+          ...(maxTokens === undefined ? {} : { maxTokens }),
+          ...(input.length === 0 ? {} : { input }),
+        }
+      })))
+    }
+    writeJson(res, 200, { ok: true, value: { models } })
+  } catch (error) {
+    writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
+  }
 }
 
 async function validateApiKey(ctx, req, res) {

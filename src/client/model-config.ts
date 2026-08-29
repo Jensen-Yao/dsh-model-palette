@@ -91,6 +91,17 @@ export function modelRecords(profile: Record<string, unknown>): Record<string, u
   return profile.models.filter(isRecord).map(model => structuredClone(model))
 }
 
+/** Materialize a provider's effective model list and remove catalog-only overrides. */
+export function materializeProviderModels(
+  profile: Record<string, unknown>,
+  models: readonly Record<string, unknown>[],
+): Record<string, unknown> {
+  const next = structuredClone(profile)
+  next.models = models.map(model => structuredClone(model))
+  delete next.modelOverrides
+  return next
+}
+
 export function duplicateModelTemplate(model: Record<string, unknown>): Record<string, unknown> {
   const next = structuredClone(model)
   delete next.id
@@ -385,6 +396,17 @@ export function repairProviderCompatibility(
     return result.model
   })
   if (repairedModels.length > 0) next.models = models
+  if (isRecord(next.modelOverrides)) {
+    const overrides = Object.fromEntries(Object.entries(next.modelOverrides).map(([id, value]) => {
+      if (!isRecord(value) || (modelId !== undefined && id !== modelId)) return [id, value]
+      const result = applyReasoningCompatibilityDefaults(protocol, { id, ...value })
+      const updated = structuredClone(result.model)
+      delete updated.id
+      if (result.changed) repairedModels.push(id.trim() || 'unknown model')
+      return [id, updated]
+    }))
+    if (repairedModels.length > 0) next.modelOverrides = overrides
+  }
   return { profile: next, changed: repairedModels.length > 0, repairedModels }
 }
 

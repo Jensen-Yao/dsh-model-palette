@@ -178,6 +178,24 @@ describe('model configuration credential API', () => {
     }
   })
 
+  it('resolves running provider capacities and input modalities for catalog materialization', async () => {
+    const resolveModelInfo = vi.fn(async (provider, model) => ({
+      provider,
+      id: model,
+      name: 'Vision Reasoner',
+      inputModalities: ['text', 'image', 'audio'],
+      context: { contextWindow: 200_000 },
+      defaultMaxTokens: 32_000,
+    }))
+    const response = await invoke(createModelConfigApiHandler({ credentials: { resolve: vi.fn() }, llm: { resolveModelInfo } }), {
+      provider: 'openai', models: ['gpt-vision'],
+    }, { url: '/model-palette/api/config/models/resolve' })
+    expect(response).toEqual({ status: 200, body: { ok: true, value: { models: [{
+      id: 'gpt-vision', name: 'Vision Reasoner', contextWindow: 200_000, maxTokens: 32_000, input: ['text', 'image'],
+    }] } } })
+    expect(resolveModelInfo).toHaveBeenCalledWith('openai', 'gpt-vision')
+  })
+
   it('rejects oversized or duplicate model protocol scans before reading a credential', async () => {
     const resolve = vi.fn()
     const handler = createModelConfigApiHandler({ credentials: { resolve } })

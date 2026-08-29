@@ -69,6 +69,14 @@ export type OpenRouterFreeModelCatalog = {
   models: OpenRouterFreeModel[]
 }
 
+export type ResolvedProviderModel = {
+  id: string
+  name?: string
+  contextWindow?: number
+  maxTokens?: number
+  input?: Array<'text' | 'image'>
+}
+
 /** Reveal one stored credential through the plugin's direct-loopback-only route. */
 export async function revealCredential(ref: string): Promise<string> {
   const response = await fetch(`${CONFIG_API_BASE}/credentials/reveal`, {
@@ -136,6 +144,28 @@ export async function probeProviderModelProtocols(input: {
     throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
   }
   return payload.value.results
+}
+
+/** Resolve configured model capacities and input modalities from the running DSH adapter. */
+export async function resolveProviderModels(input: {
+  provider: string
+  models: string[]
+}): Promise<ResolvedProviderModel[]> {
+  const response = await fetch(`${CONFIG_API_BASE}/models/resolve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  let payload: ConfigApiSuccess<{ models: ResolvedProviderModel[] }> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<{ models: ResolvedProviderModel[] }> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value.models
 }
 
 /** Validate one provider credential without returning the credential to the browser. */

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.10.0 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.10.0：Responses 优先、全部模型协议检查、Re/CC 自动切分、精确请求重试、B.AI 中继、OpenRouter 免费模型导入与 API key 巡检。" />
+<title>dsh-model-palette v0.10.1 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.10.1：Responses 优先、目录模型与 modelOverrides 协议检查、Re/CC 安全切分、精确请求重试、B.AI 中继与 OpenRouter 工具。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -544,7 +544,7 @@
 </nav>
 
 <header class="hero">
-    <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.10.0</div>
+    <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.10.1</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -686,7 +686,8 @@
       <li>API key 实际可用性验证</li>
       <li>全部 API key 一键巡检并直达编辑</li>
       <li>真实请求检测 Completions / Responses</li>
-      <li>全部模型协议分类与 Re/CC 一键切分</li>
+      <li>显式模型、运行时目录与 modelOverrides 全量协议分类</li>
+      <li>解析容量和输入类型后安全切分 Re/CC</li>
       <li>供应商级请求重试与模型级精确覆盖</li>
       <li>B.AI / BankOfAI 默认 50 次，其他线路不受影响</li>
       <li>永久错误不重试，Cloudflare/WAF 403 保留清晰诊断</li>
@@ -768,14 +769,14 @@ dsh-model-palette:
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -850,7 +851,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>检查并切分实际协议</h4>
-          <p>可先测试单模型，再点击「检查全部模型协议」分类完整目录；确认「切分 Re/CC 协议」后，原线路保留 Responses 模型，新建 -completions 分支接收仅支持 Chat Completions 的模型。</p>
+          <p>可先测试单模型，再点击「检查全部模型协议」分类显式模型、DSH 实时目录和 modelOverrides；确认「切分 Re/CC 协议」后，插件先解析上下文、输出和文本/图片输入，再让原线路保留 Responses 模型，并新建 -completions 分支接收仅支持 Chat Completions 的模型。</p>
         </div>
       </div>
       <div class="step">
@@ -871,7 +872,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>配置模型参数并应用预置</h4>
-          <p>从 44 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；供应商默认输入和单模型输入均可精确设置。</p>
+          <p>从 44 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；目录型供应商只改线路字段时继续保留 modelOverrides，编辑模型时才安全物化完整列表。</p>
         </div>
       </div>
       <div class="step">

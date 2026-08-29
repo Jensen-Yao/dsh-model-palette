@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.1 - 2026-08-29
+
+- Include DSH runtime catalog models and `modelOverrides` in single-model and full-provider protocol checks instead of limiting the feature to explicit `models` arrays.
+- Preserve catalog-backed profiles as `modelOverrides` for provider-only edits, and materialize the complete catalog only when a model edit or protocol split requires an explicit list.
+- Resolve live context windows, configured output caps, and text/image input modalities before creating a `-completions` branch; cancel the split rather than write incomplete model metadata.
+- Repair DeepSeek Chat Completions compatibility inside `modelOverrides` and expose catalog-backed models in the configuration panel with a clear materialization notice.
+
 ## 0.10.0 - 2026-08-29
 
 - Default newly created OpenAI-compatible provider drafts to `openai-responses` while keeping protocol selection based on real endpoint behavior rather than reasoning capability.

@@ -6,6 +6,7 @@ import {
   fetchOpenRouterFreeModels,
   probeProviderModelProtocols,
   probeProviderProtocols,
+  resolveProviderModels,
   revealCredential,
   validateProviderApiKeys,
   validateProviderApiKey,
@@ -30,6 +31,7 @@ import {
   inputMode,
   importSelectedOpenRouterFreeModels,
   isRecord,
+  materializeProviderModels,
   mergeDiscoveredModelsWithPresets,
   modelRecords,
   nextProviderCopyId,
@@ -162,6 +164,80 @@ function firstConfiguredModelId(profile: Record<string, unknown>): string {
   return overrides.find(id => id.trim() !== '')?.trim() ?? ''
 }
 
+function liveCatalogCandidates(value: unknown): Record<string, Record<string, unknown>[]> {
+  if (!isRecord(value) || !Array.isArray(value.groups)) return {}
+  return Object.fromEntries(value.groups.filter(isRecord).flatMap(group => {
+    const provider = stringField(group, 'id')
+    if (provider === '' || !Array.isArray(group.models)) return []
+    const models = group.models.filter(isRecord).flatMap(model => {
+      const id = stringField(model, 'id').trim()
+      if (id === '') return []
+      return [{
+        id,
+        ...(stringField(model, 'name') === '' ? {} : { name: stringField(model, 'name') }),
+      }]
+    })
+    return [[provider, models]]
+  }))
+}
+
+function mergeCatalogOverrides(
+  models: readonly Record<string, unknown>[],
+  profile: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const overrides = isRecord(profile.modelOverrides) ? profile.modelOverrides : {}
+  const merged = new Map(models.map((model) => {
+    const id = stringField(model, 'id')
+    const configured = overrides[id]
+    return [id, {
+      ...structuredClone(model),
+      ...(isRecord(configured) ? structuredClone(configured) : {}),
+      id,
+    }]
+  }))
+  for (const [id, value] of Object.entries(overrides)) {
+    if (!merged.has(id) && isRecord(value)) merged.set(id, { id, ...structuredClone(value) })
+  }
+  return [...merged.values()]
+}
+
+const MODEL_OVERRIDE_FIELDS = ['name', 'contextWindow', 'maxTokens', 'input', 'reasoningEfforts', 'compat'] as const
+
+function catalogOverrides(
+  catalog: readonly Record<string, unknown>[],
+  models: readonly Record<string, unknown>[],
+): Record<string, Record<string, unknown>> | undefined {
+  const catalogIds = new Set(catalog.map(model => stringField(model, 'id')))
+  const modelIds = new Set(models.flatMap(model => typeof model.id === 'string' && model.id.trim() !== '' ? [model.id.trim()] : []))
+  if (catalogIds.size !== modelIds.size || [...catalogIds].some(id => !modelIds.has(id))) return undefined
+  const defaults = new Map(catalog.map(model => [stringField(model, 'id'), model] as const))
+  const overrides: Record<string, Record<string, unknown>> = {}
+  for (const model of models) {
+    const id = typeof model.id === 'string' ? model.id.trim() : ''
+    const base = defaults.get(id)
+    if (base === undefined) return undefined
+    const override: Record<string, unknown> = {}
+    for (const field of MODEL_OVERRIDE_FIELDS) {
+      if (model[field] !== undefined && JSON.stringify(model[field]) !== JSON.stringify(base[field])) {
+        override[field] = structuredClone(model[field])
+      }
+    }
+    if (Object.keys(override).length > 0) overrides[id] = override
+  }
+  return overrides
+}
+
+function mergeModelCandidates(...groups: readonly (readonly Record<string, unknown>[])[]): Record<string, unknown>[] {
+  const merged = new Map<string, Record<string, unknown>>()
+  for (const group of groups) {
+    for (const candidate of group) {
+      const id = stringField(candidate, 'id')
+      if (id !== '') merged.set(id, { ...(merged.get(id) ?? { id }), ...structuredClone(candidate), id })
+    }
+  }
+  return [...merged.values()]
+}
+
 function isOpenRouterProfile(providerId: string, profile: Record<string, unknown>): boolean {
   if (providerId.toLocaleLowerCase().includes('openrouter')) return true
   try {
@@ -197,6 +273,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [openRouterFreeCatalog, setOpenRouterFreeCatalog] = useState<OpenRouterFreeModelCatalog | null>(null)
   const [openRouterFreeSelection, setOpenRouterFreeSelection] = useState<string[]>([])
   const [openRouterFreeQuery, setOpenRouterFreeQuery] = useState('')
+  const [liveCatalogModels, setLiveCatalogModels] = useState<Record<string, Record<string, unknown>[]>>({})
   const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -206,7 +283,11 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     [namespace],
   )
   const providerIds = useMemo(() => Object.keys(profiles).sort((left, right) => left.localeCompare(right)), [profiles])
-  const models = useMemo(() => modelRecords(draft), [draft])
+  const explicitModels = useMemo(() => modelRecords(draft), [draft])
+  const models = useMemo(() => explicitModels.length > 0
+    ? explicitModels
+    : mergeCatalogOverrides(liveCatalogModels[providerId] ?? [], draft), [draft, explicitModels, liveCatalogModels, providerId])
+  const catalogBacked = !creating && explicitModels.length === 0
   const compatibilityRepair = useMemo(() => repairProviderCompatibility(draft), [draft])
   const visibleModels = useMemo(() => {
     const query = modelQuery.trim().toLocaleLowerCase()
@@ -226,7 +307,10 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '' || retryDirty)
   const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
   const openRouterProfile = isOpenRouterProfile(providerId, draft)
-  const configuredModelIds = useMemo(() => new Set(models.flatMap(model => typeof model.id === 'string' ? [model.id] : [])), [models])
+  const configuredModelIds = useMemo(() => new Set([
+    ...models.flatMap(model => typeof model.id === 'string' ? [model.id] : []),
+    ...(isRecord(draft.modelOverrides) ? Object.keys(draft.modelOverrides) : []),
+  ]), [draft, models])
   const visibleOpenRouterFreeModels = useMemo(() => {
     const query = openRouterFreeQuery.trim().toLocaleLowerCase()
     return (openRouterFreeCatalog?.models ?? []).filter(model => query === '' || [model.id, model.name]
@@ -242,7 +326,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     try {
       return splitProviderByProtocol({
         providerId: providerId.trim(),
-        profile: draft,
+        profile: materializeProviderModels(draft, models),
         retry: retryDraft,
         completionsOnlyIds: modelProtocolResults.filter(result => result.classification === 'completions-only').map(result => result.model),
         existingProviderIds: providerIds,
@@ -250,7 +334,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     } catch {
       return null
     }
-  }, [draft, modelProtocolResults, modelProtocolSummary.completionsOnly, modelProtocolSummary.responses, providerId, providerIds, retryDraft])
+  }, [draft, modelProtocolResults, modelProtocolSummary.completionsOnly, modelProtocolSummary.responses, models, providerId, providerIds, retryDraft])
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -261,6 +345,21 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     if (!response.result.ok) throw new Error(response.result.error.message)
     setCredential(response.result.value.credentials[ref] ?? null)
   }, [api.credentials])
+
+  const enrichCatalogModels = useCallback(async (
+    id: string,
+    current: readonly Record<string, unknown>[],
+  ): Promise<Record<string, unknown>[]> => {
+    const discoveredResponse = await api.llm.discoverModels({ settingsNs: SETTINGS_NAMESPACE, provider: id })
+    if (!discoveredResponse.result.ok) throw new Error(discoveredResponse.result.error.message)
+    const discovered = discoveredResponse.result.value.models.map(model => ({ ...model }))
+    const ids = discovered.flatMap(model => model.id.trim() === '' ? [] : [model.id.trim()])
+    const resolved = []
+    for (let offset = 0; offset < ids.length; offset += PROTOCOL_SCAN_BATCH_SIZE) {
+      resolved.push(...await resolveProviderModels({ provider: id, models: ids.slice(offset, offset + PROTOCOL_SCAN_BATCH_SIZE) }))
+    }
+    return mergeModelCandidates(current, discovered, resolved)
+  }, [api.llm])
 
   const confirmDiscard = useCallback(() => !dirty || window.confirm(t('config.discardConfirm')), [dirty, t])
 
@@ -313,8 +412,11 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       if (view === undefined) throw new Error(t('config.namespaceMissing'))
       const nextRetryNamespace = response.result.value.namespaces.find(candidate => candidate.ns === RETRY_SETTINGS_NAMESPACE)
       if (nextRetryNamespace === undefined) throw new Error(t('config.retryNamespaceMissing'))
+      const catalogResponse = await api.llm.models({})
+      if (!catalogResponse.result.ok) throw new Error(catalogResponse.result.error.message)
       setNamespace(view)
       setRetryNamespace(nextRetryNamespace)
+      setLiveCatalogModels(liveCatalogCandidates(catalogResponse.result.value))
       const ids = Object.keys(providerProfiles(view.user ?? view.value)).sort((left, right) => left.localeCompare(right))
       const selected = ids.includes(providerId) ? providerId : ids[0]
       if (selected !== undefined) openProvider(selected, view, nextRetryNamespace)
@@ -339,7 +441,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     } finally {
       setBusy(null)
     }
-  }, [api.settings, confirmDiscard, openProvider, providerId, t])
+  }, [api.llm, api.settings, confirmDiscard, openProvider, providerId, t])
 
   const refreshPresets = useCallback(async () => {
     setPresetState('loading')
@@ -357,6 +459,15 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   useEffect(() => { void load(true) }, [])
   useEffect(() => { void refreshPresets() }, [refreshPresets])
+  useEffect(() => {
+    if (creating || explicitModels.length > 0 || providerId === '') return
+    const current = liveCatalogModels[providerId] ?? []
+    void enrichCatalogModels(providerId, current).then((resolved) => {
+      setLiveCatalogModels(catalog => ({ ...catalog, [providerId]: resolved }))
+    }).catch((cause) => {
+      console.error('[dsh-model-palette] catalog metadata resolution failed', cause)
+    })
+  }, [creating, enrichCatalogModels, explicitModels.length, providerId])
 
   useEffect(() => {
     if (!dirty) return
@@ -441,7 +552,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   }
 
   const setModels = (next: Record<string, unknown>[]) => {
-    setDraft(current => ({ ...structuredClone(current), models: next }))
+    setDraft(current => materializeProviderModels(current, next))
     setProtocolResults(null)
     setModelProtocolResults(null)
     setApiKeyValidation(null)
@@ -712,7 +823,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   }
 
   const applyWholeRouteCompletions = () => {
-    const profile: Record<string, unknown> = { ...structuredClone(draft), api: 'openai-completions' }
+    const profile: Record<string, unknown> = { ...materializeProviderModels(draft, models), api: 'openai-completions' }
     profile.models = models.map(model => applyReasoningDispatchDefaults(providerId || 'provider', profile, model))
     setDraft(repairProviderCompatibility(profile).profile)
     setProtocolResults(null)
@@ -724,7 +835,17 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     if (namespace === null || retryNamespace === null || busy !== null || protocolSplitPreview === null) return
     const id = providerId.trim()
     const ref = credentialRef.trim()
-    const normalizedModels = models.map(model => ({ ...model, id: String(model.id).trim() }))
+    let splitModels = models
+    if (catalogBacked) {
+      try {
+        splitModels = await enrichCatalogModels(id, models)
+      } catch (cause) {
+        setError(t('config.protocolCatalogMetadataFailed', { error: messageOf(cause) }))
+        return
+      }
+    }
+    const presetResult = applyMissingPresets(splitModels, registry.presets)
+    const normalizedModels = presetResult.models.map(model => ({ ...model, id: String(model.id).trim() }))
     if (!PROVIDER_ID_PATTERN.test(id)) {
       setError(t('config.providerIdInvalid'))
       return
@@ -757,7 +878,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     }
     const split = splitProviderByProtocol({
       providerId: id,
-      profile: { ...structuredClone(draft), apiKeyEnv: ref, models: normalizedModels },
+      profile: { ...materializeProviderModels(draft, normalizedModels), apiKeyEnv: ref },
       retry: retryDraft,
       completionsOnlyIds: modelProtocolResults?.filter(result => result.classification === 'completions-only').map(result => result.model) ?? [],
       existingProviderIds: providerIds,
@@ -1021,8 +1142,17 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       if (key !== '' && !LEGAL_API_KEY.test(key)) throw new Error(t('config.keyInvalid'))
       const profile = structuredClone(draft)
       profile.apiKeyEnv = ref
-      profile.models = models.map(model => ({ ...model, id: String(model.id).trim() }))
-      const savedModelIds = new Set((profile.models as Record<string, unknown>[]).map(model => String(model.id)))
+      const normalizedModels = models.map(model => ({ ...model, id: String(model.id).trim() }))
+      const overrides = catalogBacked ? catalogOverrides(liveCatalogModels[id] ?? [], normalizedModels) : undefined
+      if (catalogBacked && overrides !== undefined) {
+        delete profile.models
+        if (Object.keys(overrides).length === 0) delete profile.modelOverrides
+        else profile.modelOverrides = overrides
+      } else {
+        profile.models = normalizedModels
+        delete profile.modelOverrides
+      }
+      const savedModelIds = new Set(normalizedModels.map(model => String(model.id)))
       const savedRetryDraft: RequestRetryDraft = {
         ...retryDraft,
         models: Object.fromEntries(Object.entries(retryDraft.models)
@@ -1370,6 +1500,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             <button type="button" disabled={busy !== null} onClick={addModel}>{t('config.addModel')}</button>
           </div>
         </div>
+        {catalogBacked && <div className="dmp-config-catalog-note">{t('config.catalogModelsManaged')}</div>}
 
         {models.length === 0 && <div className="dmp-config-empty">{t('config.noModels')}</div>}
         {models.length > 0 && visibleModels.length === 0 && <div className="dmp-config-empty">{t('config.noMatchingModels')}</div>}

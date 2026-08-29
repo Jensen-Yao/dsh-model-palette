@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.10.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.0)
+Current release: [v0.10.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.1)
 
 ## ✨ Features
 
@@ -74,7 +74,8 @@ Current release: [v0.10.0](https://github.com/Jensen-Yao/dsh-model-palette/relea
 Add, edit, or remove provider profiles directly from the UI:
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - New OpenAI-compatible provider drafts default to `openai-responses`
-- Classify every configured model with real Responses and Chat Completions requests, then explicitly split Completions-only models into a generated `provider-completions` route
+- Classify explicit models, live DSH catalog models, and `modelOverrides` with real Responses and Chat Completions requests, then explicitly split Completions-only models into a generated `provider-completions` route
+- Keep provider-only edits catalog-backed through `modelOverrides`; model edits and protocol splits safely materialize the complete catalog with resolved capacities and input modalities
 - Set **credential reference** and **API key** (masked by default)
 - Validate every configured runtime key in one click and jump directly to any provider that needs editing
 - **Test connection** via `llm.discoverModels`; discovered models are immediately added and enriched with live metadata plus exact presets
@@ -132,7 +133,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -274,8 +275,8 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 7. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
 8. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
 9. **Test one live model** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
-10. **Check every model protocol** — classify the full configured catalog; large providers are scanned in batches and no configuration changes until confirmation
-11. **Split Re/CC protocols** — keep Responses-capable models on the original provider and create a `-completions` branch containing only Chat Completions-only models
+10. **Check every model protocol** — classify explicit models plus live DSH catalog entries and `modelOverrides`; large providers are scanned in batches and no configuration changes until confirmation
+11. **Split Re/CC protocols** — keep Responses-capable models on the original provider and create a `-completions` branch containing only Chat Completions-only models, after resolving capacities and text/image inputs
 12. **Configure provider retries** — keep the DSH policy or set an exact transient-failure retry count for the route
 13. **Override retries per model** — inherit, explicitly disable retries, or set a model-only count
 14. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
@@ -291,7 +292,7 @@ Selective request retry rules live in the plugin's `dsh-model-palette` settings 
 
 If an explicit Cloudflare/WAF 403 keeps failing after its retry budget, the failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. Retries cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 
-Reasoning effort is a model capability declaration, not a protocol selector. New OpenAI-compatible routes start on `openai-responses`, but real endpoint checks remain authoritative. **Check every model protocol** sends bounded requests for each explicit model. Models that accept Responses stay on the primary route even when both protocols work; models that reject Responses but accept Chat Completions can be moved, after a preview and confirmation, to a generated collision-safe `provider-completions` branch. Undetermined models are never moved automatically. The split preserves the endpoint, credential reference, model capacities, inputs, reasoning declarations, valid compatibility fields, and provider/model retry rules.
+Reasoning effort is a model capability declaration, not a protocol selector. New OpenAI-compatible routes start on `openai-responses`, but real endpoint checks remain authoritative. **Check every model protocol** sends bounded requests for explicit models and for models inherited from the live DSH catalog, including entries customized through `modelOverrides`. Models that accept Responses stay on the primary route even when both protocols work; models that reject Responses but accept Chat Completions can be moved, after a preview and confirmation, to a generated collision-safe `provider-completions` branch. Before a catalog route is split, the plugin resolves installed context capacities, configured output caps, and text/image input modalities from the running adapter and fills exact presets; if that metadata cannot be resolved, it cancels rather than writing an inaccurate branch. Provider-only edits preserve the compact catalog plus `modelOverrides`; an explicit model edit or split materializes the full list. Undetermined models are never moved automatically. The split preserves the endpoint, credential reference, model capacities, inputs, reasoning declarations, valid compatibility fields, and provider/model retry rules.
 
 OpenRouter free-model discovery uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The check requires no API key and changes no provider settings. The picker leaves everything unchecked by default, supports search and manual selection, previews context/output/input capabilities, and imports only the checked entries. Import fills missing metadata and presets without overwriting manual fields or deleting unselected local models.
 

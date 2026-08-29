@@ -10,6 +10,7 @@ import {
   duplicateModelTemplate,
   mergeDiscoveredModels,
   mergeDiscoveredModelsWithPresets,
+  materializeProviderModels,
   nextProviderCopyId,
   nextProtocolBranchId,
   repairProviderCompatibility,
@@ -102,6 +103,14 @@ describe('model configuration helpers', () => {
     })
   })
 
+  it('materializes catalog models without leaving incompatible overrides beside them', () => {
+    expect(materializeProviderModels({
+      api: 'openai-responses', modelOverrides: { gpt: { input: ['text'] } }, timeoutMs: 30_000,
+    }, [{ id: 'gpt', input: ['text'], contextWindow: 200_000 }])).toEqual({
+      api: 'openai-responses', timeoutMs: 30_000, models: [{ id: 'gpt', input: ['text'], contextWindow: 200_000 }],
+    })
+  })
+
   it('reports duplicate model ids after trimming', () => {
     expect(duplicateModelIds([{ id: 'same' }, { id: ' same ' }, { id: 'other' }])).toEqual(['same'])
   })
@@ -140,6 +149,24 @@ describe('model configuration helpers', () => {
         supportsDeveloperRole: false,
       },
     }])
+  })
+
+  it('repairs DeepSeek compatibility inside catalog modelOverrides', () => {
+    const result = repairProviderCompatibility({
+      api: 'openai-completions',
+      modelOverrides: { 'deepseek-v4': { reasoningEfforts: { high: 'high' } } },
+    })
+    expect(result).toMatchObject({ changed: true, repairedModels: ['deepseek-v4'] })
+    expect(result.profile.modelOverrides).toEqual({
+      'deepseek-v4': {
+        reasoningEfforts: { high: 'high' },
+        compat: {
+          thinkingFormat: 'deepseek',
+          requiresReasoningContentOnAssistantMessages: true,
+          supportsDeveloperRole: false,
+        },
+      },
+    })
   })
 
   it('repairs an explicitly marked DeepSeek dialect even when the model id is a gateway alias', () => {

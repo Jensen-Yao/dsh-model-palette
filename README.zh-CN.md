@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.10.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.0)
+当前版本：[v0.10.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.1)
 
 ## ✨ 功能特性
 
@@ -74,7 +74,8 @@
 直接在界面中新增、编辑或删除供应商：
 - 配置 **供应商 ID**、**显示名称**、**Base URL** 与 **协议类型**（`openai-completions`、`openai-responses`、`anthropic-messages`）
 - 新建 OpenAI 兼容供应商时默认优先使用 `openai-responses`
-- 对全部已配置模型发送真实 Responses / Chat Completions 请求分类，并可确认后把仅支持 Chat Completions 的模型自动切分到 `provider-completions` 分支
+- 对显式模型、DSH 实时目录模型和 `modelOverrides` 发送真实 Responses / Chat Completions 请求分类，并可确认后把仅支持 Chat Completions 的模型自动切分到 `provider-completions` 分支
+- 只修改供应商字段时继续保留目录与 `modelOverrides`；编辑模型或切分协议时，安全物化完整目录并补齐容量与输入类型
 - 设置 **凭据引用** 与 **API key**（默认掩码显示）
 - 一键检查全部运行时 API key，并从结果直接跳到有问题的供应商修改
 - 通过 `llm.discoverModels` **测试连接**，探测到的模型会立即加入草稿，并自动补齐实时元数据与精确匹配预置
@@ -132,7 +133,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -274,8 +275,8 @@ llm-pi-ai:
 7. **验证 API key** — 使用所选模型和协议发送最小请求，并区分 DSH 当前运行时凭据与输入框中不同的待保存 key
 8. **一键检查全部 API key** — 依次测试每个运行时凭据，并从结果直接打开失败供应商
 9. **检测单个模型协议** — 使用一个模型分别测试 `/chat/completions` 与 `/responses`，显示真实可用结果
-10. **检查全部模型协议** — 对完整配置目录分类；模型很多时自动分批，确认前不会修改配置
-11. **切分 Re/CC 协议** — 原供应商保留 Responses 可用模型，新建 `-completions` 分支并只放入仅支持 Chat Completions 的模型
+10. **检查全部模型协议** — 对显式模型、DSH 实时目录和 `modelOverrides` 一起分类；模型很多时自动分批，确认前不会修改配置
+11. **切分 Re/CC 协议** — 原供应商保留 Responses 可用模型，新建 `-completions` 分支并只放入仅支持 Chat Completions 的模型；写入前会解析容量与文本/图片输入
 12. **配置供应商重试** — 保持 DSH 原策略，或为当前线路设置精确的瞬态失败重试次数
 13. **按模型覆盖重试** — 可继承、明确禁用，或为单个模型设置独立次数
 14. **配置模型** — 筛选长列表、复制参数，设置上下文窗口、最大输出、输入模态与推理 wire value
@@ -291,7 +292,7 @@ API key 验证会明确区分“可用”“无效”“被供应商或网关拒
 
 明确的 Cloudflare/WAF 403 用尽重试次数后，会把错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。重试不能绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
 
-推理档位是模型能力声明，不等于协议选择。新建 OpenAI 兼容线路默认使用 `openai-responses`，但最终仍以真实端点检查为准。「检查全部模型协议」会对每个显式模型发送受限请求；Responses 成功的模型留在主线路，即使两个协议都成功也优先 Responses；只有 Responses 失败且 Chat Completions 成功的模型，才会在预览和二次确认后移动到自动生成且不会覆盖同名供应商的 `provider-completions` 分支。两个协议都失败的模型不会自动移动。切分会保留 Base URL、credential ref、上下文、最大输出、输入、推理声明、协议有效的兼容参数以及供应商/模型重试规则。
+推理档位是模型能力声明，不等于协议选择。新建 OpenAI 兼容线路默认使用 `openai-responses`，但最终仍以真实端点检查为准。「检查全部模型协议」会对显式模型以及从 DSH 实时目录继承的模型发送受限请求，`modelOverrides` 里的定制也会合并参与；Responses 成功的模型留在主线路，即使两个协议都成功也优先 Responses；只有 Responses 失败且 Chat Completions 成功的模型，才会在预览和二次确认后移动到自动生成且不会覆盖同名供应商的 `provider-completions` 分支。目录线路切分前，插件会从正在运行的适配器解析上下文容量、已配置输出上限和文本/图片输入，并补齐精确预置；解析失败时会取消切分，而不是写入不准确的分支。只修改供应商字段时仍保留紧凑目录和 `modelOverrides`；编辑模型或切分时才物化完整列表。两个协议都失败的模型不会自动移动。切分会保留 Base URL、credential ref、上下文、最大输出、输入、推理声明、协议有效的兼容参数以及供应商/模型重试规则。
 
 OpenRouter 免费模型检查使用公开 `/api/v1/models` 目录，只接收带明确 `:free` 标识、输出文本且至少支持一种 DSH 输入（`text` 或 `image`）的模型。检查不需要 API key，也不会直接修改供应商配置。选择器默认全部不勾选，支持搜索、手工勾选，并展示上下文、最大输出和输入类型；只有勾选的条目才会导入。导入只补全缺失元数据和能力预置，不覆盖手工字段，也不删除未选中的本地模型。
 
