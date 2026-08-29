@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.9.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.1)
+Current release: [v0.9.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.2)
 
 ## ✨ Features
 
@@ -130,7 +130,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.2
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -165,7 +165,7 @@ This registers five agent tools:
 
 ### B.AI direct-connection recovery without a VPN
 
-If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials. Press `Alt+M` and open Relay config to copy a `127.0.0.1` Base URL and provider template using the current DSH port.
+If `https://api.b.ai/v1/models` times out locally while the key is known to be valid, the network is usually blocking the `api.b.ai` DNS or TLS route rather than rejecting the key. The plugin includes a loopback-only B.AI relay: it forwards DSH `/v1/*` requests through B.AI's AWS Global Accelerator hostname while using the `api.b.ai` host and certificate name. No VPN is required, and the key remains in DSH credentials. The relay also opens a fresh HTTPS socket for every attempt, replays request bodies up to 16 MiB, and retries transient socket failures twice before returning a clear 503. Press `Alt+M` and open Relay config to copy a `127.0.0.1` Base URL and provider template using the current DSH port.
 
 Change the affected B.AI provider `baseURL` to the following value and restart `dsh web`:
 
@@ -188,6 +188,19 @@ llm-pi-ai:
 
 The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI destination; it is not an open proxy. A 401 from `/v1/models` means the request reached B.AI, so check the credential first. A timeout or TLS error means the relay's upstream path is still unavailable. If B.AI changes its accelerator entry, override the default with `baiRelay.upstreamHost` in the plugin configuration.
 
+The built-in relay retry settings belong to the plugin config, not the provider profile:
+
+```yaml
+- id: dsh-model-palette
+  config:
+    baiRelay:
+      upstreamRetries: 2
+      retryDelaysMs: [250, 1000]
+      retryBodyLimitBytes: 16777216
+```
+
+The relay returns `503 UPSTREAM_TRANSIENT` after its own retries are exhausted. This is separate from the provider/model request-retry rules below.
+
 ### Extend the relay to another provider
 
 For another provider whose key works but canonical domain is unreachable locally, declare a named fixed-destination relay in plugin configuration. Each relay has an ID, fixed HTTPS connection host, original API Host, TLS SNI, certificate validation name, and allowed path prefix. Browser requests cannot choose an upstream dynamically.
@@ -203,6 +216,9 @@ For another provider whose key works but canonical domain is unreachable locally
         certificateHost: api.provider.example
         allowedPathPrefix: /v1/
         timeoutMs: 180000
+        upstreamRetries: 2
+        retryDelaysMs: [250, 1000]
+        retryBodyLimitBytes: 16777216
 ```
 
 After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`. If DSH uses another port, copy the current loopback address from Relay config. Configure only a verified alternate entry for the same provider API; never place an unknown site, secret, or dynamic URL in relay configuration.
@@ -248,7 +264,7 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 
 API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
 
-Selective request retry rules live in the plugin's `dsh-model-palette` settings namespace and apply live. A provider rule owns recovery only for that route; an exact model override wins over it. B.AI/BankOfAI aliases (`b.ai`, `bai`, `bailsb`, `baiwhr`, and `bankofai`) default to 50 retries. `N` means retries after the first failed request, so `50` can produce at most `51` billable attempts. Only transport errors, timeouts, rate limits, server errors, empty responses, and explicit Cloudflare/WAF 403 pages retry. Invalid credentials, quota exhaustion, malformed requests, missing models, and context overflow remain terminal. Setting a model override to `0` explicitly disables recovery for that model; routes without plugin rules continue through the normal DSH recovery chain.
+Selective request retry rules live in the plugin's `dsh-model-palette` settings namespace and apply live. A provider rule owns recovery only for that route; an exact model override wins over it. B.AI/BankOfAI aliases (`b.ai`, `bai`, `bailsb`, `baiwhr`, and `bankofai`) default to 50 retries. `N` means retries after the first failed request, so `50` can produce at most `51` billable attempts. Only transport errors, timeouts, rate limits, server errors, empty responses, and explicit Cloudflare/WAF 403 pages retry. Invalid credentials, quota exhaustion, malformed requests, missing models, and context overflow remain terminal. Setting a model override to `0` explicitly disables recovery for that model; routes without plugin rules continue through the normal DSH recovery chain. These provider/model rules are separate from the relay's own transport recovery: the relay handles socket setup failures before DSH receives a response, while this namespace handles failures reported by the DSH request path.
 
 If an explicit Cloudflare/WAF 403 keeps failing after its retry budget, the failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. Retries cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 

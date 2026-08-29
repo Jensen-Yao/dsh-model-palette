@@ -18,9 +18,9 @@ function responseRecorder() {
   response.status = 0
   response.headers = {}
   response.body = ''
-  response.writeHead = vi.fn((status, _message, headers) => {
+  response.writeHead = vi.fn((status, messageOrHeaders, headers) => {
     response.status = status
-    response.headers = headers ?? {}
+    response.headers = headers ?? (typeof messageOrHeaders === 'object' ? messageOrHeaders : {})
     response.headersSent = true
   })
   response.write = vi.fn(chunk => { response.body += String(chunk); return true })
@@ -77,6 +77,85 @@ describe('B.AI loopback relay', () => {
     expect(response.status).toBe(401)
     expect(response.body).toContain('missing key')
     expect(response.body).not.toContain('test-secret')
+  })
+
+  it('retries ECONNRESET with a fresh socket and the same request body', async () => {
+    const requests = []
+    const upstreamResponse = Readable.from(['{"data":[]}'])
+    Object.assign(upstreamResponse, {
+      statusCode: 200,
+      statusMessage: 'OK',
+      headers: { 'content-type': 'application/json' },
+    })
+    const requestMock = vi.spyOn(https, 'request').mockImplementation((options, callback) => {
+      const upstreamRequest = new EventEmitter()
+      upstreamRequest.setTimeout = vi.fn()
+      upstreamRequest.destroy = vi.fn()
+      upstreamRequest.end = vi.fn((body) => {
+        upstreamRequest.body = body
+        if (requests.length === 1) {
+          process.nextTick(() => upstreamRequest.emit('error', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })))
+        } else {
+          process.nextTick(() => callback(upstreamResponse))
+        }
+      })
+      requests.push({ options, request: upstreamRequest })
+      return upstreamRequest
+    })
+    const response = responseRecorder()
+    const body = '{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"ping"}]}'
+
+    await createBaiRelayHandler({ upstreamRetries: 1, retryDelaysMs: [0] })(
+      requestWith({ method: 'POST', body: [body], headers: { host: '127.0.0.1:3080', 'content-type': 'application/json' } }),
+      response,
+    )
+
+    expect(requestMock).toHaveBeenCalledTimes(2)
+    expect(requests[0].options).toMatchObject({ agent: false })
+    expect(requests[1].options).toMatchObject({ agent: false })
+    expect(requests[0].request.body.equals(requests[1].request.body)).toBe(true)
+    expect(response.status).toBe(200)
+    expect(response.body).toContain('data')
+  })
+
+  it('returns a transient 503 after ECONNRESET retries are exhausted', async () => {
+    const requestMock = vi.spyOn(https, 'request').mockImplementation(() => {
+      const upstreamRequest = new EventEmitter()
+      upstreamRequest.setTimeout = vi.fn()
+      upstreamRequest.destroy = vi.fn()
+      upstreamRequest.end = vi.fn(() => {
+        process.nextTick(() => upstreamRequest.emit('error', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })))
+      })
+      return upstreamRequest
+    })
+    const response = responseRecorder()
+
+    await createBaiRelayHandler({ upstreamRetries: 2, retryDelaysMs: [0] })(requestWith({ method: 'POST', body: ['{}'] }), response)
+
+    expect(requestMock).toHaveBeenCalledTimes(3)
+    expect(response.status).toBe(503)
+    expect(response.headers).toMatchObject({ 'retry-after': '1' })
+    expect(response.body).toContain('UPSTREAM_TRANSIENT')
+    expect(response.body).toContain('3 attempts')
+  })
+
+  it('forwards an oversized non-replayable body once without retrying it', async () => {
+    const requestMock = vi.spyOn(https, 'request').mockImplementation(() => {
+      const upstreamRequest = new EventEmitter()
+      upstreamRequest.setTimeout = vi.fn()
+      upstreamRequest.destroy = vi.fn()
+      upstreamRequest.end = vi.fn(() => {
+        process.nextTick(() => upstreamRequest.emit('error', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })))
+      })
+      return upstreamRequest
+    })
+    const response = responseRecorder()
+
+    await createBaiRelayHandler({ upstreamRetries: 2, retryDelaysMs: [0], retryBodyLimitBytes: 1 })(requestWith({ method: 'POST', body: ['{}'] }), response)
+
+    expect(requestMock).toHaveBeenCalledOnce()
+    expect(response.status).toBe(502)
+    expect(response.body).toContain('ECONNRESET')
   })
 
   it('rejects non-loopback requests before contacting B.AI', async () => {

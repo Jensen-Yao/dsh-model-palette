@@ -12,6 +12,9 @@ const BAI_RELAY_PLUGIN_CONFIG = `- id: dsh-model-palette
     baiRelay:
       enabled: true
       timeoutMs: 180000
+      upstreamRetries: 2
+      retryDelaysMs: [250, 1000]
+      retryBodyLimitBytes: 16777216
       upstreamHost: a18ccd091ab831ac3.awsglobalaccelerator.com
       hostHeader: api.b.ai`
 
@@ -24,7 +27,10 @@ const GENERIC_RELAY_CONFIG = `- id: dsh-model-palette
         tlsServerName: reachable-entry.example.net
         certificateHost: api.provider.example
         allowedPathPrefix: /v1/
-        timeoutMs: 180000`
+        timeoutMs: 180000
+        upstreamRetries: 2
+        retryDelaysMs: [250, 1000]
+        retryBodyLimitBytes: 16777216`
 
 /** Render the built-in fixed-destination relay instructions and copyable templates. */
 export function RelayPanel({ onOpenConfig, t }: RelayPanelProps) {
@@ -93,6 +99,7 @@ export function RelayPanel({ onOpenConfig, t }: RelayPanelProps) {
           <div><dt>{t('relay.hostHeader')}</dt><dd><code>api.b.ai</code></dd></div>
           <div><dt>{t('relay.allowedPath')}</dt><dd><code>/v1/*</code></dd></div>
         </dl>
+        <p className="dmp-relay-note">{t('relay.retryPolicy')}</p>
         <p className="dmp-relay-note">{t('relay.statusHint')}</p>
         <div className="dmp-relay-actions">
           <button type="button" onClick={() => void copy('provider', baiProviderConfig)}>{copied === 'provider' ? t('relay.copied') : t('relay.copyProvider')}</button>

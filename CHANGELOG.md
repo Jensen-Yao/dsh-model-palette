@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 - 2026-08-29
+
+- Reopen each relay attempt with a fresh HTTPS socket so an upstream `ECONNRESET` does not immediately surface as a misleading 502.
+- Buffer replayable request bodies, retry transient connection failures twice with bounded backoff, and return `503 UPSTREAM_TRANSIENT` with `Retry-After` after exhaustion.
+- Keep larger requests available for a single non-replayed attempt and expose relay retry limits in the sidebar templates and documentation.
+
 ## 0.9.1 - 2026-08-29
 
 - Pass a mutable copy of the built-in retry defaults to DSH settings so Schemastery can resolve them during plugin startup.

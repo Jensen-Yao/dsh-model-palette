@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.9.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.1)
+当前版本：[v0.9.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.2)
 
 ## ✨ 功能特性
 
@@ -130,7 +130,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.2
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -155,7 +155,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.1
 
 ### B.AI 无 VPN 连接修复
 
-如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。按 `Alt+M` 后打开侧栏「中继配置」，可以直接复制适配当前 DSH 端口的 `127.0.0.1` Base URL 与 provider 模板。
+如果本机访问 `https://api.b.ai/v1/models` 超时，但 key 本身确认有效，通常是当前网络对 `api.b.ai` 的 DNS 或 TLS 路由不可达。插件内置了仅限本机回环访问的 B.AI 中继：它把 DSH 的 `/v1/*` 请求转发到 B.AI 的 AWS 加速入口，并使用 `api.b.ai` 的 Host 与证书名称完成校验；不需要 VPN，也不会把 key 写入插件配置。中继每次尝试都会新建 HTTPS 连接，会重放不超过 16 MiB 的请求体，并对瞬态 socket 错误自动重试两次，耗尽后返回明确的 503。按 `Alt+M` 后打开侧栏「中继配置」，可以直接复制适配当前 DSH 端口的 `127.0.0.1` Base URL 与 provider 模板。
 
 把对应 B.AI provider 的 `baseURL` 改为下面的值，然后重启 `dsh web`：
 
@@ -176,7 +176,20 @@ llm-pi-ai:
         - id: deepseek-v4-flash
 ```
 
-中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定上游为 B.AI，不是通用开放代理。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential；连接超时或 TLS 错误才表示中继上游仍不可达。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.upstreamHost` 覆盖默认入口。
+中继只接受直接来自 `127.0.0.1` / `::1` 的请求，并固定上游为 B.AI，不是通用开放代理。`/v1/models` 返回 401 时表示已经到达 B.AI，优先检查 credential；`ECONNRESET` 等瞬态错误会在新连接上重试，重试耗尽后返回 `503 UPSTREAM_TRANSIENT` 和 `Retry-After: 1`，不会再误报 key 无效。连接超时或 TLS 错误仍表示中继上游不可达。若 B.AI 更换加速入口，可通过插件配置中的 `baiRelay.upstreamHost` 覆盖默认入口。
+
+内置中继的重试参数属于插件配置，不属于 provider 配置：
+
+```yaml
+- id: dsh-model-palette
+  config:
+    baiRelay:
+      upstreamRetries: 2
+      retryDelaysMs: [250, 1000]
+      retryBodyLimitBytes: 16777216
+```
+
+中继自身的传输恢复与下面的供应商/模型请求重试是两层机制；前者处理建立上游连接时的 socket 错误，后者处理 DSH 请求路径已经收到的失败。
 
 ### 扩展到其他供应商
 
@@ -193,6 +206,9 @@ llm-pi-ai:
         certificateHost: api.provider.example
         allowedPathPrefix: /v1/
         timeoutMs: 180000
+        upstreamRetries: 2
+        retryDelaysMs: [250, 1000]
+        retryBodyLimitBytes: 16777216
 ```
 
 重启 `dsh web` 后，把对应 provider 的 Base URL 改为 `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`。如果 DSH 不是运行在 `3080` 端口，以「中继配置」页显示的当前回环地址为准。只应配置经过核验、确实连接到同一供应商 API 的替代入口；不要把未知网站、密钥或动态 URL 写入中继配置。
@@ -248,7 +264,7 @@ llm-pi-ai:
 
 API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“暂不可用”“未配置”和“无法判断”。插件不会把公开 `/models` 成功当成 key 可用于对话的证明，而是使用与 DSH 对话一致的最小流式请求；“一键检查全部 API key”会依次测试运行时凭据以降低限流压力，并显示供应商、credential ref、来源、协议、模型与诊断。DSH 当前运行时凭据与输入框中不同的待保存 key 会分开验证，且 key 始终只在插件后端使用。每次请求可能产生少量费用。
 
-选择性重试规则保存在插件自己的 `dsh-model-palette` settings 命名空间并实时生效。供应商规则只接管该线路，精确模型覆盖优先于供应商规则。B.AI / BankOfAI 常见 ID（`b.ai`、`bai`、`bailsb`、`baiwhr`、`bankofai`）默认预置 50 次。`N` 表示第一次失败后的重试次数，因此 `50` 最多可能产生 `51` 次可计费请求。只有网络错误、超时、限流、服务器错误、空响应和明确的 Cloudflare/WAF 403 会重试；无效凭据、余额或配额耗尽、请求参数错误、模型不存在和上下文超限会直接结束。模型覆盖设为 `0` 时会明确禁止该模型恢复；没有插件规则的线路继续走 DSH 原有恢复链路。
+选择性重试规则保存在插件自己的 `dsh-model-palette` settings 命名空间并实时生效。供应商规则只接管该线路，精确模型覆盖优先于供应商规则。B.AI / BankOfAI 常见 ID（`b.ai`、`bai`、`bailsb`、`baiwhr`、`bankofai`）默认预置 50 次。`N` 表示第一次失败后的重试次数，因此 `50` 最多可能产生 `51` 次可计费请求。只有网络错误、超时、限流、服务器错误、空响应和明确的 Cloudflare/WAF 403 会重试；无效凭据、余额或配额耗尽、请求参数错误、模型不存在和上下文超限会直接结束。模型覆盖设为 `0` 时会明确禁止该模型恢复；没有插件规则的线路继续走 DSH 原有恢复链路。这套供应商/模型重试与中继自身的传输恢复是两层机制：中继先处理建立连接阶段的 socket 错误，DSH 收到请求失败后才使用这里的规则。
 
 明确的 Cloudflare/WAF 403 用尽重试次数后，会把错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。重试不能绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
 
