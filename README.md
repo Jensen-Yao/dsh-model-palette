@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.9.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.0)
+Current release: [v0.9.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.1)
 
 ## ✨ Features
 
@@ -130,7 +130,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.1
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.

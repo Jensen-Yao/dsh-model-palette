@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createGatewayRecoveryHandler, isCloudflareBlock, isRetryableFailure } from '../src/gateway-recovery.js'
-import { DEFAULT_REQUEST_RETRY_SETTINGS, resolveRequestRetryRule } from '../src/request-retry-settings.js'
+import {
+  DEFAULT_REQUEST_RETRY_SETTINGS,
+  registerRequestRetrySettings,
+  resolveRequestRetryRule,
+} from '../src/request-retry-settings.js'
 
 function payload(failure, signal = new AbortController().signal, provider = 'bankofai', model = 'deepseek-v4-flash') {
   return { agent: { options: { model } }, turn: 2, step: 1, provider, failure, signal }
@@ -25,6 +29,17 @@ describe('gateway recovery', () => {
     expect(resolveRequestRetryRule(DEFAULT_REQUEST_RETRY_SETTINGS, 'bailsb', 'model')).toEqual({ maxRetries: 50, source: 'provider' })
     expect(resolveRequestRetryRule(DEFAULT_REQUEST_RETRY_SETTINGS, 'baiwhr', 'model')).toEqual({ maxRetries: 50, source: 'provider' })
     expect(resolveRequestRetryRule(DEFAULT_REQUEST_RETRY_SETTINGS, 'bankofai', 'model')).toEqual({ maxRetries: 50, source: 'provider' })
+  })
+
+  it('registers a mutable schema base without modifying the exported defaults', () => {
+    const register = vi.fn((_namespace, schema, options) => {
+      expect(() => schema(options.base)).not.toThrow()
+      expect(options.base).not.toBe(DEFAULT_REQUEST_RETRY_SETTINGS)
+      return { get: () => options.base }
+    })
+    registerRequestRetrySettings({ settings: { register } })
+    expect(register).toHaveBeenCalledOnce()
+    expect(DEFAULT_REQUEST_RETRY_SETTINGS.requestRetries.providers['b.ai'].maxRetries).toBe(50)
   })
 
   it('uses an exact model override before the provider retry count', async () => {

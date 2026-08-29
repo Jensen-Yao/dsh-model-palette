@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 - 2026-08-29
+
+- Pass a mutable copy of the built-in retry defaults to DSH settings so Schemastery can resolve them during plugin startup.
+
 ## 0.9.0 - 2026-08-29
 
 - Add live provider-level transient request retry rules with exact per-model overrides in the configuration panel.

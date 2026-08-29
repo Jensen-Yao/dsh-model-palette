@@ -32,7 +32,7 @@ export function registerRequestRetrySettings(ctx) {
   return ctx.settings.register(
     REQUEST_RETRY_SETTINGS_NAMESPACE,
     RequestRetrySettingsSchema,
-    { base: DEFAULT_REQUEST_RETRY_SETTINGS, applies: 'live' },
+    { base: structuredClone(DEFAULT_REQUEST_RETRY_SETTINGS), applies: 'live' },
   )
 }
 

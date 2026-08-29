@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.9.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.0)
+当前版本：[v0.9.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.1)
 
 ## ✨ 功能特性
 
@@ -130,7 +130,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.1
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
