@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.9.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.9.3)
+Current release: [v0.10.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.0)
 
 ## ✨ Features
 
@@ -73,6 +73,8 @@ Current release: [v0.9.3](https://github.com/Jensen-Yao/dsh-model-palette/releas
 ### ⚙️ Provider & Model Configuration
 Add, edit, or remove provider profiles directly from the UI:
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
+- New OpenAI-compatible provider drafts default to `openai-responses`
+- Classify every configured model with real Responses and Chat Completions requests, then explicitly split Completions-only models into a generated `provider-completions` route
 - Set **credential reference** and **API key** (masked by default)
 - Validate every configured runtime key in one click and jump directly to any provider that needs editing
 - **Test connection** via `llm.discoverModels`; discovered models are immediately added and enriched with live metadata plus exact presets
@@ -130,7 +132,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.9.3
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -271,15 +273,17 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 6. **Choose OpenRouter free models** — scan the current usable `:free` catalog, search and inspect capacities, then import only the checked models
 7. **Validate the API key** — send a minimal request through the selected model and protocol, then distinguish the active DSH runtime credential from a different unsaved key in the input
 8. **Check all API keys** — sequentially test every configured runtime credential and open a failing provider directly from the results
-9. **Test the live protocol** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
-10. **Configure provider retries** — keep the DSH policy or set an exact transient-failure retry count for the route
-11. **Override retries per model** — inherit, explicitly disable retries, or set a model-only count
-12. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
-13. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
-14. **Apply presets** — auto-fill from the registry or select manually
-15. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
-16. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
-17. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
+9. **Test one live model** — send one minimal request to `/chat/completions` and `/responses` and show which actually works
+10. **Check every model protocol** — classify the full configured catalog; large providers are scanned in batches and no configuration changes until confirmation
+11. **Split Re/CC protocols** — keep Responses-capable models on the original provider and create a `-completions` branch containing only Chat Completions-only models
+12. **Configure provider retries** — keep the DSH policy or set an exact transient-failure retry count for the route
+13. **Override retries per model** — inherit, explicitly disable retries, or set a model-only count
+14. **Configure models** — filter long lists, copy parameters, and set context window, max output, input types, and reasoning wire values
+15. **Enable universal reasoning** — add all seven DSH levels to one model or every declared model on the route
+16. **Apply presets** — auto-fill from the registry or select manually
+17. **Repair known dialect compatibility** — use **Repair and apply** when a DeepSeek-compatible route lacks historical `reasoning_content` replay fields; normal model selection also runs the preflight automatically
+18. **Save safely** — duplicate IDs are rejected, and unsaved edits are clearly marked before switching or reloading
+19. **Delete a provider** — remove its settings profile after confirmation; its credential is intentionally kept
 
 API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
 
@@ -287,11 +291,11 @@ Selective request retry rules live in the plugin's `dsh-model-palette` settings 
 
 If an explicit Cloudflare/WAF 403 keeps failing after its retry budget, the failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. Retries cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 
-Reasoning effort is a model capability declaration, not a protocol selector. `openai-responses` and `openai-completions` remain independently testable. The plugin adds `reasoningEfforts` only when needed and exposes each wire value for manual correction because gateways may spell or dispatch levels differently.
+Reasoning effort is a model capability declaration, not a protocol selector. New OpenAI-compatible routes start on `openai-responses`, but real endpoint checks remain authoritative. **Check every model protocol** sends bounded requests for each explicit model. Models that accept Responses stay on the primary route even when both protocols work; models that reject Responses but accept Chat Completions can be moved, after a preview and confirmation, to a generated collision-safe `provider-completions` branch. Undetermined models are never moved automatically. The split preserves the endpoint, credential reference, model capacities, inputs, reasoning declarations, valid compatibility fields, and provider/model retry rules.
 
 OpenRouter free-model discovery uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The check requires no API key and changes no provider settings. The picker leaves everything unchecked by default, supports search and manual selection, previews context/output/input capabilities, and imports only the checked entries. Import fills missing metadata and presets without overwriting manual fields or deleting unselected local models.
 
-Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. The plugin never changes protocol based solely on reasoning capability.
+Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. Full-catalog checks use batches of at most 100 models per backend request and may send up to two model requests per entry. The plugin never changes protocol based solely on reasoning capability and never writes a split before explicit confirmation.
 
 ### Media Tools Panel
 

@@ -4,6 +4,8 @@ const REQUEST_BODY_LIMIT = 65_536
 const PROBE_MAX_OUTPUT_TOKENS = 16
 const CATALOG_TIMEOUT_MS = 20_000
 const BATCH_PROVIDER_LIMIT = 100
+const PROTOCOL_MODEL_LIMIT = 100
+const PROTOCOL_PROBE_CONCURRENCY = 4
 const DIAGNOSTIC_LENGTH_LIMIT = 240
 const CLOUDFLARE_BLOCK_PATTERN = /(?:Attention Required!\s*\|\s*Cloudflare|cdn-cgi\/styles\/cf\.errors\.css|cf-error-details)/iu
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -142,15 +144,36 @@ async function probeProtocols(ctx, req, res) {
   try {
     const body = await readJsonBody(req)
     const baseURL = requireBaseURL(body?.baseURL)
-    const model = requireNonEmptyString(body?.model, 'model')
+    const models = body?.models === undefined ? undefined : requireProtocolModels(body.models)
+    const model = models === undefined ? requireNonEmptyString(body?.model, 'model') : undefined
     const ref = requireCredentialRef(body?.credentialRef)
     const apiKey = optionalApiKey(body?.apiKey) ?? (await ctx.credentials.resolve(ref))?.value
     if (apiKey === undefined) throw new Error(`credential ${ref} is not configured`)
+    if (models !== undefined) {
+      const results = []
+      for (let offset = 0; offset < models.length; offset += PROTOCOL_PROBE_CONCURRENCY) {
+        results.push(...await Promise.all(models.slice(offset, offset + PROTOCOL_PROBE_CONCURRENCY)
+          .map(model => probeModelProtocols(baseURL, model, apiKey))))
+      }
+      writeJson(res, 200, { ok: true, value: { results } })
+      return
+    }
     const results = await Promise.all(PROTOCOLS.map(protocol => probeProtocol(baseURL, model, apiKey, protocol)))
     writeJson(res, 200, { ok: true, value: { results } })
   } catch (error) {
     writeJson(res, 400, { ok: false, error: { message: errorMessage(error) } })
   }
+}
+
+async function probeModelProtocols(baseURL, model, apiKey) {
+  const [completions, responses] = await Promise.all([
+    probeProtocol(baseURL, model, apiKey, 'openai-completions'),
+    probeProtocol(baseURL, model, apiKey, 'openai-responses'),
+  ])
+  const classification = responses.available
+    ? completions.available ? 'both' : 'responses-preferred'
+    : completions.available ? 'completions-only' : 'unsupported'
+  return { model, responses, completions, classification }
 }
 
 async function validateApiKey(ctx, req, res) {
@@ -464,6 +487,15 @@ function requireBatchProviders(value) {
       model: optionalNonEmptyString(entry.model, `providers[${index}].model`) ?? '',
     }
   })
+}
+
+function requireProtocolModels(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > PROTOCOL_MODEL_LIMIT) {
+    throw new Error(`models must contain from 1 to ${PROTOCOL_MODEL_LIMIT} entries`)
+  }
+  const models = value.map((model, index) => requireNonEmptyString(model, `models[${index}]`))
+  if (new Set(models).size !== models.length) throw new Error('models must not contain duplicates')
+  return models
 }
 
 function optionalDisplayName(value) {

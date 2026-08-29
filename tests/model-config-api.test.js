@@ -139,6 +139,59 @@ describe('model configuration credential API', () => {
     }
   })
 
+  it('classifies every configured model by live Responses and Completions support', async () => {
+    const originalFetch = globalThis.fetch
+    const calls = []
+    globalThis.fetch = vi.fn(async (url, init) => {
+      calls.push({ url, init })
+      const { model } = JSON.parse(init.body)
+      const responses = url.endsWith('/responses')
+      const available = model === 'both'
+        || model === 'responses-only' && responses
+        || model === 'completions-only' && !responses
+      return new Response(JSON.stringify(available ? { id: 'ok' } : { error: { message: `${model} rejected ${responses ? 'responses' : 'completions'}` } }), {
+        status: available ? 200 : 400,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    try {
+      const response = await invoke(createModelConfigApiHandler({ credentials: {
+        resolve: vi.fn(async () => ({ value: 'stored-secret', source: 'file' })),
+      } }), {
+        baseURL: 'https://gateway.example/v1',
+        credentialRef: 'GATEWAY_API_KEY',
+        models: ['responses-only', 'both', 'completions-only', 'neither'],
+      }, { url: '/model-palette/api/config/protocols/probe' })
+
+      expect(response.status).toBe(200)
+      expect(response.body.value.results).toEqual([
+        expect.objectContaining({ model: 'responses-only', classification: 'responses-preferred', responses: { protocol: 'openai-responses', available: true } }),
+        expect.objectContaining({ model: 'both', classification: 'both', responses: { protocol: 'openai-responses', available: true }, completions: { protocol: 'openai-completions', available: true } }),
+        expect.objectContaining({ model: 'completions-only', classification: 'completions-only', completions: { protocol: 'openai-completions', available: true } }),
+        expect.objectContaining({ model: 'neither', classification: 'unsupported' }),
+      ])
+      expect(calls).toHaveLength(8)
+      expect(JSON.stringify(response.body)).not.toContain('stored-secret')
+      expect(calls.every(call => JSON.parse(call.init.body).stream === true)).toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('rejects oversized or duplicate model protocol scans before reading a credential', async () => {
+    const resolve = vi.fn()
+    const handler = createModelConfigApiHandler({ credentials: { resolve } })
+    const oversized = await invoke(handler, {
+      baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', models: Array.from({ length: 101 }, (_value, index) => `m-${index}`),
+    }, { url: '/model-palette/api/config/protocols/probe' })
+    const duplicate = await invoke(handler, {
+      baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', models: ['same', 'same'],
+    }, { url: '/model-palette/api/config/protocols/probe' })
+    expect(oversized).toMatchObject({ status: 400, body: { ok: false } })
+    expect(duplicate).toMatchObject({ status: 400, body: { ok: false } })
+    expect(resolve).not.toHaveBeenCalled()
+  })
+
   it('rejects protocol probing from a cross-site browser request', async () => {
     const resolve = vi.fn()
     const response = await invoke(createModelConfigApiHandler({ credentials: { resolve } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', model: 'm' }, {

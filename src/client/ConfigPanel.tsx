@@ -4,12 +4,14 @@ import type {
 } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   fetchOpenRouterFreeModels,
+  probeProviderModelProtocols,
   probeProviderProtocols,
   revealCredential,
   validateProviderApiKeys,
   validateProviderApiKey,
   type ApiKeyValidationResult,
   type BatchApiKeyValidationResult,
+  type ModelProtocolProbeResult,
   type OpenRouterFreeModelCatalog,
   type ProtocolProbeResult,
 } from './config-api.ts'
@@ -40,7 +42,9 @@ import {
   setOptionalString,
   setReasoningEffort,
   setReasoningMode,
+  splitProviderByProtocol,
   stringField,
+  type ProviderRetryRule,
 } from './model-config.ts'
 import {
   BUNDLED_PRESET_REGISTRY,
@@ -60,6 +64,7 @@ interface ConfigPanelProps {
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
 const RETRY_SETTINGS_NAMESPACE = 'dsh-model-palette'
 const MAX_REQUEST_RETRIES = 1_000
+const PROTOCOL_SCAN_BATCH_SIZE = 100
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const
 const THINKING_FORMATS = [
   'openai', 'deepseek', 'openrouter', 'together', 'zai', 'qwen',
@@ -72,14 +77,10 @@ function messageOf(error: unknown): string {
 }
 
 function cloneProfile(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? structuredClone(value) : { api: 'openai-completions', models: [] }
+  return isRecord(value) ? structuredClone(value) : { api: 'openai-responses', models: [] }
 }
 
-interface RequestRetryDraft {
-  enabled: boolean
-  maxRetries: number
-  models: Record<string, number>
-}
+type RequestRetryDraft = ProviderRetryRule
 
 function requestRetryProfiles(value: unknown): Record<string, Record<string, unknown>> {
   if (!isRecord(value) || !isRecord(value.requestRetries) || !isRecord(value.requestRetries.providers)) return {}
@@ -145,6 +146,15 @@ function apiKeyValidationLabel(status: ApiKeyValidationResult['status'] | 'missi
   }
 }
 
+function protocolClassificationLabel(classification: ModelProtocolProbeResult['classification']): string {
+  switch (classification) {
+    case 'responses-preferred': return 'config.protocolScanResponses'
+    case 'completions-only': return 'config.protocolScanCompletionsOnly'
+    case 'both': return 'config.protocolScanBoth'
+    case 'unsupported': return 'config.protocolScanUnsupported'
+  }
+}
+
 function firstConfiguredModelId(profile: Record<string, unknown>): string {
   const declared = modelRecords(profile).find(model => typeof model.id === 'string' && model.id.trim() !== '')
   if (typeof declared?.id === 'string') return declared.id.trim()
@@ -167,7 +177,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [retryNamespace, setRetryNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
   const [creating, setCreating] = useState(false)
-  const [draft, setDraft] = useState<Record<string, unknown>>({ api: 'openai-completions', models: [] })
+  const [draft, setDraft] = useState<Record<string, unknown>>({ api: 'openai-responses', models: [] })
   const [baselineSignature, setBaselineSignature] = useState('')
   const [retryDraft, setRetryDraft] = useState<RequestRetryDraft>({ enabled: false, maxRetries: 0, models: {} })
   const [retryBaselineSignature, setRetryBaselineSignature] = useState('')
@@ -180,13 +190,14 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [presetState, setPresetState] = useState<'bundled' | 'loading' | 'online' | 'error'>('bundled')
   const [manualPresets, setManualPresets] = useState<Record<number, string>>({})
   const [protocolResults, setProtocolResults] = useState<ProtocolProbeResult[] | null>(null)
+  const [modelProtocolResults, setModelProtocolResults] = useState<ModelProtocolProbeResult[] | null>(null)
   const [protocolTestModelId, setProtocolTestModelId] = useState('')
   const [apiKeyValidation, setApiKeyValidation] = useState<ApiKeyValidationResult | null>(null)
   const [batchApiKeyValidation, setBatchApiKeyValidation] = useState<BatchApiKeyValidationResult[] | null>(null)
   const [openRouterFreeCatalog, setOpenRouterFreeCatalog] = useState<OpenRouterFreeModelCatalog | null>(null)
   const [openRouterFreeSelection, setOpenRouterFreeSelection] = useState<string[]>([])
   const [openRouterFreeQuery, setOpenRouterFreeQuery] = useState('')
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -221,6 +232,25 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     return (openRouterFreeCatalog?.models ?? []).filter(model => query === '' || [model.id, model.name]
       .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
   }, [openRouterFreeCatalog, openRouterFreeQuery])
+  const modelProtocolSummary = useMemo(() => ({
+    responses: modelProtocolResults?.filter(result => result.classification === 'responses-preferred' || result.classification === 'both').length ?? 0,
+    completionsOnly: modelProtocolResults?.filter(result => result.classification === 'completions-only').length ?? 0,
+    unsupported: modelProtocolResults?.filter(result => result.classification === 'unsupported').length ?? 0,
+  }), [modelProtocolResults])
+  const protocolSplitPreview = useMemo(() => {
+    if (modelProtocolResults === null || modelProtocolSummary.responses === 0 || modelProtocolSummary.completionsOnly === 0) return null
+    try {
+      return splitProviderByProtocol({
+        providerId: providerId.trim(),
+        profile: draft,
+        retry: retryDraft,
+        completionsOnlyIds: modelProtocolResults.filter(result => result.classification === 'completions-only').map(result => result.model),
+        existingProviderIds: providerIds,
+      })
+    } catch {
+      return null
+    }
+  }, [draft, modelProtocolResults, modelProtocolSummary.completionsOnly, modelProtocolSummary.responses, providerId, providerIds, retryDraft])
 
   const describeCredential = useCallback(async (ref: string) => {
     if (!CREDENTIAL_REF_PATTERN.test(ref)) {
@@ -256,6 +286,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
     setOpenRouterFreeCatalog(null)
@@ -288,7 +319,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       const selected = ids.includes(providerId) ? providerId : ids[0]
       if (selected !== undefined) openProvider(selected, view, nextRetryNamespace)
       else {
-        const empty = { api: 'openai-completions', models: [] }
+        const empty = { api: 'openai-responses', models: [] }
         const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
         setProviderId('')
         setCreating(true)
@@ -299,6 +330,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setPreviousProviderId('')
         setModelQuery('')
         setProtocolResults(null)
+        setModelProtocolResults(null)
         setProtocolTestModelId('')
         setApiKeyValidation(null)
       }
@@ -338,7 +370,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const startCreate = () => {
     if (!confirmDiscard()) return
-    const empty = { api: 'openai-completions', models: [] }
+    const empty = { api: 'openai-responses', models: [] }
     const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
     setPreviousProviderId(creating ? previousProviderId : providerId)
     setCreating(true)
@@ -353,6 +385,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setProtocolTestModelId('')
     setApiKeyValidation(null)
     setOpenRouterFreeCatalog(null)
@@ -386,6 +419,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setKeyVisible(false)
     setManualPresets({})
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setApiKeyValidation(null)
     setOpenRouterFreeCatalog(null)
     setOpenRouterFreeSelection([])
@@ -397,6 +431,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const updateProfileString = (key: string, value: string) => {
     setDraft(current => setOptionalString(current, key, value))
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setApiKeyValidation(null)
     if (key === 'apiKeyEnv') {
       setKeyDraft('')
@@ -408,6 +443,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const setModels = (next: Record<string, unknown>[]) => {
     setDraft(current => ({ ...structuredClone(current), models: next }))
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setApiKeyValidation(null)
   }
 
@@ -594,6 +630,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     const result = applyUniversalReasoningToProvider(providerId || 'provider', draft)
     setDraft(result.profile)
     setProtocolResults(null)
+    setModelProtocolResults(null)
     setApiKeyValidation(null)
     setFeedback(t('config.reasoningProviderApplied', { count: result.changed }))
   }
@@ -626,6 +663,147 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setFeedback(t(available.length === 0 ? 'config.protocolProbeNone' : available.length === 1 ? 'config.protocolProbeOne' : 'config.protocolProbeBoth', {
         protocol: available[0]?.protocol ?? '',
       }))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const probeAllModelProtocols = async () => {
+    if (busy !== null) return
+    const baseURL = stringField(draft, 'baseURL').trim()
+    const modelIds = models.flatMap(model => typeof model.id === 'string' && model.id.trim() !== '' ? [model.id.trim()] : [])
+    if (baseURL === '') {
+      setError(t('config.baseUrlRequired'))
+      return
+    }
+    if (!hasApiKey) {
+      setError(t('config.apiKeyValidationKeyRequired'))
+      return
+    }
+    if (modelIds.length === 0) {
+      setError(t('config.protocolProbeModelRequired'))
+      return
+    }
+    if (!window.confirm(t('config.protocolScanConfirm', { count: modelIds.length, requests: modelIds.length * 2 }))) return
+    setBusy('protocol-scan')
+    setError(null)
+    setFeedback(null)
+    try {
+      const results: ModelProtocolProbeResult[] = []
+      for (let offset = 0; offset < modelIds.length; offset += PROTOCOL_SCAN_BATCH_SIZE) {
+        results.push(...await probeProviderModelProtocols({
+          baseURL,
+          credentialRef,
+          models: modelIds.slice(offset, offset + PROTOCOL_SCAN_BATCH_SIZE),
+          ...(keyDraft.trim() === '' ? {} : { apiKey: keyDraft.trim() }),
+        }))
+      }
+      setModelProtocolResults(results)
+      const completionsOnly = results.filter(result => result.classification === 'completions-only').length
+      const unsupported = results.filter(result => result.classification === 'unsupported').length
+      setFeedback(t('config.protocolScanDone', { count: results.length, completionsOnly, unsupported }))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const applyWholeRouteCompletions = () => {
+    const profile: Record<string, unknown> = { ...structuredClone(draft), api: 'openai-completions' }
+    profile.models = models.map(model => applyReasoningDispatchDefaults(providerId || 'provider', profile, model))
+    setDraft(repairProviderCompatibility(profile).profile)
+    setProtocolResults(null)
+    setApiKeyValidation(null)
+    setFeedback(t('config.protocolWholeCompletionsApplied'))
+  }
+
+  const splitProtocols = async () => {
+    if (namespace === null || retryNamespace === null || busy !== null || protocolSplitPreview === null) return
+    const id = providerId.trim()
+    const ref = credentialRef.trim()
+    const normalizedModels = models.map(model => ({ ...model, id: String(model.id).trim() }))
+    if (!PROVIDER_ID_PATTERN.test(id)) {
+      setError(t('config.providerIdInvalid'))
+      return
+    }
+    if (creating && profiles[id] !== undefined) {
+      setError(t('config.providerExists'))
+      return
+    }
+    if (!CREDENTIAL_REF_PATTERN.test(ref)) {
+      setError(t('config.credentialRefInvalid'))
+      return
+    }
+    if (stringField(draft, 'baseURL').trim() === '') {
+      setError(t('config.baseUrlRequired'))
+      return
+    }
+    if (normalizedModels.some(model => typeof model.id !== 'string' || model.id === '')) {
+      setError(t('config.modelIdRequired'))
+      return
+    }
+    const duplicateIds = duplicateModelIds(normalizedModels)
+    if (duplicateIds.length > 0) {
+      setError(t('config.modelIdDuplicate', { ids: duplicateIds.join(', ') }))
+      return
+    }
+    const key = keyDraft.trim()
+    if (key !== '' && !LEGAL_API_KEY.test(key)) {
+      setError(t('config.keyInvalid'))
+      return
+    }
+    const split = splitProviderByProtocol({
+      providerId: id,
+      profile: { ...structuredClone(draft), apiKeyEnv: ref, models: normalizedModels },
+      retry: retryDraft,
+      completionsOnlyIds: modelProtocolResults?.filter(result => result.classification === 'completions-only').map(result => result.model) ?? [],
+      existingProviderIds: providerIds,
+    })
+    if (!window.confirm(t('config.protocolSplitConfirm', {
+      provider: split.completionsProviderId,
+      count: modelProtocolSummary.completionsOnly,
+    }))) return
+    setBusy('protocol-split')
+    setError(null)
+    setFeedback(null)
+    try {
+      if (key !== '') {
+        const stored = await api.credentials.set({ ref, value: key })
+        if (!stored.result.ok) throw new Error(stored.result.error.message)
+      }
+      const response = await api.settings.mutate({
+        ns: SETTINGS_NAMESPACE,
+        ops: [
+          { op: 'set', path: ['providers', split.responsesProviderId], value: split.responsesProfile },
+          { op: 'set', path: ['providers', split.completionsProviderId], value: split.completionsProfile },
+        ],
+        expectedRevision: namespace.revision,
+      })
+      if (!response.result.ok) throw new Error(response.result.error.message)
+      let nextRetryNamespace = retryNamespace
+      let retryWarning = ''
+      const retryResponse = await api.settings.mutate({
+        ns: RETRY_SETTINGS_NAMESPACE,
+        ops: [
+          { op: 'set', path: ['requestRetries', 'providers', split.responsesProviderId], value: split.responsesRetry },
+          { op: 'set', path: ['requestRetries', 'providers', split.completionsProviderId], value: split.completionsRetry },
+        ],
+        expectedRevision: retryNamespace.revision,
+      })
+      if (retryResponse.result.ok) nextRetryNamespace = retryResponse.result.value
+      else retryWarning = t('config.protocolSplitRetryWarning', { error: retryResponse.result.error.message })
+      setNamespace(response.result.value)
+      setRetryNamespace(nextRetryNamespace)
+      openProvider(split.responsesProviderId, response.result.value, nextRetryNamespace)
+      const splitFeedback = t('config.protocolSplitDone', {
+        responses: split.responsesProviderId,
+        completions: split.completionsProviderId,
+        count: modelProtocolSummary.completionsOnly,
+      })
+      setFeedback(retryWarning === '' ? splitFeedback : `${splitFeedback} ${retryWarning}`)
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
@@ -716,7 +894,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             credentialRef: ref,
             protocol: PROTOCOLS.includes(apiProtocol as typeof PROTOCOLS[number])
               ? apiProtocol as BatchApiKeyValidationResult['protocol']
-              : 'openai-completions',
+              : 'openai-responses',
             model,
             status: 'unknown',
             checkedBy: 'request',
@@ -758,6 +936,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setKeyDraft(await revealCredential(credentialRef))
       setKeyVisible(true)
       setApiKeyValidation(null)
+      setModelProtocolResults(null)
       setFeedback(t('config.revealSuccess'))
     } catch (cause) {
       setError(messageOf(cause))
@@ -792,7 +971,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         .sort((left, right) => left.localeCompare(right))
       const next = remaining[0]
       if (next === undefined) {
-        const empty = { api: 'openai-completions', models: [] }
+        const empty = { api: 'openai-responses', models: [] }
         const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
         setCreating(true)
         setProviderId('')
@@ -806,6 +985,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         setKeyDraft('')
         setKeyVisible(false)
         setProtocolResults(null)
+        setModelProtocolResults(null)
         setProtocolTestModelId('')
         setApiKeyValidation(null)
       } else {
@@ -875,6 +1055,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setRetryDraft(appliedRetryDraft)
       setRetryBaselineSignature(requestRetrySignature(appliedRetryDraft))
       setApiKeyValidation(null)
+      setModelProtocolResults(null)
       if (key !== '') {
         const stored = await api.credentials.set({ ref, value: key })
         if (!stored.result.ok) throw new Error(`${t('config.settingsSavedKeyFailed')}: ${stored.result.error.message}`)
@@ -980,7 +1161,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         <div className="dmp-config-provider-grid">
           <label className="dmp-media-field">
             <span>{t('config.providerId')}</span>
-            <input value={providerId} disabled={!creating || busy !== null} onChange={event => { setProviderId(event.currentTarget.value.toLocaleLowerCase()); setProtocolResults(null); setApiKeyValidation(null) }} placeholder="my-provider" />
+            <input value={providerId} disabled={!creating || busy !== null} onChange={event => { setProviderId(event.currentTarget.value.toLocaleLowerCase()); setProtocolResults(null); setModelProtocolResults(null); setApiKeyValidation(null) }} placeholder="my-provider" />
           </label>
           <label className="dmp-media-field">
             <span>{t('config.displayName')}</span>
@@ -1017,7 +1198,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                 type={keyVisible ? 'text' : 'password'}
                 value={keyDraft}
                 disabled={readOnly || credential?.writable === false}
-                onChange={event => { setKeyDraft(event.currentTarget.value); setProtocolResults(null); setApiKeyValidation(null) }}
+                onChange={event => { setKeyDraft(event.currentTarget.value); setProtocolResults(null); setModelProtocolResults(null); setApiKeyValidation(null) }}
                 autoComplete="off"
                 placeholder={credential?.configured ? t('config.keyConfigured') : t('config.keyNotConfigured')}
               />
@@ -1043,6 +1224,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void scanOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeScanning') : t('config.openRouterFreeScan')}</button>}
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
+            <button type="button" disabled={busy !== null || models.length === 0 || !hasApiKey} onClick={() => void probeAllModelProtocols()}>{busy === 'protocol-scan' ? t('config.protocolScanning') : t('config.protocolScan')}</button>
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
@@ -1096,6 +1278,37 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             </span>)}
             {recommendedProtocol !== undefined && recommendedProtocol !== protocol && <button type="button" disabled={busy !== null} onClick={applyRecommendedProtocol}>{t('config.protocolApplyRecommended', { protocol: recommendedProtocol })}</button>}
           </div>
+        )}
+        {modelProtocolResults !== null && (
+          <section className="dmp-config-protocol-scan" aria-label={t('config.protocolScanResults')}>
+            <div className="dmp-config-protocol-scan-heading">
+              <div>
+                <strong>{t('config.protocolScanResults')}</strong>
+                <span>{t('config.protocolScanSummary', {
+                  responses: modelProtocolSummary.responses,
+                  completionsOnly: modelProtocolSummary.completionsOnly,
+                  unsupported: modelProtocolSummary.unsupported,
+                })}</span>
+              </div>
+              <div>
+                {protocolSplitPreview !== null && <button className="dmp-media-primary" type="button" disabled={busy !== null} onClick={() => void splitProtocols()}>{busy === 'protocol-split' ? t('config.protocolSplitting') : t('config.protocolSplit')}</button>}
+                {modelProtocolSummary.completionsOnly === modelProtocolResults.length && <button type="button" disabled={busy !== null} onClick={applyWholeRouteCompletions}>{t('config.protocolWholeCompletions')}</button>}
+              </div>
+            </div>
+            {protocolSplitPreview !== null && <p>{t('config.protocolSplitPreview', {
+              responses: protocolSplitPreview.responsesProviderId,
+              completions: protocolSplitPreview.completionsProviderId,
+              count: modelProtocolSummary.completionsOnly,
+            })}</p>}
+            <div className="dmp-config-protocol-scan-list">
+              {modelProtocolResults.map(result => (
+                <article className={`is-${result.classification}`} key={result.model}>
+                  <div><strong>{result.model}</strong><span>{t(protocolClassificationLabel(result.classification))}</span></div>
+                  <small>Responses: {result.responses.available ? t('config.protocolAvailable') : result.responses.error ?? '?'} · Completions: {result.completions.available ? t('config.protocolAvailable') : result.completions.error ?? '?'}</small>
+                </article>
+              ))}
+            </div>
+          </section>
         )}
         {apiKeyValidation !== null && (
           <div className={`dmp-config-key-validation is-${apiKeyValidation.status}`} role="status">

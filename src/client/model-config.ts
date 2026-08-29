@@ -15,6 +15,21 @@ export interface ModelCandidate {
   input?: Array<'text' | 'image'>
 }
 
+export interface ProviderRetryRule {
+  enabled: boolean
+  maxRetries: number
+  models: Record<string, number>
+}
+
+export interface ProtocolSplitResult {
+  responsesProviderId: string
+  responsesProfile: Record<string, unknown>
+  completionsProviderId: string
+  completionsProfile: Record<string, unknown>
+  responsesRetry: ProviderRetryRule
+  completionsRetry: ProviderRetryRule
+}
+
 export const UNIVERSAL_REASONING_EFFORTS: ReasoningEfforts = {
   off: null,
   minimal: 'minimal',
@@ -50,6 +65,16 @@ export function deriveCredentialRef(provider: string): string {
 
 export function nextProviderCopyId(sourceId: string, existingIds: readonly string[]): string {
   const base = `${sourceId || 'provider'}-copy`
+  const existing = new Set(existingIds)
+  if (!existing.has(base)) return base
+  let suffix = 2
+  while (existing.has(`${base}-${suffix}`)) suffix += 1
+  return `${base}-${suffix}`
+}
+
+/** Allocate a Completions branch id without replacing an existing provider. */
+export function nextProtocolBranchId(sourceId: string, existingIds: readonly string[]): string {
+  const base = `${sourceId || 'provider'}-completions`
   const existing = new Set(existingIds)
   if (!existing.has(base)) return base
   let suffix = 2
@@ -361,6 +386,96 @@ export function repairProviderCompatibility(
   })
   if (repairedModels.length > 0) next.models = models
   return { profile: next, changed: repairedModels.length > 0, repairedModels }
+}
+
+const COMPLETIONS_COMPAT_FIELDS = new Set([
+  'supportsStore',
+  'supportsDeveloperRole',
+  'supportsReasoningEffort',
+  'supportsUsageInStreaming',
+  'maxTokensField',
+  'requiresToolResultName',
+  'requiresAssistantAfterToolResult',
+  'requiresThinkingAsText',
+  'requiresReasoningContentOnAssistantMessages',
+  'thinkingFormat',
+  'chatTemplateKwargs',
+  'supportsStrictMode',
+  'cacheControlFormat',
+  'supportsLongCacheRetention',
+])
+
+const RESPONSES_COMPAT_FIELDS = new Set([
+  'supportsDeveloperRole',
+  'supportsStrictMode',
+  'supportsLongCacheRetention',
+])
+
+function retainProtocolCompat(source: Record<string, unknown>, allowed: ReadonlySet<string>): Record<string, unknown> {
+  const next = structuredClone(source)
+  if (!isRecord(next.compat)) return next
+  const compat = Object.fromEntries(Object.entries(next.compat).filter(([key]) => allowed.has(key)))
+  if (Object.keys(compat).length === 0) delete next.compat
+  else next.compat = compat
+  return next
+}
+
+function protocolProfile(
+  providerId: string,
+  profile: Record<string, unknown>,
+  api: 'openai-responses' | 'openai-completions',
+  models: readonly Record<string, unknown>[],
+): Record<string, unknown> {
+  const allowed = api === 'openai-responses' ? RESPONSES_COMPAT_FIELDS : COMPLETIONS_COMPAT_FIELDS
+  let next = retainProtocolCompat(profile, allowed)
+  next.api = api
+  next.models = models.map(model => retainProtocolCompat(model, allowed))
+  delete next.modelOverrides
+  if (api === 'openai-completions') {
+    next.models = modelRecords(next).map(model => applyReasoningDispatchDefaults(providerId, next, model))
+    next = repairProviderCompatibility(next).profile
+  }
+  return next
+}
+
+/** Split one explicit model route into Responses-first and Completions-only providers. */
+export function splitProviderByProtocol(input: {
+  providerId: string
+  profile: Record<string, unknown>
+  retry: ProviderRetryRule
+  completionsOnlyIds: readonly string[]
+  existingProviderIds: readonly string[]
+}): ProtocolSplitResult {
+  const models = modelRecords(input.profile)
+  if (models.length === 0) throw new Error('protocol splitting requires explicitly configured models')
+  const completionsOnly = new Set(input.completionsOnlyIds.map(id => id.trim()).filter(id => id !== ''))
+  const responsesModels = models.filter(model => !completionsOnly.has(stringField(model, 'id').trim()))
+  const completionsModels = models.filter(model => completionsOnly.has(stringField(model, 'id').trim()))
+  if (completionsModels.length === 0) throw new Error('protocol splitting found no Completions-only models')
+  if (responsesModels.length === 0) throw new Error('protocol splitting requires at least one Responses-capable model')
+
+  const completionsProviderId = nextProtocolBranchId(input.providerId, input.existingProviderIds)
+  const responsesProfile = protocolProfile(input.providerId, input.profile, 'openai-responses', responsesModels)
+  const completionsProfile = protocolProfile(completionsProviderId, input.profile, 'openai-completions', completionsModels)
+  completionsProfile.displayName = `${stringField(input.profile, 'displayName') || input.providerId} Completions`
+
+  const retryEntries = Object.entries(input.retry.models)
+  const responsesRetry = {
+    ...structuredClone(input.retry),
+    models: Object.fromEntries(retryEntries.filter(([modelId]) => !completionsOnly.has(modelId))),
+  }
+  const completionsRetry = {
+    ...structuredClone(input.retry),
+    models: Object.fromEntries(retryEntries.filter(([modelId]) => completionsOnly.has(modelId))),
+  }
+  return {
+    responsesProviderId: input.providerId,
+    responsesProfile,
+    completionsProviderId,
+    completionsProfile,
+    responsesRetry,
+    completionsRetry,
+  }
 }
 
 export function applyMissingPresets(

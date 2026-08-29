@@ -16,6 +16,13 @@ export type ProtocolProbeResult = {
   error?: string
 }
 
+export type ModelProtocolProbeResult = {
+  model: string
+  responses: ProtocolProbeResult
+  completions: ProtocolProbeResult
+  classification: 'responses-preferred' | 'completions-only' | 'both' | 'unsupported'
+}
+
 export type ApiKeyValidationResult = {
   protocol: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
   model: string
@@ -98,6 +105,30 @@ export async function probeProviderProtocols(input: {
   let payload: ConfigApiSuccess<{ results: ProtocolProbeResult[] }> | ConfigApiFailure
   try {
     payload = await response.json() as ConfigApiSuccess<{ results: ProtocolProbeResult[] }> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value.results
+}
+
+/** Classify every configured model by real Responses and Chat Completions requests. */
+export async function probeProviderModelProtocols(input: {
+  baseURL: string
+  credentialRef: string
+  models: string[]
+  apiKey?: string
+}): Promise<ModelProtocolProbeResult[]> {
+  const response = await fetch(`${CONFIG_API_BASE}/protocols/probe`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  let payload: ConfigApiSuccess<{ results: ModelProtocolProbeResult[] }> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<{ results: ModelProtocolProbeResult[] }> | ConfigApiFailure
   } catch {
     throw new Error(`Configuration API returned HTTP ${response.status}`)
   }

@@ -11,6 +11,7 @@ import {
   mergeDiscoveredModels,
   mergeDiscoveredModelsWithPresets,
   nextProviderCopyId,
+  nextProtocolBranchId,
   repairProviderCompatibility,
   ensureModelReasoning,
   hasUniversalReasoningEfforts,
@@ -21,6 +22,7 @@ import {
   setInputMode,
   setReasoningEffort,
   setReasoningMode,
+  splitProviderByProtocol,
   synchronizeOpenRouterFreeModels,
 } from '../src/client/model-config.ts'
 import { BUNDLED_PRESET_REGISTRY } from '../src/client/model-presets.ts'
@@ -32,6 +34,65 @@ describe('model configuration helpers', () => {
 
   it('allocates provider copy ids without overwriting an existing route', () => {
     expect(nextProviderCopyId('bankofai', ['bankofai', 'bankofai-copy'])).toBe('bankofai-copy-2')
+    expect(nextProtocolBranchId('bankofai', ['bankofai', 'bankofai-completions'])).toBe('bankofai-completions-2')
+  })
+
+  it('splits only Completions-only models while preserving route configuration and retry rules', () => {
+    const result = splitProviderByProtocol({
+      providerId: 'gateway',
+      profile: {
+        api: 'openai-completions',
+        displayName: 'Gateway',
+        baseURL: 'https://gateway.example/v1',
+        apiKeyEnv: 'GATEWAY_API_KEY',
+        defaultInput: ['text', 'image'],
+        timeoutMs: 90_000,
+        compat: { supportsDeveloperRole: true, maxTokensField: 'max_tokens' },
+        models: [
+          { id: 'gpt-response', contextWindow: 200_000, maxTokens: 20_000, compat: { supportsStrictMode: true, maxTokensField: 'max_tokens' } },
+          { id: 'deepseek-chat-only', contextWindow: 128_000, maxTokens: 8_000, input: ['text'], reasoningEfforts: { high: 'high' } },
+        ],
+      },
+      retry: { enabled: true, maxRetries: 7, models: { 'gpt-response': 2, 'deepseek-chat-only': 9, stale: 1 } },
+      completionsOnlyIds: ['deepseek-chat-only'],
+      existingProviderIds: ['gateway', 'gateway-completions'],
+    })
+
+    expect(result.responsesProviderId).toBe('gateway')
+    expect(result.completionsProviderId).toBe('gateway-completions-2')
+    expect(result.responsesProfile).toMatchObject({
+      api: 'openai-responses',
+      displayName: 'Gateway',
+      baseURL: 'https://gateway.example/v1',
+      apiKeyEnv: 'GATEWAY_API_KEY',
+      defaultInput: ['text', 'image'],
+      timeoutMs: 90_000,
+      compat: { supportsDeveloperRole: true },
+      models: [{ id: 'gpt-response', contextWindow: 200_000, maxTokens: 20_000, compat: { supportsStrictMode: true } }],
+    })
+    expect(result.completionsProfile).toMatchObject({
+      api: 'openai-completions',
+      displayName: 'Gateway Completions',
+      baseURL: 'https://gateway.example/v1',
+      apiKeyEnv: 'GATEWAY_API_KEY',
+      compat: { supportsDeveloperRole: true, maxTokensField: 'max_tokens' },
+      models: [{
+        id: 'deepseek-chat-only', contextWindow: 128_000, maxTokens: 8_000, input: ['text'], reasoningEfforts: { high: 'high' },
+        compat: expect.objectContaining({ thinkingFormat: 'deepseek', requiresReasoningContentOnAssistantMessages: true }),
+      }],
+    })
+    expect(result.responsesRetry).toEqual({ enabled: true, maxRetries: 7, models: { 'gpt-response': 2, stale: 1 } })
+    expect(result.completionsRetry).toEqual({ enabled: true, maxRetries: 7, models: { 'deepseek-chat-only': 9 } })
+  })
+
+  it('refuses a split that would leave no Responses-capable model', () => {
+    expect(() => splitProviderByProtocol({
+      providerId: 'gateway',
+      profile: { api: 'openai-responses', models: [{ id: 'chat-only' }] },
+      retry: { enabled: false, maxRetries: 0, models: {} },
+      completionsOnlyIds: ['chat-only'],
+      existingProviderIds: ['gateway'],
+    })).toThrow('at least one Responses-capable model')
   })
 
   it('copies model parameters without copying the route identity', () => {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0 - 2026-08-29
+
+- Default newly created OpenAI-compatible provider drafts to `openai-responses` while keeping protocol selection based on real endpoint behavior rather than reasoning capability.
+- Add batched live protocol classification for every configured model, with Responses-first, both, Chat Completions-only, and undetermined results.
+- Add an explicit **Split Re/CC protocols** action that keeps Responses-capable models on the original provider and creates a collision-safe `-completions` branch for Chat Completions-only models.
+- Preserve the Base URL, credential reference, capacities, inputs, reasoning declarations, compatible protocol fields, and provider/model retry rules across generated branches.
+- Keep the split preview-only until confirmation, cap each probe at 16 output tokens, batch large catalogs, and never return API keys to the browser.
+
 ## 0.9.3 - 2026-08-29
 
 - Keep B.AI failover inside the same provider and model instead of suggesting a provider switch.
