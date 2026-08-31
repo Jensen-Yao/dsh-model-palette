@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
-  CredentialView, IApiClient, SettingsNamespaceView,
+  CredentialInfo, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   fetchOpenRouterFreeModels,
@@ -56,9 +56,10 @@ import {
   type ModelPreset,
   type ModelPresetRegistry,
 } from './model-presets.ts'
+import type { PaletteApi } from './remote-compat.ts'
 
 interface ConfigPanelProps {
-  api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
+  api: PaletteApi
   isLoopback: boolean
   t: (key: string, params?: Record<string, unknown>) => string
 }
@@ -259,7 +260,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [retryBaselineSignature, setRetryBaselineSignature] = useState('')
   const [previousProviderId, setPreviousProviderId] = useState('')
   const [modelQuery, setModelQuery] = useState('')
-  const [credential, setCredential] = useState<CredentialView | null>(null)
+  const [credential, setCredential] = useState<CredentialInfo | null>(null)
   const [keyDraft, setKeyDraft] = useState('')
   const [keyVisible, setKeyVisible] = useState(false)
   const [registry, setRegistry] = useState<ModelPresetRegistry>(BUNDLED_PRESET_REGISTRY)

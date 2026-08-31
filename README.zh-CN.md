@@ -21,7 +21,9 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.10.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.1)
+当前版本：[v0.10.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.2)
+
+`v0.10.2` 已适配 `@deepseek-ai/dsh@0.1.2-alpha.3` 的客户端 API 拆分：配置调用改用生成式 `ctx.remote` namespace，插件不再安装已移除的 `@deepseek-ai/dsh-client-runtime` 包。
 
 ## ✨ 功能特性
 
@@ -133,7 +135,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.2
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -370,7 +372,7 @@ dsh-model-palette/
 ## 📋 环境要求
 
 - **Node.js** >= 22.19
-- **DeepSeek Harness** >= 4.0.1
+- **DeepSeek Harness** `@deepseek-ai/dsh >= 0.1.2-alpha.3`
 - **pnpm** >= 11.21（开发用）
 
 ## 📄 许可证

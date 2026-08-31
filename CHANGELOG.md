@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2 - 2026-08-31
+
+- Support `@deepseek-ai/dsh@0.1.2-alpha.3` after the Client runtime was split into dedicated connection, store, session, renderer, and slot packages.
+- Read generated settings, credentials, and LLM namespaces from `ctx.remote` instead of the removed `connection.api` facade.
+- Replace removed `IApiClient` and `CredentialView` types with the alpha.3 `ClientRemote` and `CredentialInfo` exports.
+- Stop injecting or installing the unpublished `@deepseek-ai/dsh-client-runtime` package and require the alpha.3 Client package line.
+
 ## 0.10.1 - 2026-08-29
 
 - Include DSH runtime catalog models and `modelOverrides` in single-model and full-provider protocol checks instead of limiting the feature to explicit `models` arrays.

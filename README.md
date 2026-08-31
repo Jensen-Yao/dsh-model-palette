@@ -21,7 +21,9 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.10.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.1)
+Current release: [v0.10.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.2)
+
+`v0.10.2` supports the Client API split in `@deepseek-ai/dsh@0.1.2-alpha.3`: configuration calls use generated `ctx.remote` namespaces, and the plugin no longer installs the removed `@deepseek-ai/dsh-client-runtime` package.
 
 ## ✨ Features
 
@@ -133,7 +135,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.1
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.2
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -376,7 +378,7 @@ dsh-model-palette/
 ## 📋 Requirements
 
 - **Node.js** >= 22.19
-- **DeepSeek Harness** >= 4.0.1
+- **DeepSeek Harness** `@deepseek-ai/dsh >= 0.1.2-alpha.3`
 - **pnpm** >= 11.21 (for development)
 
 ## 📄 License

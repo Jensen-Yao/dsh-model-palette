@@ -1,5 +1,5 @@
-import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import { ensureModelReasoning, providerProfiles, repairProviderCompatibility } from './model-config.ts'
+import type { PaletteApi } from './remote-compat.ts'
 
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
 
@@ -18,7 +18,7 @@ export function mayNeedReasoningCompatibility(
  * Static or inherited routes remain untouched.
  */
 export async function ensureSelectionCompatibility(
-  api: Pick<IApiClient, 'settings'>,
+  api: Pick<PaletteApi, 'settings'>,
   providerId: string,
   modelId: string,
 ): Promise<string[]> {
@@ -42,7 +42,7 @@ export async function ensureSelectionCompatibility(
 
 /** Ensure a selected model exposes every DSH reasoning level before submitting that level. */
 export async function ensureSelectionReasoning(
-  api: Pick<IApiClient, 'settings'>,
+  api: Pick<PaletteApi, 'settings'>,
   providerId: string,
   modelId: string,
 ): Promise<boolean> {

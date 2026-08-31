@@ -1,6 +1,7 @@
-import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ClientRemote, ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelPalette } from './ModelPalette.tsx'
 import { en, NS, zh } from './locales.ts'
+import { paletteApi } from './remote-compat.ts'
 import type { DirectoryStore, PaletteProps, Selection } from './types.ts'
 import './style.css'
 
@@ -42,6 +43,7 @@ interface SlotRegistrationScope {
 
 interface ClientContext {
   locale: LocaleService
+  remote: ClientRemote
   effect(factory: () => () => void, label: string): void
   get(name: 'connection'): ConnectionHandle
   inject(services: string[], callback: (scope: SlotRegistrationScope) => void): void
@@ -50,7 +52,10 @@ interface ClientContext {
   }
 }
 
-export const inject = ['locale', 'sessions', 'slots', 'modelDirectories', 'connection']
+export const inject = [
+  'locale', 'sessions', 'slots', 'modelDirectories', 'connection',
+  'remote', 'remote.settings', 'remote.credentials', 'remote.llm', 'remote.session',
+]
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection')
@@ -84,7 +89,7 @@ export function apply(ctx: ClientContext): void {
                 return false
               }
             },
-            api: connection.api,
+            api: paletteApi(ctx.remote),
             isLoopback: connection.isLoopback,
           }
         },
