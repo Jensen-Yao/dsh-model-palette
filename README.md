@@ -21,9 +21,9 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.10.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.2)
+Current release: [v0.10.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.3)
 
-`v0.10.2` supports the Client API split in `@deepseek-ai/dsh@0.1.2-alpha.3`: configuration calls use generated `ctx.remote` namespaces, and the plugin no longer installs the removed `@deepseek-ai/dsh-client-runtime` package.
+`v0.10.3` keeps the `@deepseek-ai/dsh@0.1.2-alpha.3` adaptation and makes live protocol diagnostics credential-aware: a 401, 403/WAF block, rate limit, or transport failure is no longer presented as proof that both protocols are unsupported.
 
 ## ✨ Features
 
@@ -135,7 +135,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.
@@ -298,7 +298,7 @@ Reasoning effort is a model capability declaration, not a protocol selector. New
 
 OpenRouter free-model discovery uses the public `/api/v1/models` catalog and accepts only explicit `:free` variants that produce text and have at least one DSH-supported input (`text` or `image`). The check requires no API key and changes no provider settings. The picker leaves everything unchecked by default, supports search and manual selection, previews context/output/input capabilities, and imports only the checked entries. Import fills missing metadata and presets without overwriting manual fields or deleting unselected local models.
 
-Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. Full-catalog checks use batches of at most 100 models per backend request and may send up to two model requests per entry. The plugin never changes protocol based solely on reasoning capability and never writes a split before explicit confirmation.
+Live protocol probing sends real requests capped at 16 output tokens and may incur a small charge. The cap avoids false negatives from gateways that reject one-token probes. Full-catalog checks use batches of at most 100 models per backend request and may send up to two model requests per entry. Authentication failures, WAF blocks, rate limits, server failures, and transport errors are reported as undetermined rather than protocol incompatibility. The plugin never changes protocol based solely on reasoning capability and never writes a split before explicit confirmation.
 
 ### Media Tools Panel
 

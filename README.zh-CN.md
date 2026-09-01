@@ -21,9 +21,9 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.10.2](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.2)
+当前版本：[v0.10.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.3)
 
-`v0.10.2` 已适配 `@deepseek-ai/dsh@0.1.2-alpha.3` 的客户端 API 拆分：配置调用改用生成式 `ctx.remote` namespace，插件不再安装已移除的 `@deepseek-ai/dsh-client-runtime` 包。
+`v0.10.3` 保留了对 `@deepseek-ai/dsh@0.1.2-alpha.3` 的适配，并让实际协议诊断能够区分凭据错误：401、403/WAF、限流或网络失败不再被误报为“两种协议都不支持”。
 
 ## ✨ 功能特性
 
@@ -135,7 +135,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.2
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。
@@ -298,7 +298,7 @@ API key 验证会明确区分“可用”“无效”“被供应商或网关拒
 
 OpenRouter 免费模型检查使用公开 `/api/v1/models` 目录，只接收带明确 `:free` 标识、输出文本且至少支持一种 DSH 输入（`text` 或 `image`）的模型。检查不需要 API key，也不会直接修改供应商配置。选择器默认全部不勾选，支持搜索、手工勾选，并展示上下文、最大输出和输入类型；只有勾选的条目才会导入。导入只补全缺失元数据和能力预置，不覆盖手工字段，也不删除未选中的本地模型。
 
-协议检测会发送真实请求并将最大输出限制为 16 token，可能产生少量费用；该上限可避免部分网关拒绝单 token 探测而造成误判。完整目录检查每个后端批次最多 100 个模型，每个模型最多发送两次请求。插件不会根据“是否推理”自动更改协议，也不会在用户明确确认前写入切分结果。
+协议检测会发送真实请求并将最大输出限制为 16 token，可能产生少量费用；该上限可避免部分网关拒绝单 token 探测而造成误判。完整目录检查每个后端批次最多 100 个模型，每个模型最多发送两次请求。认证失败、WAF 阻断、限流、服务器错误和网络错误会标记为“无法判断”，不会被当作协议不兼容。插件不会根据“是否推理”自动更改协议，也不会在用户明确确认前写入切分结果。
 
 ### 媒体工具面板
 

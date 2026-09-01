@@ -158,6 +158,13 @@ function protocolClassificationLabel(classification: ModelProtocolProbeResult['c
   }
 }
 
+function protocolProbeFailureFeedback(results: readonly ProtocolProbeResult[]): string {
+  if (results.some(result => result.failure === 'authentication')) return 'config.protocolProbeAuthentication'
+  if (results.some(result => result.failure === 'blocked')) return 'config.protocolProbeBlocked'
+  if (results.some(result => result.failure === 'unavailable' || result.failure === 'transport')) return 'config.protocolProbeTransient'
+  return 'config.protocolProbeNone'
+}
+
 function firstConfiguredModelId(profile: Record<string, unknown>): string {
   const declared = modelRecords(profile).find(model => typeof model.id === 'string' && model.id.trim() !== '')
   if (typeof declared?.id === 'string') return declared.id.trim()
@@ -772,7 +779,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       })
       setProtocolResults(results)
       const available = results.filter(result => result.available)
-      setFeedback(t(available.length === 0 ? 'config.protocolProbeNone' : available.length === 1 ? 'config.protocolProbeOne' : 'config.protocolProbeBoth', {
+      setFeedback(t(available.length === 0 ? protocolProbeFailureFeedback(results) : available.length === 1 ? 'config.protocolProbeOne' : 'config.protocolProbeBoth', {
         protocol: available[0]?.protocol ?? '',
       }))
     } catch (cause) {
@@ -815,7 +822,8 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
       setModelProtocolResults(results)
       const completionsOnly = results.filter(result => result.classification === 'completions-only').length
       const unsupported = results.filter(result => result.classification === 'unsupported').length
-      setFeedback(t('config.protocolScanDone', { count: results.length, completionsOnly, unsupported }))
+      const authenticationFailure = results.some(result => result.responses.failure === 'authentication' || result.completions.failure === 'authentication')
+      setFeedback(t(authenticationFailure ? 'config.protocolScanAuthentication' : 'config.protocolScanDone', { count: results.length, completionsOnly, unsupported }))
     } catch (cause) {
       setError(messageOf(cause))
     } finally {

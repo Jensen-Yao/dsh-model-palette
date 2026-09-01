@@ -13,6 +13,8 @@ const CONFIG_API_BASE = '/model-palette/api/config'
 export type ProtocolProbeResult = {
   protocol: 'openai-completions' | 'openai-responses'
   available: boolean
+  httpStatus?: number
+  failure?: 'authentication' | 'blocked' | 'unavailable' | 'rejected' | 'transport'
   error?: string
 }
 

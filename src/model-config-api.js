@@ -293,9 +293,16 @@ async function probeProtocol(baseURL, model, apiKey, protocol) {
       signal: AbortSignal.timeout(15_000),
     })
     if (response.ok) return { protocol, available: true }
-    return { protocol, available: false, error: await responseMessage(response, apiKey) }
+    const error = await responseMessage(response, apiKey)
+    return {
+      protocol,
+      available: false,
+      httpStatus: response.status,
+      failure: classifyProtocolFailure(response.status, error),
+      error,
+    }
   } catch (error) {
-    return { protocol, available: false, error: errorMessage(error, apiKey) }
+    return { protocol, available: false, failure: 'transport', error: errorMessage(error, apiKey) }
   }
 }
 
@@ -369,8 +376,15 @@ function classifyApiKeyStatus(status, message) {
   return 'unknown'
 }
 
+function classifyProtocolFailure(status, message) {
+  if (status === 401 || isAuthenticationFailure(message)) return 'authentication'
+  if (status === 403) return 'blocked'
+  if (status === 408 || status === 429 || status >= 500) return 'unavailable'
+  return 'rejected'
+}
+
 function isAuthenticationFailure(message) {
-  return /(?:api[\s_-]*key|token|credential).*(?:invalid|incorrect|unauthori[sz]ed|expired|revoked)|(?:invalid|incorrect|unauthori[sz]ed|expired|revoked).*(?:api[\s_-]*key|token|credential)/iu.test(message)
+  return /(?:api[\s_-]*key|token|credential).*(?:invalid|incorrect|unauthori[sz]ed|expired|revoked)|(?:invalid|incorrect|unauthori[sz]ed|expired|revoked).*(?:api[\s_-]*key|token|credential)|(?:missing|absent).*(?:authentication|authorization)|(?:authentication|authorization).*(?:missing|absent)/iu.test(message)
 }
 
 function validationResult(protocol, model, status, checkedBy, httpStatus, message) {

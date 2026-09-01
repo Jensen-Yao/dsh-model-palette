@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3 - 2026-09-01
+
+- Distinguish API-key authentication failures, provider/WAF blocks, temporary upstream failures, and protocol rejection during live protocol probes.
+- Report authentication failures as undetermined protocol support instead of implying that both OpenAI protocols are unsupported.
+- Keep all-model protocol scans non-destructive when the shared provider credential fails authentication.
+
 ## 0.10.2 - 2026-08-31
 
 - Support `@deepseek-ai/dsh@0.1.2-alpha.3` after the Client runtime was split into dedicated connection, store, session, renderer, and slot packages.

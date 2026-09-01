@@ -125,7 +125,13 @@ describe('model configuration credential API', () => {
       })
       expect(response).toEqual({ status: 200, body: { ok: true, value: { results: [
         { protocol: 'openai-completions', available: true },
-        { protocol: 'openai-responses', available: false, error: 'HTTP 400: model glm-5.3-flash is not supported on /v1/responses; use /v1/chat/completions instead' },
+        {
+          protocol: 'openai-responses',
+          available: false,
+          httpStatus: 400,
+          failure: 'rejected',
+          error: 'HTTP 400: model glm-5.3-flash is not supported on /v1/responses; use /v1/chat/completions instead',
+        },
       ] } } })
       expect(calls).toHaveLength(2)
       expect(calls[0].init.headers.authorization).toBe('Bearer stored-secret')
@@ -134,6 +140,29 @@ describe('model configuration credential API', () => {
       expect(JSON.parse(calls[1].init.body)).toMatchObject({ model: 'reasoner', max_output_tokens: 16 })
       expect(JSON.parse(calls[0].init.body).stream).toBe(true)
       expect(JSON.parse(calls[1].init.body).stream).toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('marks missing authentication as a credential failure instead of protocol incompatibility', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'Missing Authentication header' } }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    }))
+    try {
+      const response = await invoke(createModelConfigApiHandler({ credentials: {
+        resolve: vi.fn(async () => ({ value: 'wrong-provider-secret', source: 'file' })),
+      } }), { baseURL: 'https://openrouter.ai/api/v1', credentialRef: 'OPENROUTER_API_KEY', model: 'openrouter/free' }, {
+        url: '/model-palette/api/config/protocols/probe',
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.body.value.results).toEqual([
+        expect.objectContaining({ protocol: 'openai-completions', available: false, httpStatus: 401, failure: 'authentication' }),
+        expect.objectContaining({ protocol: 'openai-responses', available: false, httpStatus: 401, failure: 'authentication' }),
+      ])
     } finally {
       globalThis.fetch = originalFetch
     }
