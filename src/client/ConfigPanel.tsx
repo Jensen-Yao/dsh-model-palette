@@ -1569,8 +1569,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </div>
         </div>
 
-        {providerIds.length > 0 && (
-          <div className="dmp-config-provider-browser">
+        <div className="dmp-config-provider-browser">
             <div className="dmp-config-provider-browser-bar">
               <input
                 value={providerQuery}
@@ -1598,10 +1597,22 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                   {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
                 </button>
               ))}
-              {filteredProviderCards.length === 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+              {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+              <button
+                type="button"
+                className="dmp-config-provider-card is-add"
+                disabled={busy !== null}
+                onClick={() => { setTemplateCatalogOpen(true); setTemplateQuery('') }}
+                title={t('config.templateHint')}
+              >
+                <span className="dmp-config-provider-card-icon">＋</span>
+                <span className="dmp-config-provider-card-main">
+                  <strong>{t('config.addProvider')}</strong>
+                  <small>{t('config.templateSubtitle')}</small>
+                </span>
+              </button>
             </div>
           </div>
-        )}
 
         <div className="dmp-config-provider-grid">
           <label className="dmp-media-field">

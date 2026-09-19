@@ -1,4 +1,4 @@
-.dmp-launcher { display: inline-flex; min-width: 0; }
+.dmp-launcher { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .dmp-trigger { height: 28px; max-width: 340px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 0; border-radius: 16px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font: inherit; font-size: 13px; }
 .dmp-trigger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .dmp-trigger:focus-visible { outline: 2px solid var(--dsw-alias-border-l2); outline-offset: 1px; }
@@ -345,3 +345,12 @@
 .dmp-config-template-dialog .dmp-config-template-group h4 { margin: 4px 0 6px; padding-top: 2px; border-top: 1px solid var(--dsw-alias-border-inverted); }
 .dmp-config-template-dialog .dmp-config-provider-card { background: var(--dsw-alias-bg-layer-1); }
 
+
+/* compact seat slider + add-provider card (v0.12.1) */
+.dmp-effort-slider.is-compact { flex: 0 1 auto; min-width: 0; max-width: 220px; flex-direction: row; align-items: center; gap: 7px; padding: 3px 10px; border-radius: 14px; }
+.dmp-effort-slider.is-compact .dmp-effort-slider-value { flex: none; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-brand-primary); font-size: 11px; font-weight: 700; }
+.dmp-effort-slider.is-compact input[type='range'] { width: 84px; height: 14px; }
+.dmp-effort-slider.is-compact.is-busy { opacity: .6; pointer-events: none; }
+.dmp-config-provider-card.is-add { border-style: dashed; border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l2)); justify-content: center; }
+.dmp-config-provider-card.is-add:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); }
+.dmp-config-provider-card.is-add .dmp-config-provider-card-icon { background: transparent; color: var(--dsw-alias-brand-primary); font-size: 20px; font-weight: 700; }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.1 - 2026-09-19
+
+- Show the reasoning-effort slider as a compact permanent chip next to the composer model trigger, not only inside the Alt+M dialog.
+- Slider stops now follow the current model's declared efforts in canonical order: a model without xhigh never offers xhigh, and a non-reasoning model hides the control entirely.
+- Add a prominent dashed add-provider card to the provider grid that opens the template catalog dialog, so adding a provider is discoverable without hunting the toolbar.
+
 ## 0.12.0 - 2026-09-19
 
 - Rebuild the palette footer reasoning effort control as a Codex-style discrete slider: provider default plus the seven effort levels on one gradient track with per-stop labels.

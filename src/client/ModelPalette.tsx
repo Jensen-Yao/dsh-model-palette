@@ -55,14 +55,36 @@ interface EffortSliderProps {
   defaultLabel: string
   label: string
   disabled: boolean
+  /** Compact single-row seat variant rendered next to the composer trigger. */
+  compact?: boolean
   onChange: (value: string) => void
 }
 
-/** Codex-style discrete reasoning-effort slider: provider default plus the seven levels. */
-function EffortSlider({ value, options, defaultLabel, label, disabled, onChange }: EffortSliderProps): JSX.Element {
+/**
+ * Codex-style discrete reasoning-effort slider. Stops come from the current
+ * model's declared efforts only, prefixed by the provider default.
+ */
+function EffortSlider({ value, options, defaultLabel, label, disabled, compact = false, onChange }: EffortSliderProps): JSX.Element {
   const stops = ['', ...options.map(option => option.id)]
   const index = value === '' ? 0 : Math.max(0, stops.indexOf(value))
   const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
+  if (compact) {
+    return (
+      <div className={`dmp-effort-slider is-compact${disabled ? ' is-busy' : ''}`} title={`${label}: ${activeName}`}>
+        <span className="dmp-effort-slider-value">{activeName}</span>
+        <input
+          type="range"
+          min={0}
+          max={stops.length - 1}
+          step={1}
+          value={Math.min(index, stops.length - 1)}
+          disabled={disabled}
+          aria-label={label}
+          onChange={event => onChange(stops[Number(event.currentTarget.value)])}
+        />
+      </div>
+    )
+  }
   return (
     <div className={`dmp-effort-slider${disabled ? ' is-busy' : ''}`}>
       <div className="dmp-effort-slider-head">
@@ -248,10 +270,18 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const providerLabel = current?.provider.name ?? snapshot.current?.provider
   const currentReasoning = current?.model.reasoning
   const currentEffort = snapshot.current?.reasoningEffort ?? currentReasoning?.defaultEffort ?? ''
-  const reasoningOptions = REASONING_LEVELS.map((level) => currentReasoning?.efforts.find(effort => effort.id === level) ?? {
-    id: level,
-    name: `${level.charAt(0).toUpperCase()}${level.slice(1)}`,
-  })
+  // Stops follow the current model's declared efforts only, in canonical order —
+  // a model without xhigh never shows an xhigh stop, and a non-reasoning model
+  // shows no effort control at all.
+  const reasoningOptions = (currentReasoning?.efforts ?? [])
+    .filter(effort => effort.id !== '')
+    .slice()
+    .sort((left, right) => {
+      const leftIndex = REASONING_LEVELS.indexOf(left.id as (typeof REASONING_LEVELS)[number])
+      const rightIndex = REASONING_LEVELS.indexOf(right.id as (typeof REASONING_LEVELS)[number])
+      return (leftIndex < 0 ? REASONING_LEVELS.length : leftIndex) - (rightIndex < 0 ? REASONING_LEVELS.length : rightIndex)
+    })
+  const hasEffortControl = snapshot.current !== null && reasoningOptions.length > 0
 
   return (
     <div className="dmp-launcher">
@@ -268,6 +298,18 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         {providerLabel !== undefined && <span className="dmp-trigger-provider">· {providerLabel}</span>}
         <kbd>Alt M</kbd>
       </button>
+
+      {!locked && available && hasEffortControl && (
+        <EffortSlider
+          compact
+          value={currentEffort}
+          options={reasoningOptions}
+          defaultLabel={t('palette.providerDefault')}
+          label={t('palette.effort')}
+          disabled={effortBusy}
+          onChange={value => void chooseEffort(value)}
+        />
+      )}
 
       {open && createPortal(
         <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
@@ -424,7 +466,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 <strong>{currentLabel}</strong>
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
-              {snapshot.current !== null && (
+              {hasEffortControl && (
                 <EffortSlider
                   value={currentEffort}
                   options={reasoningOptions}
