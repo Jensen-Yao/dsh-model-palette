@@ -20,7 +20,7 @@ import {
 } from './config-api.ts'
 import { ProviderIcon } from './ProviderIcon.tsx'
 import {
-  API_KEY_TEMPLATES,
+  CATALOG_TEMPLATES,
   CUSTOM_TEMPLATES,
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
@@ -43,6 +43,7 @@ import {
   importSelectedOpenRouterFreeModels,
   isRecord,
   materializeProviderModels,
+  mergeDiscoveredModels,
   mergeDiscoveredModelsWithPresets,
   modelRecords,
   nextProviderCopyId,
@@ -337,6 +338,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [templateQuery, setTemplateQuery] = useState('')
   const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
   const [freeSyncInfo, setFreeSyncInfo] = useState<Record<string, unknown> | undefined>(undefined)
+  const [modelImport, setModelImport] = useState<{ models: Record<string, unknown>[]; query: string; selection: string[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -400,6 +402,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     return (openRouterFreeCatalog?.models ?? []).filter(model => query === '' || [model.id, model.name]
       .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
   }, [openRouterFreeCatalog, openRouterFreeQuery])
+  const visibleModelImport = useMemo(() => {
+    if (modelImport === null) return []
+    const query = modelImport.query.trim().toLocaleLowerCase()
+    return modelImport.models.filter(model => query === '' || [model.id, model.name]
+      .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
+  }, [modelImport])
   const modelProtocolSummary = useMemo(() => ({
     responses: modelProtocolResults?.filter(result => result.classification === 'responses-preferred' || result.classification === 'both').length ?? 0,
     completionsOnly: modelProtocolResults?.filter(result => result.classification === 'completions-only').length ?? 0,
@@ -475,6 +483,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setOpenRouterFreeCatalog(null)
     setOpenRouterFreeSelection([])
     setOpenRouterFreeQuery('')
+    setModelImport(null)
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
@@ -493,6 +502,19 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setFreeSyncDraft(cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[providerId] ?? undefined))
     setFreeSyncInfo(freeSyncStates(retryNamespace?.value)[providerId])
   }, [creating, providerId, retryNamespace])
+
+  useEffect(() => {
+    if (!templateCatalogOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        setTemplateCatalogOpen(false)
+        setTemplateQuery('')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [templateCatalogOpen])
 
   const writeFreeSyncRule = async (next: FreeSyncDraft) => {
     if (retryNamespace === null || providerId.trim() === '') return
@@ -560,7 +582,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     if (!confirmDiscard()) return
     let targetId = template.id
     if (PROVIDER_ID_PATTERN.test(targetId) && profiles[targetId] !== undefined) targetId = nextProviderCopyId(targetId, providerIds)
-    const draftFromTemplate: Record<string, unknown> = { api: template.api ?? 'openai-responses', models: [] }
+    // Catalog-backed templates reuse the DSH built-in provider directory: only the
+    // display name and credential reference are needed; endpoint, protocol, and the
+    // model list resolve from the installed catalog until the user overrides them.
+    const draftFromTemplate: Record<string, unknown> = template.catalog === true
+      ? { models: [] }
+      : { api: template.api ?? 'openai-responses', models: [] }
     if (template.baseURL !== undefined) draftFromTemplate.baseURL = template.baseURL
     if (template.displayName !== undefined) draftFromTemplate.displayName = template.displayName
     if (template.credentialRef !== undefined) draftFromTemplate.apiKeyEnv = template.credentialRef
@@ -584,10 +611,11 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setOpenRouterFreeCatalog(null)
     setOpenRouterFreeSelection([])
     setOpenRouterFreeQuery('')
+    setModelImport(null)
     setTemplateCatalogOpen(false)
     setTemplateQuery('')
     setError(null)
-    setFeedback(t('config.templateReady', { name: template.displayName }))
+    setFeedback(t(template.catalog === true ? 'config.templateReadyCatalog' : 'config.templateReady', { name: template.displayName }))
     if (draftFromTemplate.apiKeyEnv !== undefined) {
       void describeCredential(String(draftFromTemplate.apiKeyEnv)).catch(cause => setError(messageOf(cause)))
     }
@@ -898,6 +926,68 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     } finally {
       setBusy(null)
     }
+  }
+
+  /** Fetch the provider's live model list and open a selective import picker. */
+  const readModelList = async () => {
+    if (busy !== null) return
+    setBusy('probe')
+    setError(null)
+    setFeedback(null)
+    try {
+      const id = providerId.trim()
+      if (!PROVIDER_ID_PATTERN.test(id)) throw new Error(t('config.providerIdInvalid'))
+      const baseURL = stringField(draft, 'baseURL').trim()
+      const key = keyDraft.trim()
+      const response = await api.llm.discoverModels({
+        settingsNs: SETTINGS_NAMESPACE,
+        provider: id,
+        ...(baseURL === '' ? {} : { baseURL }),
+        ...(key === '' ? {} : { apiKey: key }),
+      })
+      if (!response.result.ok) throw new Error(response.result.error.message)
+      const discovered = response.result.value.models.map(model => ({ ...model }))
+      let resolved = discovered
+      if (baseURL !== '') {
+        const ids = discovered.flatMap(model => typeof model.id === 'string' && model.id.trim() !== '' ? [model.id.trim()] : [])
+        resolved = []
+        for (let offset = 0; offset < ids.length; offset += PROTOCOL_SCAN_BATCH_SIZE) {
+          resolved.push(...await resolveProviderModels({ provider: id, models: ids.slice(offset, offset + PROTOCOL_SCAN_BATCH_SIZE) }))
+        }
+      }
+      setModelImport({ models: resolved, query: '', selection: [] })
+      setFeedback(t('config.modelListReadDone', { count: resolved.length }))
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const importSelectedModels = () => {
+    if (modelImport === null) return
+    const selected = modelImport.models.filter(model => typeof model.id === 'string' && modelImport.selection.includes(model.id))
+    if (selected.length === 0) return
+    const candidates = selected.map(model => {
+      const candidate: { id: string; name?: string; contextWindow?: number; maxTokens?: number; input?: Array<'text' | 'image'> } = { id: String(model.id) }
+      if (typeof model.name === 'string' && model.name !== '') candidate.name = model.name
+      if (typeof model.contextWindow === 'number' && Number.isInteger(model.contextWindow)) candidate.contextWindow = model.contextWindow
+      if (typeof model.maxTokens === 'number' && Number.isInteger(model.maxTokens)) candidate.maxTokens = model.maxTokens
+      if (Array.isArray(model.input)) candidate.input = model.input.filter((item): item is 'text' | 'image' => item === 'text' || item === 'image')
+      return candidate
+    })
+    const result = mergeDiscoveredModelsWithPresets(models, candidates, registry.presets)
+    const prepared = result.models.map(model => model.reasoningEfforts === undefined
+      ? model
+      : applyReasoningDispatchDefaults(providerId || 'provider', draft, model))
+    setDraft(materializeProviderModels(draft, prepared))
+    setModelImport(null)
+    setFeedback(t('config.modelImportDone', {
+      count: selected.length,
+      added: result.added,
+      enriched: result.enriched,
+      presets: result.presetsApplied,
+    }))
   }
 
   const toggleOpenRouterFreeModel = (modelId: string) => {
@@ -1513,65 +1603,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </div>
         )}
 
-        {templateCatalogOpen && (
-          <div className="dmp-config-template-catalog">
-            <div className="dmp-config-template-heading">
-              <div>
-                <strong>{t('config.templateTitle')}</strong>
-                <span>{t('config.templateHint')}</span>
-              </div>
-              <div className="dmp-config-template-toolbar">
-                <input
-                  value={templateQuery}
-                  onChange={event => setTemplateQuery(event.currentTarget.value)}
-                  placeholder={t('config.templateSearch')}
-                  aria-label={t('config.templateSearch')}
-                />
-                <button type="button" onClick={() => { setTemplateCatalogOpen(false); setTemplateQuery('') }}>{t('config.openRouterFreeClose')}</button>
-              </div>
-            </div>
-            {[
-              { key: 'custom', label: t('config.templateCustom'), templates: filterTemplates(CUSTOM_TEMPLATES, templateQuery), blank: true },
-              { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
-              { key: 'apiKey', label: t('config.templateApiKey'), templates: filterTemplates(API_KEY_TEMPLATES, templateQuery), blank: false },
-            ].map(group => (
-              <div className="dmp-config-template-group" key={group.key}>
-                <h4>{group.label}</h4>
-                <div className="dmp-config-template-grid">
-                  {group.templates.map(template => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      className="dmp-config-provider-card"
-                      disabled={busy !== null}
-                      onClick={() => startCreateFromTemplate(template)}
-                      title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
-                    >
-                      <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
-                      <span className="dmp-config-provider-card-main">
-                        <strong>{template.displayName}</strong>
-                        <small>{template.hint ?? (template.models === undefined
-                          ? t('config.templateOauth')
-                          : t('config.templateModelCount', { count: template.models }))}</small>
-                      </span>
-                    </button>
-                  ))}
-                  {group.blank && templateQuery.trim() === '' && (
-                    <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
-                      <span className="dmp-config-provider-card-icon">＋</span>
-                      <span className="dmp-config-provider-card-main">
-                        <strong>{t('config.templateBlank')}</strong>
-                        <small>{t('config.templateBlankHint')}</small>
-                      </span>
-                    </button>
-                  )}
-                  {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="dmp-config-provider-grid">
           <label className="dmp-media-field">
             <span>{t('config.providerId')}</span>
@@ -1635,6 +1666,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </label>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void probe()}>{busy === 'probe' ? t('config.probing') : t('config.probe')}</button>
+            <button type="button" disabled={busy !== null} onClick={() => void readModelList()}>{t('config.modelListRead')}</button>
             {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void scanOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeScanning') : t('config.openRouterFreeScan')}</button>}
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
@@ -1682,6 +1714,61 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
             <div className="dmp-config-free-picker-footer">
               <span>{t('config.openRouterFreeImportHint')}</span>
               <button className="dmp-media-primary" type="button" disabled={openRouterFreeSelection.length === 0} onClick={importOpenRouterFreeModels}>{t('config.openRouterFreeImportSelected', { count: openRouterFreeSelection.length })}</button>
+            </div>
+          </section>
+        )}
+        {modelImport !== null && (
+          <section className="dmp-config-free-picker dmp-config-import-picker">
+            <div className="dmp-config-free-picker-heading">
+              <div>
+                <strong>{t('config.modelImportTitle')}</strong>
+                <span>{t('config.modelImportSummary', { count: modelImport.models.length, selected: modelImport.selection.length })}</span>
+              </div>
+              <button type="button" onClick={() => setModelImport(null)}>{t('config.openRouterFreeClose')}</button>
+            </div>
+            <div className="dmp-config-free-picker-toolbar">
+              <input value={modelImport.query} onChange={event => setModelImport(current => current === null ? null : { ...current, query: event.currentTarget.value })} placeholder={t('config.modelImportSearch')} />
+              <button type="button" onClick={() => setModelImport(current => current === null ? null : {
+                ...current,
+                selection: [...new Set([...current.selection, ...visibleModelImport.map(model => String(model.id))])],
+              })}>{t('config.openRouterFreeSelectVisible')}</button>
+              <button type="button" onClick={() => setModelImport(current => current === null ? null : {
+                ...current,
+                selection: visibleModelImport.map(model => String(model.id)).filter(id => !configuredModelIds.has(id)),
+              })}>{t('config.openRouterFreeSelectNew')}</button>
+              <button type="button" disabled={modelImport.selection.length === 0} onClick={() => setModelImport(current => current === null ? null : { ...current, selection: [] })}>{t('config.openRouterFreeClear')}</button>
+            </div>
+            <div className="dmp-config-free-picker-list">
+              {visibleModelImport.map(model => {
+                const id = String(model.id)
+                return (
+                  <label key={id}>
+                    <input
+                      type="checkbox"
+                      checked={modelImport.selection.includes(id)}
+                      onChange={() => setModelImport(current => current === null ? null : {
+                        ...current,
+                        selection: current.selection.includes(id) ? current.selection.filter(item => item !== id) : [...current.selection, id],
+                      })}
+                    />
+                    <span className="dmp-config-free-picker-model">
+                      <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : id}</strong>
+                      <small>{id}</small>
+                    </span>
+                    <span className="dmp-config-free-picker-meta">
+                      {configuredModelIds.has(id) && <em>{t('config.openRouterFreeConfigured')}</em>}
+                      <small>{t('config.openRouterFreeContext', { value: typeof model.contextWindow === 'number' ? model.contextWindow.toLocaleString() : '?' })}</small>
+                      <small>{t('config.openRouterFreeOutput', { value: typeof model.maxTokens === 'number' ? model.maxTokens.toLocaleString() : '?' })}</small>
+                      {Array.isArray(model.input) && <small>{model.input.join(' + ')}</small>}
+                    </span>
+                  </label>
+                )
+              })}
+              {visibleModelImport.length === 0 && <div className="dmp-config-empty">{t('config.openRouterFreeEmpty')}</div>}
+            </div>
+            <div className="dmp-config-free-picker-footer">
+              <span>{t('config.modelImportHint')}</span>
+              <button className="dmp-media-primary" type="button" disabled={modelImport.selection.length === 0} onClick={importSelectedModels}>{t('config.modelImportSelected', { count: modelImport.selection.length })}</button>
             </div>
           </section>
         )}
@@ -2030,6 +2117,76 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           })}
         </div>
       </section>
+
+      {templateCatalogOpen && (
+        <div
+          className="dmp-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('config.templateTitle')}
+          onClick={event => { if (event.target === event.currentTarget) { setTemplateCatalogOpen(false); setTemplateQuery('') } }}
+        >
+          <section className="dmp-dialog dmp-config-template-dialog">
+            <header className="dmp-header">
+              <div>
+                <h2>{t('config.templateTitle')}</h2>
+                <p>{t('config.templateHint')}</p>
+              </div>
+              <button type="button" className="dmp-close" onClick={() => { setTemplateCatalogOpen(false); setTemplateQuery('') }} aria-label={t('config.openRouterFreeClose')}>×</button>
+            </header>
+            <div className="dmp-config-template-dialog-body">
+              <div className="dmp-config-template-toolbar">
+                <input
+                  autoFocus
+                  value={templateQuery}
+                  onChange={event => setTemplateQuery(event.currentTarget.value)}
+                  placeholder={t('config.templateSearch')}
+                  aria-label={t('config.templateSearch')}
+                />
+              </div>
+              {[
+                { key: 'custom', label: t('config.templateCustom'), templates: filterTemplates(CUSTOM_TEMPLATES, templateQuery), blank: true },
+                { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
+                { key: 'catalog', label: t('config.templateCatalog'), templates: filterTemplates(CATALOG_TEMPLATES, templateQuery), blank: false },
+              ].map(group => (
+                <div className="dmp-config-template-group" key={group.key}>
+                  <h4>{group.label}</h4>
+                  <div className="dmp-config-template-grid">
+                    {group.templates.map(template => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        className="dmp-config-provider-card"
+                        disabled={busy !== null}
+                        onClick={() => startCreateFromTemplate(template)}
+                        title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
+                      >
+                        <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
+                        <span className="dmp-config-provider-card-main">
+                          <strong>{template.displayName}</strong>
+                          <small>{template.hint ?? (template.models === undefined
+                            ? t('config.templateOauth')
+                            : t('config.templateModelCount', { count: template.models }))}</small>
+                        </span>
+                      </button>
+                    ))}
+                    {group.blank && templateQuery.trim() === '' && (
+                      <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
+                        <span className="dmp-config-provider-card-icon">＋</span>
+                        <span className="dmp-config-provider-card-main">
+                          <strong>{t('config.templateBlank')}</strong>
+                          <small>{t('config.templateBlankHint')}</small>
+                        </span>
+                      </button>
+                    )}
+                    {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }

@@ -21,9 +21,9 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.11.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.11.0)
+当前版本：[v0.12.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.12.0)
 
-`v0.11.0` 适配 `@deepseek-ai/dsh@0.1.6-alpha.2`：配置页供应商选择重建为带品牌图标、模型数与协议徽标的可视化卡片目录（附模板快速新建），新增 OpenRouter 免费线路启动/定时自动同步（仅保留 `:free` 模型），模型预置扩充至 281 条厂商权威数据。
+`v0.11.0` 适配 `@deepseek-ai/dsh@0.1.6-alpha.2`：配置页供应商选择重建为带品牌图标、模型数与协议徽标的可视化卡片目录（附模板快速新建），新增 OpenRouter 免费线路启动/定时自动同步（仅保留 `:free` 模型），模型预置扩充至 469 条厂商权威数据，推理档位改为 Codex 风格滑块。
 
 ## ✨ 功能特性
 
@@ -99,7 +99,7 @@
 <td width="50%">
 
 ### 📦 模型预置
-- **281 项内置预置**（v3）：从 DSH 0.1.6 内置 pi-ai 目录收割的厂商权威数据，覆盖 OpenAI、Anthropic、Google、DeepSeek、Moonshot、Z.AI、MiniMax、Qwen、xAI、Xiaomi 及 OpenRouter 独占模型
+- **469 项内置预置**（v4）：从 DSH 0.1.6 内置 pi-ai 目录收割的厂商权威数据，覆盖 OpenAI、Anthropic、Google、DeepSeek、Moonshot、Z.AI、MiniMax、Qwen、xAI、Xiaomi 及 OpenRouter 独占模型
 - **在线刷新**：从 GitHub 拉取最新预置数据
 - **自动补全**：为精确匹配的模型自动填充缺失参数
 - **搜索式选择**：预置以输入 + datalist 呈现，支持按名称过滤，不再渲染数百项下拉
@@ -138,7 +138,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。

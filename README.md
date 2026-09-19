@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.11.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.11.0)
+Current release: [v0.12.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.12.0)
 
 `v0.11.0` targets `@deepseek-ai/dsh@0.1.6-alpha.2`: the configuration panel gains a visual provider card catalog with template-based creation, OpenRouter free routes can auto-sync the live `:free` catalog on startup and on an interval, and the preset registry expands to 281 vendor-authoritative entries.
 
@@ -99,7 +99,7 @@ Add, edit, or remove provider profiles directly from the UI:
 <td width="50%">
 
 ### 📦 Model Presets
-- **281 bundled presets** (v3): vendor-authoritative data harvested from the DSH 0.1.6 built-in pi-ai catalog, covering OpenAI, Anthropic, Google, DeepSeek, Moonshot, Z.AI, MiniMax, Qwen, xAI, Xiaomi, and OpenRouter exclusives
+- **469 bundled presets** (v4): vendor-authoritative data harvested from the DSH 0.1.6 built-in pi-ai catalog, covering OpenAI, Anthropic, Google, DeepSeek, Moonshot, Z.AI, MiniMax, Qwen, xAI, Xiaomi, and OpenRouter exclusives
 - **Online refresh** from GitHub — always up-to-date
 - **Auto-fill** missing parameters for exact model matches
 - **Searchable selection**: presets render through an input + datalist filter instead of a 281-option dropdown
@@ -138,7 +138,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.

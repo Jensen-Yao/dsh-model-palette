@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_TEMPLATES,
-  API_KEY_TEMPLATES,
+  CATALOG_TEMPLATES,
   CUSTOM_TEMPLATES,
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
@@ -14,8 +14,8 @@ describe('provider catalog', () => {
     const grouped = templatesByCategory()
     expect(grouped.custom).toEqual(CUSTOM_TEMPLATES)
     expect(grouped.subscription).toEqual(SUBSCRIPTION_TEMPLATES)
-    expect(grouped.apiKey).toEqual(API_KEY_TEMPLATES)
-    expect(ALL_TEMPLATES).toHaveLength(CUSTOM_TEMPLATES.length + SUBSCRIPTION_TEMPLATES.length + API_KEY_TEMPLATES.length)
+    expect(grouped.catalog).toEqual(CATALOG_TEMPLATES)
+    expect(ALL_TEMPLATES).toHaveLength(CUSTOM_TEMPLATES.length + SUBSCRIPTION_TEMPLATES.length + CATALOG_TEMPLATES.length)
   })
 
   it('keeps template ids unique and preset protocols supported', () => {
@@ -28,19 +28,30 @@ describe('provider catalog', () => {
     }
   })
 
-  it('prefills the OpenRouter template with endpoint, protocol, and credential ref', () => {
-    const openrouter = API_KEY_TEMPLATES.find(template => template.id === 'openrouter')
-    expect(openrouter).toMatchObject({
+  it('covers the official DSH built-in catalog with zero-config templates', () => {
+    for (const id of ['openai', 'anthropic', 'deepseek', 'openrouter', 'google', 'mistral', 'nvidia', 'together', 'groq', 'zai', 'moonshotai', 'minimax', 'xiaomi', 'xai', 'qwen-token-plan', 'vercel-ai-gateway', 'huggingface']) {
+      const template = CATALOG_TEMPLATES.find(entry => entry.id === id)
+      expect(template, id).toBeDefined()
+      expect(template?.catalog).toBe(true)
+    }
+    const openrouter = CATALOG_TEMPLATES.find(template => template.id === 'openrouter')
+    expect(openrouter?.credentialRef).toBe('OPENROUTER_API_KEY')
+  })
+
+  it('prefills the OpenRouter free template with endpoint and sync hint', () => {
+    const free = CUSTOM_TEMPLATES.find(template => template.id === 'openrouter-free')
+    expect(free).toMatchObject({
       baseURL: 'https://openrouter.ai/api/v1',
       api: 'openai-completions',
       credentialRef: 'OPENROUTER_API_KEY',
     })
   })
 
-  it('filters templates across name, id, and hint', () => {
-    expect(filterTemplates(API_KEY_TEMPLATES, 'moonshot').map(template => template.id)).toContain('moonshotai')
-    expect(filterTemplates(API_KEY_TEMPLATES, 'openrouter.ai').map(template => template.id)).toContain('openrouter')
-    expect(filterTemplates(API_KEY_TEMPLATES, 'does-not-exist')).toEqual([])
+  it('filters templates across name, id, hint, and endpoint', () => {
+    expect(filterTemplates(CATALOG_TEMPLATES, 'moonshot').map(template => template.id)).toContain('moonshotai')
+    expect(filterTemplates(CUSTOM_TEMPLATES, 'openrouter.ai').map(template => template.id)).toContain('openrouter-free')
+    expect(filterTemplates(CATALOG_TEMPLATES, 'vercel').map(template => template.id)).toContain('vercel-ai-gateway')
+    expect(filterTemplates(CATALOG_TEMPLATES, 'does-not-exist')).toEqual([])
   })
 
   it('matches configured providers to brand icons by id and baseURL host', () => {

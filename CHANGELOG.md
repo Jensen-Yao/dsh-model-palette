@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 - 2026-09-19
+
+- Rebuild the palette footer reasoning effort control as a Codex-style discrete slider: provider default plus the seven effort levels on one gradient track with per-stop labels.
+- Add a visual provider card catalog to the config panel: searchable grid with brand icons, model counts, and protocol badges, plus a template gallery whose built-in catalog templates create zero-config routes (endpoint, protocol, and model list resolve from the DSH built-in catalog).
+- Add a **Read model list** action that fetches any provider's live model list into a selective import picker with search, select-visible/unconfigured shortcuts, and automatic capacity, input, and preset enrichment on import.
+- Expand the model preset registry to 469 vendor-authoritative entries (registry v4) by also harvesting the Together, Fireworks, Groq, NVIDIA, Hugging Face, Cerebras, Baseten, OpenCode, Bedrock, Azure, and Vertex catalogs.
+- Polish config UI styling: card hover states, smoother free-model and import pickers.
+- Move the add-provider template gallery into a dedicated search dialog so the provider config card stays uncluttered, and add the Radius route to the catalog.
+
+
 ## 0.11.0 - 2026-09-19
 
 - Target `@deepseek-ai/dsh@0.1.6-alpha.2`: peer ranges and dev dependencies move to the 0.1.6 line, and the composer seat returns the DSH 0.1.6 `RemoteResult` selection outcome instead of a boolean.

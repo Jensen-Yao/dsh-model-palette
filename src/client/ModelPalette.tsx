@@ -49,6 +49,46 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+interface EffortSliderProps {
+  value: string
+  options: ReadonlyArray<{ id: string; name: string }>
+  defaultLabel: string
+  label: string
+  disabled: boolean
+  onChange: (value: string) => void
+}
+
+/** Codex-style discrete reasoning-effort slider: provider default plus the seven levels. */
+function EffortSlider({ value, options, defaultLabel, label, disabled, onChange }: EffortSliderProps): JSX.Element {
+  const stops = ['', ...options.map(option => option.id)]
+  const index = value === '' ? 0 : Math.max(0, stops.indexOf(value))
+  const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
+  return (
+    <div className={`dmp-effort-slider${disabled ? ' is-busy' : ''}`}>
+      <div className="dmp-effort-slider-head">
+        <span>{label}</span>
+        <strong>{activeName}</strong>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={stops.length - 1}
+        step={1}
+        value={Math.min(index, stops.length - 1)}
+        disabled={disabled}
+        aria-label={label}
+        onChange={event => onChange(stops[Number(event.currentTarget.value)])}
+      />
+      <div className="dmp-effort-slider-scale">
+        <span className={value === '' ? 'is-on' : ''}>{defaultLabel}</span>
+        {options.map(option => (
+          <span key={option.id} className={option.id === value ? 'is-on' : ''}>{option.name}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
   const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
@@ -385,13 +425,14 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
               {snapshot.current !== null && (
-                <label className="dmp-effort">
-                  <span>{t('palette.effort')}</span>
-                  <select value={currentEffort} disabled={effortBusy} onChange={(event) => void chooseEffort(event.currentTarget.value)}>
-                    <option value="">{t('palette.providerDefault')}</option>
-                    {reasoningOptions.map((effort) => <option key={effort.id} value={effort.id}>{effort.name}</option>)}
-                  </select>
-                </label>
+                <EffortSlider
+                  value={currentEffort}
+                  options={reasoningOptions}
+                  defaultLabel={t('palette.providerDefault')}
+                  label={t('palette.effort')}
+                  disabled={effortBusy}
+                  onChange={value => void chooseEffort(value)}
+                />
               )}
               {snapshot.failures.length > 0 && <span className="dmp-failures" title={snapshot.failures.map((item) => `${item.name}: ${item.message}`).join('\n')}>{t('palette.failures')} ({snapshot.failures.length})</span>}
             </footer>

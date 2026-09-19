@@ -1,7 +1,11 @@
 /**
  * Provider catalog: the template list behind the visual "add provider" grid and
- * the icon/name matcher for already-configured provider cards. Template facts
- * mirror the pi-ai built-in provider directory shipped with DSH 0.1.6.
+ * the icon/name matcher for already-configured provider cards.
+ *
+ * `catalog: true` templates map 1:1 to the pi-ai provider directory shipped
+ * with DSH: adding such a route only names a display name and credential
+ * reference — the endpoint, protocol, and model list come from the installed
+ * DSH catalog until the user overrides them.
  */
 
 export type ProviderCategory = 'custom' | 'subscription' | 'api-key'
@@ -20,6 +24,8 @@ export interface ProviderTemplate {
   models?: number
   /** Short endpoint hint rendered under the name. */
   hint?: string
+  /** Route reuses the DSH built-in catalog: no baseURL/protocol/models needed. */
+  catalog?: boolean
   /** Templates the plugin cannot fully create (OAuth); clicking explains why. */
   oauthOnly?: boolean
 }
@@ -28,7 +34,7 @@ export const CUSTOM_TEMPLATES: ProviderTemplate[] = [
   { id: 'openai-compatible', displayName: 'OpenAI Compatible', category: 'custom', icon: 'completions', baseURL: 'https://api.example.com/v1', api: 'openai-completions', hint: '/v1/chat/completions · openai-completions' },
   { id: 'anthropic-compatible', displayName: 'Anthropic Compatible', category: 'custom', icon: 'anthropiccompat', baseURL: 'https://api.example.com/v1', api: 'anthropic-messages', hint: '/v1/messages · anthropic-messages' },
   { id: 'openai-responses', displayName: 'OpenAI Responses', category: 'custom', icon: 'responses', baseURL: 'https://api.example.com/v1', api: 'openai-responses', hint: 'Responses API · openai-responses' },
-  { id: 'google-generative-ai', displayName: 'Google Generative AI', category: 'custom', icon: 'google', hint: 'generativelanguage.googleapis.com · google-generative-ai', oauthOnly: false },
+  { id: 'openrouter-free', displayName: 'OpenRouter Free（仅免费）', category: 'custom', icon: 'openrouter', baseURL: 'https://openrouter.ai/api/v1', api: 'openai-completions', credentialRef: 'OPENROUTER_API_KEY', hint: '启动时自动同步 :free 模型' },
 ]
 
 export const SUBSCRIPTION_TEMPLATES: ProviderTemplate[] = [
@@ -36,52 +42,64 @@ export const SUBSCRIPTION_TEMPLATES: ProviderTemplate[] = [
   { id: 'kimi-for-coding', displayName: 'Kimi For Coding', category: 'subscription', icon: 'kimi', oauthOnly: true },
   { id: 'chatgpt-plus-pro', displayName: 'ChatGPT Plus/Pro', category: 'subscription', icon: 'openai', oauthOnly: true },
   { id: 'openrouter-oauth', displayName: 'OpenRouter', category: 'subscription', icon: 'openrouter', oauthOnly: true },
+  { id: 'radius-oauth', displayName: 'Radius', category: 'subscription', icon: 'radius', oauthOnly: true },
   { id: 'xai-oauth', displayName: 'xAI', category: 'subscription', icon: 'xai', oauthOnly: true },
 ]
 
-export const API_KEY_TEMPLATES: ProviderTemplate[] = [
-  { id: 'openrouter', displayName: 'OpenRouter', category: 'api-key', icon: 'openrouter', baseURL: 'https://openrouter.ai/api/v1', api: 'openai-completions', credentialRef: 'OPENROUTER_API_KEY', models: 362 },
-  { id: 'openai', displayName: 'OpenAI', category: 'api-key', icon: 'openai', baseURL: 'https://api.openai.com/v1', api: 'openai-responses', credentialRef: 'OPENAI_API_KEY', models: 39 },
-  { id: 'anthropic', displayName: 'Anthropic', category: 'api-key', icon: 'anthropic', baseURL: 'https://api.anthropic.com', api: 'anthropic-messages', credentialRef: 'ANTHROPIC_API_KEY', models: 11 },
-  { id: 'deepseek', displayName: 'DeepSeek', category: 'api-key', icon: 'deepseek', baseURL: 'https://api.deepseek.com', api: 'openai-completions', credentialRef: 'DEEPSEEK_API_KEY', models: 6 },
-  { id: 'moonshotai', displayName: 'Moonshot AI', category: 'api-key', icon: 'moonshot', baseURL: 'https://api.moonshot.ai/v1', api: 'openai-completions', credentialRef: 'MOONSHOT_API_KEY', models: 10 },
-  { id: 'moonshotai-cn', displayName: 'Moonshot AI CN', category: 'api-key', icon: 'moonshot', baseURL: 'https://api.moonshot.cn/v1', api: 'openai-completions', credentialRef: 'MOONSHOT_API_KEY', models: 10 },
-  { id: 'zai', displayName: 'Z.AI', category: 'api-key', icon: 'zai', baseURL: 'https://api.z.ai/api/coding/paas/v4', api: 'openai-completions', credentialRef: 'ZAI_API_KEY', models: 7 },
-  { id: 'zai-coding-cn', displayName: 'Z.AI Coding CN', category: 'api-key', icon: 'zai', baseURL: 'https://open.bigmodel.cn/api/coding/paas/v4', api: 'openai-completions', credentialRef: 'ZAI_CODING_CN_API_KEY', models: 10 },
-  { id: 'minimax', displayName: 'MiniMax', category: 'api-key', icon: 'minimax', baseURL: 'https://api.minimax.io/anthropic', api: 'anthropic-messages', credentialRef: 'MINIMAX_API_KEY', models: 3 },
-  { id: 'minimax-cn', displayName: 'MiniMax CN', category: 'api-key', icon: 'minimax', baseURL: 'https://api.minimaxi.com/anthropic', api: 'anthropic-messages', credentialRef: 'MINIMAX_CN_API_KEY', models: 3 },
-  { id: 'qwen-token-plan', displayName: 'Qwen Token Plan', category: 'api-key', icon: 'qwen', baseURL: 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1', api: 'openai-completions', credentialRef: 'QWEN_TOKEN_PLAN_API_KEY', models: 18 },
-  { id: 'qwen-token-plan-cn', displayName: 'Qwen Token Plan CN', category: 'api-key', icon: 'qwen', baseURL: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', api: 'openai-completions', credentialRef: 'QWEN_TOKEN_PLAN_CN_API_KEY', models: 18 },
-  { id: 'xai', displayName: 'xAI', category: 'api-key', icon: 'xai', baseURL: 'https://api.x.ai/v1', api: 'openai-responses', credentialRef: 'XAI_API_KEY', models: 3 },
-  { id: 'google', displayName: 'Google', category: 'api-key', icon: 'google', baseURL: 'https://generativelanguage.googleapis.com/v1beta', api: 'openai-completions', credentialRef: 'GEMINI_API_KEY', models: 22 },
-  { id: 'mistral', displayName: 'Mistral', category: 'api-key', icon: 'mistral', baseURL: 'https://api.mistral.ai', api: 'openai-completions', credentialRef: 'MISTRAL_API_KEY', models: 32 },
-  { id: 'nvidia', displayName: 'NVIDIA', category: 'api-key', icon: 'nvidia', baseURL: 'https://integrate.api.nvidia.com/v1', api: 'openai-completions', credentialRef: 'NVIDIA_API_KEY', models: 20 },
-  { id: 'xiaomi', displayName: 'Xiaomi MiMo', category: 'api-key', icon: 'xiaomi', baseURL: 'https://api.xiaomimimo.com/v1', api: 'openai-completions', credentialRef: 'XIAOMI_API_KEY', models: 3 },
-  { id: 'xiaomi-token-plan-cn', displayName: 'Xiaomi Token Plan CN', category: 'api-key', icon: 'xiaomi', baseURL: 'https://token-plan-cn.xiaomimimo.com/v1', api: 'openai-completions', credentialRef: 'XIAOMI_TOKEN_PLAN_CN_API_KEY', models: 2 },
-  { id: 'together', displayName: 'Together', category: 'api-key', icon: 'together', baseURL: 'https://api.together.ai/v1', api: 'openai-completions', credentialRef: 'TOGETHER_API_KEY', models: 21 },
-  { id: 'fireworks', displayName: 'Fireworks', category: 'api-key', icon: 'fireworks', baseURL: 'https://api.fireworks.ai/inference/v1', api: 'openai-completions', credentialRef: 'FIREWORKS_API_KEY', models: 19 },
-  { id: 'groq', displayName: 'Groq', category: 'api-key', icon: 'groq', baseURL: 'https://api.groq.com/openai/v1', api: 'openai-completions', credentialRef: 'GROQ_API_KEY', models: 9 },
-  { id: 'baseten', displayName: 'Baseten', category: 'api-key', icon: 'baseten', baseURL: 'https://inference.baseten.co/v1', api: 'openai-completions', credentialRef: 'BASETEN_API_KEY', models: 20 },
-  { id: 'cerebras', displayName: 'Cerebras', category: 'api-key', icon: 'cerebras', baseURL: 'https://api.cerebras.ai/v1', api: 'openai-completions', credentialRef: 'CEREBRAS_API_KEY', models: 2 },
-  { id: 'huggingface', displayName: 'Hugging Face', category: 'api-key', icon: 'huggingface', baseURL: 'https://router.huggingface.co/v1', api: 'openai-completions', credentialRef: 'HF_TOKEN', models: 71 },
-  { id: 'ant-ling', displayName: 'Ant Ling', category: 'api-key', icon: 'antling', baseURL: 'https://api.ant-ling.com/v1', api: 'openai-completions', credentialRef: 'ANT_LING_API_KEY', models: 3 },
-  { id: 'opencode', displayName: 'OpenCode Zen', category: 'api-key', icon: 'opencode', credentialRef: 'OPENCODE_API_KEY', models: 63 },
-  { id: 'vercel-ai-gateway', displayName: 'Vercel AI Gateway', category: 'api-key', icon: 'vercel', baseURL: 'https://ai-gateway.vercel.sh', api: 'anthropic-messages', credentialRef: 'AI_GATEWAY_API_KEY', models: 233 },
-  { id: 'cloudflare-ai-gateway', displayName: 'Cloudflare AI Gateway', category: 'api-key', icon: 'cloudflare', models: 50 },
-  { id: 'kimi-for-coding-api', displayName: 'Kimi For Coding (API)', category: 'api-key', icon: 'kimi', baseURL: 'https://api.kimi.com/coding', api: 'anthropic-messages', credentialRef: 'KIMI_API_KEY', models: 4 },
+/** The full DSH built-in provider directory; each adds a catalog-backed route. */
+export const CATALOG_TEMPLATES: ProviderTemplate[] = [
+  { id: 'openai', displayName: 'OpenAI', category: 'api-key', icon: 'openai', credentialRef: 'OPENAI_API_KEY', models: 39, hint: '内置目录 · 39 个模型', catalog: true },
+  { id: 'anthropic', displayName: 'Anthropic', category: 'api-key', icon: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY', models: 11, hint: '内置目录 · 11 个模型', catalog: true },
+  { id: 'deepseek', displayName: 'DeepSeek', category: 'api-key', icon: 'deepseek', credentialRef: 'DEEPSEEK_API_KEY', models: 6, hint: '内置目录 · 6 个模型', catalog: true },
+  { id: 'openrouter', displayName: 'OpenRouter', category: 'api-key', icon: 'openrouter', credentialRef: 'OPENROUTER_API_KEY', models: 362, hint: '内置目录 · 362 个模型', catalog: true },
+  { id: 'google', displayName: 'Google', category: 'api-key', icon: 'google', credentialRef: 'GEMINI_API_KEY', models: 22, hint: '内置目录 · 22 个模型', catalog: true },
+  { id: 'google-vertex', displayName: 'Google Vertex AI', category: 'api-key', icon: 'google', models: 9, hint: '内置目录 · 需配置项目与凭据', catalog: true },
+  { id: 'amazon-bedrock', displayName: 'Amazon Bedrock', category: 'api-key', icon: 'bedrock', models: 121, hint: '内置目录 · 需 AWS 凭据', catalog: true },
+  { id: 'azure-openai-responses', displayName: 'Azure OpenAI', category: 'api-key', icon: 'azure', credentialRef: 'AZURE_OPENAI_API_KEY', models: 38, hint: '内置目录 · 38 个模型', catalog: true },
+  { id: 'moonshotai', displayName: 'Moonshot AI', category: 'api-key', icon: 'moonshot', credentialRef: 'MOONSHOT_API_KEY', models: 10, hint: '内置目录 · 10 个模型', catalog: true },
+  { id: 'moonshotai-cn', displayName: 'Moonshot AI CN', category: 'api-key', icon: 'moonshot', credentialRef: 'MOONSHOT_CN_API_KEY', models: 10, hint: '内置目录 · 中国站', catalog: true },
+  { id: 'kimi-for-coding-api', displayName: 'Kimi For Coding', category: 'api-key', icon: 'kimi', credentialRef: 'KIMI_API_KEY', models: 4, hint: '内置目录 · anthropic-messages', catalog: true },
+  { id: 'minimax', displayName: 'MiniMax', category: 'api-key', icon: 'minimax', credentialRef: 'MINIMAX_API_KEY', models: 3, hint: '内置目录 · 国际站', catalog: true },
+  { id: 'minimax-cn', displayName: 'MiniMax CN', category: 'api-key', icon: 'minimax', credentialRef: 'MINIMAX_CN_API_KEY', models: 3, hint: '内置目录 · 中国站', catalog: true },
+  { id: 'zai', displayName: 'Z.AI', category: 'api-key', icon: 'zai', credentialRef: 'ZAI_API_KEY', models: 7, hint: '内置目录 · GLM 系列', catalog: true },
+  { id: 'zai-coding-cn', displayName: 'Z.AI Coding CN', category: 'api-key', icon: 'zai', credentialRef: 'ZAI_CODING_CN_API_KEY', models: 10, hint: '内置目录 · bigmodel.cn', catalog: true },
+  { id: 'qwen-token-plan', displayName: 'Qwen Token Plan', category: 'api-key', icon: 'qwen', credentialRef: 'QWEN_TOKEN_PLAN_API_KEY', models: 18, hint: '内置目录 · 国际站', catalog: true },
+  { id: 'qwen-token-plan-cn', displayName: 'Qwen Token Plan CN', category: 'api-key', icon: 'qwen', credentialRef: 'QWEN_TOKEN_PLAN_CN_API_KEY', models: 18, hint: '内置目录 · 中国站', catalog: true },
+  { id: 'qwen-token-plan-individual', displayName: 'Qwen Token Plan Individual', category: 'api-key', icon: 'qwen', credentialRef: 'QWEN_TOKEN_PLAN_API_KEY', models: 9, hint: '内置目录 · 个人版', catalog: true },
+  { id: 'xiaomi', displayName: 'Xiaomi', category: 'api-key', icon: 'xiaomi', credentialRef: 'XIAOMI_API_KEY', models: 3, hint: '内置目录 · MiMo 系列', catalog: true },
+  { id: 'xiaomi-token-plan-ams', displayName: 'Xiaomi Token Plan AMS', category: 'api-key', icon: 'xiaomi', credentialRef: 'XIAOMI_TOKEN_PLAN_AMS_API_KEY', models: 2, hint: '内置目录 · 阿姆斯特丹', catalog: true },
+  { id: 'xiaomi-token-plan-cn', displayName: 'Xiaomi Token Plan CN', category: 'api-key', icon: 'xiaomi', credentialRef: 'XIAOMI_TOKEN_PLAN_CN_API_KEY', models: 2, hint: '内置目录 · 中国站', catalog: true },
+  { id: 'xiaomi-token-plan-sgp', displayName: 'Xiaomi Token Plan SGP', category: 'api-key', icon: 'xiaomi', credentialRef: 'XIAOMI_TOKEN_PLAN_SGP_API_KEY', models: 2, hint: '内置目录 · 新加坡', catalog: true },
+  { id: 'xai', displayName: 'xAI', category: 'api-key', icon: 'xai', credentialRef: 'XAI_API_KEY', models: 3, hint: '内置目录 · Grok 系列', catalog: true },
+  { id: 'mistral', displayName: 'Mistral', category: 'api-key', icon: 'mistral', credentialRef: 'MISTRAL_API_KEY', models: 32, hint: '内置目录 · 32 个模型', catalog: true },
+  { id: 'nvidia', displayName: 'NVIDIA', category: 'api-key', icon: 'nvidia', credentialRef: 'NVIDIA_API_KEY', models: 20, hint: '内置目录 · NIM 目录', catalog: true },
+  { id: 'together', displayName: 'Together', category: 'api-key', icon: 'together', credentialRef: 'TOGETHER_API_KEY', models: 21, hint: '内置目录 · 21 个模型', catalog: true },
+  { id: 'fireworks', displayName: 'Fireworks', category: 'api-key', icon: 'fireworks', credentialRef: 'FIREWORKS_API_KEY', models: 19, hint: '内置目录 · 19 个模型', catalog: true },
+  { id: 'groq', displayName: 'Groq', category: 'api-key', icon: 'groq', credentialRef: 'GROQ_API_KEY', models: 9, hint: '内置目录 · 9 个模型', catalog: true },
+  { id: 'baseten', displayName: 'Baseten', category: 'api-key', icon: 'baseten', credentialRef: 'BASETEN_API_KEY', models: 20, hint: '内置目录 · 20 个模型', catalog: true },
+  { id: 'cerebras', displayName: 'Cerebras', category: 'api-key', icon: 'cerebras', credentialRef: 'CEREBRAS_API_KEY', models: 2, hint: '内置目录 · 2 个模型', catalog: true },
+  { id: 'huggingface', displayName: 'Hugging Face', category: 'api-key', icon: 'huggingface', credentialRef: 'HF_TOKEN', models: 71, hint: '内置目录 · Inference Providers', catalog: true },
+  { id: 'ant-ling', displayName: 'Ant Ling', category: 'api-key', icon: 'antling', credentialRef: 'ANT_LING_API_KEY', models: 3, hint: '内置目录 · 3 个模型', catalog: true },
+  { id: 'opencode', displayName: 'OpenCode Zen', category: 'api-key', icon: 'opencode', credentialRef: 'OPENCODE_API_KEY', models: 63, hint: '内置目录 · 63 个模型', catalog: true },
+  { id: 'opencode-go', displayName: 'OpenCode Go', category: 'api-key', icon: 'opencode', credentialRef: 'OPENCODE_API_KEY', models: 27, hint: '内置目录 · 27 个模型', catalog: true },
+  { id: 'vercel-ai-gateway', displayName: 'Vercel AI Gateway', category: 'api-key', icon: 'vercel', credentialRef: 'AI_GATEWAY_API_KEY', models: 233, hint: '内置目录 · 233 个模型', catalog: true },
+  { id: 'cloudflare-ai-gateway', displayName: 'Cloudflare AI Gateway', category: 'api-key', icon: 'cloudflare', models: 50, hint: '内置目录 · 需账号与网关 ID', catalog: true },
+  { id: 'cloudflare-workers-ai', displayName: 'Cloudflare Workers AI', category: 'api-key', icon: 'cloudflare', models: 18, hint: '内置目录 · 18 个模型', catalog: true },
+  { id: 'radius', displayName: 'Radius', category: 'api-key', icon: 'radius', models: 0, hint: '内置目录 · 0 个模型', catalog: true },
+  { id: 'github-copilot-api', displayName: 'GitHub Copilot', category: 'api-key', icon: 'copilot', credentialRef: 'COPILOT_GITHUB_TOKEN', models: 60, hint: '内置目录 · 支持令牌接入', catalog: true },
 ]
 
 export const ALL_TEMPLATES: readonly ProviderTemplate[] = [
   ...CUSTOM_TEMPLATES,
   ...SUBSCRIPTION_TEMPLATES,
-  ...API_KEY_TEMPLATES,
+  ...CATALOG_TEMPLATES,
 ]
 
-export function templatesByCategory(): { custom: ProviderTemplate[]; subscription: ProviderTemplate[]; apiKey: ProviderTemplate[] } {
+export function templatesByCategory(): { custom: ProviderTemplate[]; subscription: ProviderTemplate[]; catalog: ProviderTemplate[] } {
   return {
     custom: CUSTOM_TEMPLATES,
     subscription: SUBSCRIPTION_TEMPLATES,
-    apiKey: API_KEY_TEMPLATES,
+    catalog: CATALOG_TEMPLATES,
   }
 }
 
@@ -112,11 +130,11 @@ const BRAND_RULES: BrandRule[] = [
   { icon: 'deepseek', brandName: 'DeepSeek', patterns: [/deepseek/iu] },
   { icon: 'anthropic', brandName: 'Anthropic', patterns: [/anthropic|claude/iu] },
   { icon: 'openai', brandName: 'OpenAI', patterns: [/openai|chatgpt|gpt-|^o[134](-|$)/iu] },
-  { icon: 'google', brandName: 'Google', patterns: [/google|gemini|generativelanguage/iu] },
+  { icon: 'google', brandName: 'Google', patterns: [/google|gemini|generativelanguage|vertex/iu] },
   { icon: 'moonshot', brandName: 'Moonshot AI', patterns: [/moonshot|kimi/iu] },
   { icon: 'minimax', brandName: 'MiniMax', patterns: [/minimax/iu] },
   { icon: 'zai', brandName: 'Z.AI', patterns: [/z-?ai|bigmodel|glm|zhipu/iu] },
-  { icon: 'qwen', brandName: 'Qwen', patterns: [/qwen|alibaba|aliyun|dashscope/iu] },
+  { icon: 'qwen', brandName: 'Qwen', patterns: [/qwen|alibaba|aliyun|dashscope|token-plan/iu] },
   { icon: 'xai', brandName: 'xAI', patterns: [/^x-?ai$|grok|x\.ai/iu] },
   { icon: 'xiaomi', brandName: 'Xiaomi', patterns: [/xiaomi|mimo/iu] },
   { icon: 'mistral', brandName: 'Mistral', patterns: [/mistral/iu] },
@@ -131,7 +149,7 @@ const BRAND_RULES: BrandRule[] = [
   { icon: 'baseten', brandName: 'Baseten', patterns: [/baseten/iu] },
   { icon: 'cerebras', brandName: 'Cerebras', patterns: [/cerebras/iu] },
   { icon: 'huggingface', brandName: 'Hugging Face', patterns: [/huggingface|hf[-_]/iu] },
-  { icon: 'copilot', brandName: 'GitHub Copilot', patterns: [/copilot|github/iu] },
+  { icon: 'copilot', brandName: 'GitHub Copilot', patterns: [/copilot/iu] },
   { icon: 'opencode', brandName: 'OpenCode', patterns: [/opencode/iu] },
   { icon: 'antling', brandName: 'Ant Ling', patterns: [/ant-?ling/iu] },
   { icon: 'kimi', brandName: 'Kimi', patterns: [/kimi/iu] },
