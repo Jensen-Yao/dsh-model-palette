@@ -10,7 +10,7 @@ import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
 const RECENTS_KEY = 'dsh-model-palette:recents:v1'
-type ModelPaletteView = 'models' | 'media' | 'config' | 'relay'
+type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay'
 
 function readStoredList(key: string): string[] {
   try {
@@ -116,7 +116,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState<'models' | 'media' | 'config' | 'relay'>('models')
+  const [view, setView] = useState<ModelPaletteView>('models')
   const [query, setQuery] = useState('')
   const [providerId, setProviderId] = useState<string | null>(null)
   const [quickFilter, setQuickFilter] = useState<'all' | 'favorites' | 'recents'>('all')
@@ -315,11 +315,11 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'config' ? 'config.title' : 'relay.title')}>
+          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}>
             <header className="dmp-header">
               <div>
-                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'config' ? 'config.title' : 'relay.title')}</h2>
-                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : t(view === 'media' ? 'media.subtitle' : view === 'config' ? 'config.subtitle' : 'relay.subtitle')}</p>
+                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}</h2>
+                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : view === 'catalog' ? t('config.templateHint') : t(view === 'media' ? 'media.subtitle' : view === 'config' ? 'config.subtitle' : 'relay.subtitle')}</p>
               </div>
               <button type="button" className="dmp-close" onClick={close} aria-label={t('palette.close')}>×</button>
             </header>
@@ -367,6 +367,13 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 </button>
                 <button
                   type="button"
+                  className={`dmp-media-nav${view === 'catalog' ? ' is-active' : ''}`}
+                  onClick={() => setView('catalog')}
+                >
+                  <span>{t('palette.navCatalog')}</span><small>＋</small>
+                </button>
+                <button
+                  type="button"
                   className={`dmp-media-nav${view === 'relay' ? ' is-active' : ''}`}
                   onClick={() => setView('relay')}
                 >
@@ -378,7 +385,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                   className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
                   onClick={() => { setView('models'); setProviderId(null); setQuickFilter('all') }}
                 >
-                  <span>{t('palette.allProviders')}</span><small>{choices.length}</small>
+                  <span>{t('palette.allModels')}</span><small>{choices.length}</small>
                 </button>
                 <button
                   type="button"
@@ -395,6 +402,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                   <span>{t('palette.recents')}</span><small>{recentCount}</small>
                 </button>
                 <div className="dmp-provider-divider" />
+                <div className="dmp-provider-group-label">{t('palette.configuredProviders')}</div>
                 {providers.map((provider) => (
                   <button
                     key={provider.id}
@@ -411,7 +419,9 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
               {view === 'media' ? (
                 <MediaPanel t={t} />
               ) : view === 'config' ? (
-                <ConfigPanel api={api} isLoopback={isLoopback} t={t} />
+                <ConfigPanel api={api} isLoopback={isLoopback} mode="config" onSwitchMode={next => setView(next)} t={t} />
+              ) : view === 'catalog' ? (
+                <ConfigPanel api={api} isLoopback={isLoopback} mode="catalog" onSwitchMode={next => setView(next)} t={t} />
               ) : view === 'relay' ? (
                 <RelayPanel onOpenConfig={() => setView('config')} t={t} />
               ) : <main className="dmp-results">

@@ -73,6 +73,9 @@ import type { PaletteApi } from './remote-compat.ts'
 interface ConfigPanelProps {
   api: PaletteApi
   isLoopback: boolean
+  /** 'config' edits configured routes; 'catalog' is the dedicated add-provider view. */
+  mode?: 'config' | 'catalog'
+  onSwitchMode?: (mode: 'config' | 'catalog') => void
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
@@ -306,7 +309,7 @@ function isOpenRouterProfile(providerId: string, profile: Record<string, unknown
   }
 }
 
-export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
+export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
   const [retryNamespace, setRetryNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
@@ -334,7 +337,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [liveCatalogModels, setLiveCatalogModels] = useState<Record<string, Record<string, unknown>[]>>({})
   const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | 'free-sync' | null>('load')
   const [providerQuery, setProviderQuery] = useState('')
-  const [templateCatalogOpen, setTemplateCatalogOpen] = useState(false)
   const [templateQuery, setTemplateQuery] = useState('')
   const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
   const [freeSyncInfo, setFreeSyncInfo] = useState<Record<string, unknown> | undefined>(undefined)
@@ -503,19 +505,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setFreeSyncInfo(freeSyncStates(retryNamespace?.value)[providerId])
   }, [creating, providerId, retryNamespace])
 
-  useEffect(() => {
-    if (!templateCatalogOpen) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation()
-        setTemplateCatalogOpen(false)
-        setTemplateQuery('')
-      }
-    }
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [templateCatalogOpen])
-
   const writeFreeSyncRule = async (next: FreeSyncDraft) => {
     if (retryNamespace === null || providerId.trim() === '') return
     const id = providerId.trim()
@@ -612,7 +601,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
     setOpenRouterFreeSelection([])
     setOpenRouterFreeQuery('')
     setModelImport(null)
-    setTemplateCatalogOpen(false)
+    onSwitchMode?.('config')
     setTemplateQuery('')
     setError(null)
     setFeedback(t(template.catalog === true ? 'config.templateReadyCatalog' : 'config.templateReady', { name: template.displayName }))
@@ -1498,6 +1487,74 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         ? t('config.presetsFallback', { date: registry.updatedAt, count: registry.presets.length })
         : t('config.presetsBundled', { date: registry.updatedAt, count: registry.presets.length })
 
+  // Dedicated add-provider view: the template gallery lives on its own page so
+  // the model-config card only manages already-configured routes.
+  if (mode === 'catalog') {
+    return (
+      <main className="dmp-config dmp-config-catalog">
+        <section className="dmp-config-toolbar">
+          <div>
+            <strong>{t('config.templateTitle')}</strong>
+            <span>{t('config.templateHint')}</span>
+          </div>
+          <div className="dmp-config-toolbar-actions">
+            <button type="button" onClick={() => onSwitchMode?.('config')}>{t('config.backToConfig')}</button>
+          </div>
+        </section>
+        {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
+        {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+        <div className="dmp-config-template-toolbar">
+          <input
+            autoFocus
+            value={templateQuery}
+            onChange={event => setTemplateQuery(event.currentTarget.value)}
+            placeholder={t('config.templateSearch')}
+            aria-label={t('config.templateSearch')}
+          />
+        </div>
+        {[
+          { key: 'custom', label: t('config.templateCustom'), templates: filterTemplates(CUSTOM_TEMPLATES, templateQuery), blank: true },
+          { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
+          { key: 'catalog', label: t('config.templateCatalog'), templates: filterTemplates(CATALOG_TEMPLATES, templateQuery), blank: false },
+        ].map(group => (
+          <div className="dmp-config-template-group" key={group.key}>
+            <h4>{group.label}</h4>
+            <div className="dmp-config-template-grid">
+              {group.templates.map(template => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className="dmp-config-provider-card"
+                  disabled={busy !== null}
+                  onClick={() => startCreateFromTemplate(template)}
+                  title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
+                >
+                  <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
+                  <span className="dmp-config-provider-card-main">
+                    <strong>{template.displayName}</strong>
+                    <small>{template.hint ?? (template.models === undefined
+                      ? t('config.templateOauth')
+                      : t('config.templateModelCount', { count: template.models }))}</small>
+                  </span>
+                </button>
+              ))}
+              {group.blank && templateQuery.trim() === '' && (
+                <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
+                  <span className="dmp-config-provider-card-icon">＋</span>
+                  <span className="dmp-config-provider-card-main">
+                    <strong>{t('config.templateBlank')}</strong>
+                    <small>{t('config.templateBlankHint')}</small>
+                  </span>
+                </button>
+              )}
+              {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+            </div>
+          </div>
+        ))}
+      </main>
+    )
+  }
+
   return (
     <main className="dmp-config">
       <section className="dmp-config-toolbar">
@@ -1509,7 +1566,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           {dirty && <span className="dmp-config-dirty">{t('config.unsaved')}</span>}
           <button type="button" disabled={busy !== null || providerIds.length === 0} onClick={() => void validateAllApiKeys()}>{busy === 'api-key-batch' ? t('config.apiKeyBatchRunning') : t('config.apiKeyBatch')}</button>
           <button type="button" disabled={busy !== null} onClick={() => void load()}>{t('config.reload')}</button>
-          <button type="button" disabled={busy !== null} onClick={() => setTemplateCatalogOpen(value => !value)}>{templateCatalogOpen ? t('config.addProviderClose') : t('config.addProvider')}</button>
+          <button type="button" disabled={busy !== null} onClick={() => onSwitchMode?.('catalog')}>{t('config.addProvider')}</button>
         </div>
       </section>
 
@@ -1602,7 +1659,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                 type="button"
                 className="dmp-config-provider-card is-add"
                 disabled={busy !== null}
-                onClick={() => { setTemplateCatalogOpen(true); setTemplateQuery('') }}
+                onClick={() => { onSwitchMode?.('catalog'); setTemplateQuery('') }}
                 title={t('config.templateHint')}
               >
                 <span className="dmp-config-provider-card-icon">＋</span>
@@ -2128,76 +2185,6 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           })}
         </div>
       </section>
-
-      {templateCatalogOpen && (
-        <div
-          className="dmp-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('config.templateTitle')}
-          onClick={event => { if (event.target === event.currentTarget) { setTemplateCatalogOpen(false); setTemplateQuery('') } }}
-        >
-          <section className="dmp-dialog dmp-config-template-dialog">
-            <header className="dmp-header">
-              <div>
-                <h2>{t('config.templateTitle')}</h2>
-                <p>{t('config.templateHint')}</p>
-              </div>
-              <button type="button" className="dmp-close" onClick={() => { setTemplateCatalogOpen(false); setTemplateQuery('') }} aria-label={t('config.openRouterFreeClose')}>×</button>
-            </header>
-            <div className="dmp-config-template-dialog-body">
-              <div className="dmp-config-template-toolbar">
-                <input
-                  autoFocus
-                  value={templateQuery}
-                  onChange={event => setTemplateQuery(event.currentTarget.value)}
-                  placeholder={t('config.templateSearch')}
-                  aria-label={t('config.templateSearch')}
-                />
-              </div>
-              {[
-                { key: 'custom', label: t('config.templateCustom'), templates: filterTemplates(CUSTOM_TEMPLATES, templateQuery), blank: true },
-                { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
-                { key: 'catalog', label: t('config.templateCatalog'), templates: filterTemplates(CATALOG_TEMPLATES, templateQuery), blank: false },
-              ].map(group => (
-                <div className="dmp-config-template-group" key={group.key}>
-                  <h4>{group.label}</h4>
-                  <div className="dmp-config-template-grid">
-                    {group.templates.map(template => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        className="dmp-config-provider-card"
-                        disabled={busy !== null}
-                        onClick={() => startCreateFromTemplate(template)}
-                        title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
-                      >
-                        <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
-                        <span className="dmp-config-provider-card-main">
-                          <strong>{template.displayName}</strong>
-                          <small>{template.hint ?? (template.models === undefined
-                            ? t('config.templateOauth')
-                            : t('config.templateModelCount', { count: template.models }))}</small>
-                        </span>
-                      </button>
-                    ))}
-                    {group.blank && templateQuery.trim() === '' && (
-                      <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
-                        <span className="dmp-config-provider-card-icon">＋</span>
-                        <span className="dmp-config-provider-card-main">
-                          <strong>{t('config.templateBlank')}</strong>
-                          <small>{t('config.templateBlankHint')}</small>
-                        </span>
-                      </button>
-                    )}
-                    {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   )
 }

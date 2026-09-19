@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.2 - 2026-09-19
+
+- Promote add-provider to a first-class sidebar view: the template catalog renders as its own full page, fully separated from the model-config card; the dashed card inside config jumps to it.
+- Rename the palette sidebar entry to All models and add a Configured providers group header above the per-provider list.
+
 ## 0.12.1 - 2026-09-19
 
 - Show the reasoning-effort slider as a compact permanent chip next to the composer model trigger, not only inside the Alt+M dialog.
