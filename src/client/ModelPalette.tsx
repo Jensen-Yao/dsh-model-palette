@@ -5,6 +5,8 @@ import { MediaPanel } from './MediaPanel.tsx'
 import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
+import { ProviderIcon } from './ProviderIcon.tsx'
+import { providerMeta } from './provider-catalog.ts'
 import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
@@ -471,6 +473,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                     onClick={() => { setView('models'); setProviderId(provider.id); setQuickFilter('all') }}
                     title={`${provider.name} · ${provider.id}`}
                   >
+                    <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
                     <span>{provider.name}</span><small>{provider.models.length}</small>
                   </button>
                 ))}
@@ -544,6 +547,9 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
               <div className="dmp-current">
                 <span>{t('palette.current')}</span>
                 <strong>{currentLabel}</strong>
+                {snapshot.current?.provider !== undefined && (
+                  <ProviderIcon id={providerMeta(snapshot.current.provider).icon} size={14} colored />
+                )}
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
               {hasEffortControl && (

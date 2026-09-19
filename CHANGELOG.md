@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0 - 2026-09-19
+
+- Beautification pass: brand-colored provider icons with tinted tiles across the config cards, the add-provider catalog, the palette sidebar rail, and the footer current-model chip.
+- Palette sidebar entries gain provider icons and an active-state background; result rows keep their capacity/free/vision badges.
+- Polish: thin rounded scrollbars inside the dialog, consistent focus-visible rings, hover lift on provider cards, model summary hover background, and a friendlier empty state.
+
 ## 0.13.0 - 2026-09-19
 
 - Cut config-page crowding: retry and free-sync cards fold away, every model row collapses to a summary line (id, capacity badges, vision/free/preset markers) with the editor revealed on demand, and lists above 60 models render the first 50 until expanded.

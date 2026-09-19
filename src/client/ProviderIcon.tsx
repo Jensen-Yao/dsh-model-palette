@@ -115,14 +115,63 @@ const GLYPHS: Record<string, JSX.Element> = {
   ),
 }
 
-export function ProviderIcon({ id, size = 20 }: ProviderIconProps): JSX.Element {
+/** Mid-tone brand accents chosen to read on both light and dark themes. */
+const BRAND_COLORS: Record<string, string> = {
+  openai: '#10a37f',
+  anthropic: '#d97757',
+  google: '#4285f4',
+  deepseek: '#4d6bfe',
+  openrouter: '#7c7ff2',
+  moonshot: '#5b7fd9',
+  kimi: '#4d9fff',
+  minimax: '#e0483e',
+  zai: '#7c5cff',
+  qwen: '#7b5cf0',
+  xai: '#9ca3af',
+  xiaomi: '#ff6900',
+  mistral: '#ff7000',
+  nvidia: '#76b900',
+  together: '#4f7cf7',
+  fireworks: '#a855f7',
+  groq: '#f55036',
+  azure: '#0078d4',
+  bedrock: '#ff9900',
+  cloudflare: '#f6821f',
+  vercel: '#6b7280',
+  baseten: '#4f46e5',
+  cerebras: '#f05a28',
+  huggingface: '#e3b341',
+  copilot: '#57606a',
+  opencode: '#0ea5a5',
+  antling: '#ff6a00',
+  sensenova: '#3b82f6',
+  scnet: '#dc2626',
+  stepfun: '#2563eb',
+  tencent: '#0052d9',
+}
+
+/** Brand accent for one icon id; undefined keeps the theme's currentColor. */
+export function providerBrandColor(id: string): string | undefined {
+  return BRAND_COLORS[id]
+}
+
+interface ProviderIconProps {
+  id: string
+  size?: number
+  /** Render with the brand accent instead of currentColor. */
+  colored?: boolean
+}
+
+export function ProviderIcon({ id, size = 20, colored = false }: ProviderIconProps): JSX.Element {
   const glyph = GLYPHS[id] ?? GLYPHS.generic
+  const color = colored === true ? BRAND_COLORS[id] : undefined
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="currentColor"
+      fill={color ?? 'currentColor'}
+      style={color === undefined ? undefined : { color }}
       aria-hidden="true"
       focusable="false"
       className="dmp-provider-icon"

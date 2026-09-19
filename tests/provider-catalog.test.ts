@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { providerBrandColor } from '../src/client/ProviderIcon.tsx'
 import {
   ALL_TEMPLATES,
   CATALOG_TEMPLATES,
@@ -60,5 +61,14 @@ describe('provider catalog', () => {
     expect(providerMeta('gateway', { baseURL: 'https://api.moonshot.cn/v1' }).icon).toBe('moonshot')
     expect(providerMeta('bankofai', { baseURL: 'https://api.bankofai.io/v1' }).icon).toBe('generic')
     expect(providerMeta('something-with-glm', {}).icon).toBe('zai')
+  })
+})
+describe('provider brand colors', () => {
+  it('assigns a brand accent to every major icon and leaves protocol glyphs theme-colored', () => {
+    for (const icon of ['openai', 'anthropic', 'deepseek', 'openrouter', 'google', 'nvidia', 'xiaomi', 'zai']) {
+      expect(providerBrandColor(icon)).toMatch(/^#[0-9a-f]{6}$/iu)
+    }
+    expect(providerBrandColor('completions')).toBeUndefined()
+    expect(providerBrandColor('unknown-icon')).toBeUndefined()
   })
 })

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type {
   CredentialInfo, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -18,7 +19,7 @@ import {
   type OpenRouterFreeModelCatalog,
   type ProtocolProbeResult,
 } from './config-api.ts'
-import { ProviderIcon } from './ProviderIcon.tsx'
+import { ProviderIcon, providerBrandColor } from './ProviderIcon.tsx'
 import {
   CATALOG_TEMPLATES,
   CUSTOM_TEMPLATES,
@@ -145,6 +146,13 @@ function positiveIntegerText(value: unknown): string {
 
 function booleanChoice(value: unknown): string {
   return value === true ? 'true' : value === false ? 'false' : ''
+}
+
+/** Tinted icon tile background derived from the brand accent. */
+function tileStyle(icon: string): CSSProperties | undefined {
+  const color = providerBrandColor(icon)
+  if (color === undefined) return undefined
+  return { background: `color-mix(in srgb, ${color} 13%, transparent)` }
 }
 
 function sourcePreset(model: Record<string, unknown>, presets: readonly ModelPreset[]): ModelPreset | undefined {
@@ -1564,7 +1572,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   onClick={() => startCreateFromTemplate(template)}
                   title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
                 >
-                  <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
+                  <span className="dmp-config-provider-card-icon" style={tileStyle(template.icon)}><ProviderIcon id={template.icon} size={22} colored /></span>
                   <span className="dmp-config-provider-card-main">
                     <strong>{template.displayName}</strong>
                     <small>{(() => {
@@ -1694,7 +1702,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   onClick={() => selectProvider(card.id)}
                   title={`${card.displayName} · ${card.id}`}
                 >
-                  <span className="dmp-config-provider-card-icon"><ProviderIcon id={card.icon} size={22} /></span>
+                  <span className="dmp-config-provider-card-icon" style={tileStyle(card.icon)}><ProviderIcon id={card.icon} size={22} colored /></span>
                   <span className="dmp-config-provider-card-main">
                     <strong>{card.displayName}</strong>
                     <small>{t('config.providerCardMeta', { count: card.modelCount, protocol: card.protocol || '—' })}</small>

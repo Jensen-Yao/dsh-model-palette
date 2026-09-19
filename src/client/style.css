@@ -394,3 +394,22 @@
 .dmp-result-badges { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; }
 .dmp-result-badges em { flex: none; padding: 0 4px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-tertiary); font-size: 8px; font-style: normal; line-height: 12px; }
 .dmp-result-badges em.is-free { border-color: transparent; background: color-mix(in srgb, #2e9e5b 16%, transparent); color: #2e9e5b; font-weight: 700; }
+
+/* ---- v0.14.0 beautification: brand tiles, rail icons, scrollbars, motion ---- */
+.dmp-rail-icon { flex: none; display: inline-grid; place-items: center; width: 16px; }
+.dmp-providers button { transition: background .12s ease, color .12s ease; }
+.dmp-providers button.is-active { background: var(--dsw-alias-interactive-bg-hover); }
+.dmp-providers button.is-active span:first-of-type { color: var(--dsw-alias-label-primary); font-weight: 600; }
+.dmp-config-provider-card-icon { transition: transform .14s ease; }
+.dmp-config-provider-card:hover:not(:disabled) .dmp-config-provider-card-icon { transform: scale(1.06); }
+.dmp-config-provider-card { transition: border-color .12s ease, background .12s ease, transform .12s ease, box-shadow .12s ease; }
+.dmp-config-provider-card:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgb(0 0 0 / 10%); }
+.dmp-config-model-body > summary:hover { background: var(--dsw-alias-interactive-bg-hover); border-radius: 6px; padding: 2px 6px; margin: 0 -6px; }
+.dmp-dialog *:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; border-radius: 4px; }
+.dmp-dialog ::-webkit-scrollbar { width: 10px; height: 10px; }
+.dmp-dialog ::-webkit-scrollbar-track { background: transparent; }
+.dmp-dialog ::-webkit-scrollbar-thumb { border-radius: 6px; border: 3px solid transparent; background-clip: content-box; background-color: color-mix(in srgb, var(--dsw-alias-label-tertiary) 45%, transparent); }
+.dmp-dialog ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--dsw-alias-label-secondary) 65%, transparent); }
+.dmp-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 16px; color: var(--dsw-alias-label-tertiary); text-align: center; }
+.dmp-empty::before { content: '⌕'; font-size: 30px; line-height: 1; opacity: .45; }
+.dmp-current { display: flex; align-items: center; gap: 6px; min-width: 0; }
