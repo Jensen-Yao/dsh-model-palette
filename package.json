@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.10.3",
-  "description": "Global model command palette and provider/model configuration panel for DeepSeek Harness, with selective request retries, OpenRouter free-model import, loopback relays, online capacity presets, and optional media tools.",
+  "version": "0.11.0",
+  "description": "Global model command palette and provider/model configuration panel for DeepSeek Harness, with a visual provider catalog, startup OpenRouter free-model sync, selective request retries, loopback relays, online capacity presets, and optional media tools.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -37,6 +37,7 @@
     "url": "git+https://github.com/Jensen-Yao/dsh-model-palette.git"
   },
   "bugs": {
+    "type": "url",
     "url": "https://github.com/Jensen-Yao/dsh-model-palette/issues"
   },
   "homepage": "https://github.com/Jensen-Yao/dsh-model-palette#readme",
@@ -58,10 +59,10 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-api-remotes": ">=0.1.2-alpha.3 <0.2.0-0",
-    "@deepseek-ai/dsh-client-locale": ">=0.1.2-alpha.3 <0.2.0-0",
-    "@deepseek-ai/dsh-client-ui-model-selection": ">=0.1.2-alpha.3 <0.2.0-0",
-    "@deepseek-ai/dsh-settings": ">=0.1.2-alpha.3 <0.2.0-0",
+    "@deepseek-ai/dsh-api-remotes": ">=0.1.6-alpha.2 <0.2.0-0",
+    "@deepseek-ai/dsh-client-locale": ">=0.1.6-alpha.2 <0.2.0-0",
+    "@deepseek-ai/dsh-client-ui-model-selection": ">=0.1.6-alpha.2 <0.2.0-0",
+    "@deepseek-ai/dsh-settings": ">=0.1.6-alpha.2 <0.2.0-0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -77,13 +78,13 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-api-session-controller": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-api-settings-controller": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-client-locale": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-client-ui-model-selection": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-llm": "0.1.2-alpha.3",
-    "@deepseek-ai/dsh-settings": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-api-remotes": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-api-settings-controller": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-client-locale": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-client-ui-model-selection": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-llm": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-settings": "0.1.6-alpha.2",
     "@types/node": "^22.19.7",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

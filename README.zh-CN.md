@@ -21,9 +21,9 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.10.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.3)
+当前版本：[v0.11.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.11.0)
 
-`v0.10.3` 保留了对 `@deepseek-ai/dsh@0.1.2-alpha.3` 的适配，并让实际协议诊断能够区分凭据错误：401、403/WAF、限流或网络失败不再被误报为“两种协议都不支持”。
+`v0.11.0` 适配 `@deepseek-ai/dsh@0.1.6-alpha.2`：配置页供应商选择重建为带品牌图标、模型数与协议徽标的可视化卡片目录（附模板快速新建），新增 OpenRouter 免费线路启动/定时自动同步（仅保留 `:free` 模型），模型预置扩充至 281 条厂商权威数据。
 
 ## ✨ 功能特性
 
@@ -74,6 +74,8 @@
 
 ### ⚙️ 供应商与模型配置
 直接在界面中新增、编辑或删除供应商：
+- **可视化供应商目录**：已配置线路以带品牌图标、模型数与协议徽标的卡片网格展示，支持搜索过滤
+- **模板快速新建**：自定义（OpenAI Compatible / Responses / Anthropic）、OAuth 订阅、API 密钥三类模板，点击即预填端点、协议与凭据引用
 - 配置 **供应商 ID**、**显示名称**、**Base URL** 与 **协议类型**（`openai-completions`、`openai-responses`、`anthropic-messages`）
 - 新建 OpenAI 兼容供应商时默认优先使用 `openai-responses`
 - 对显式模型、DSH 实时目录模型和 `modelOverrides` 发送真实 Responses / Chat Completions 请求分类，并可确认后把仅支持 Chat Completions 的模型自动切分到 `provider-completions` 分支
@@ -81,7 +83,7 @@
 - 设置 **凭据引用** 与 **API key**（默认掩码显示）
 - 一键检查全部运行时 API key，并从结果直接跳到有问题的供应商修改
 - 通过 `llm.discoverModels` **测试连接**，探测到的模型会立即加入草稿，并自动补齐实时元数据与精确匹配预置
-- OpenRouter 线路提供 **检查免费模型**：读取公开实时目录，可搜索并手工勾选要导入的 `:free` 文本模型
+- OpenRouter 线路提供 **检查免费模型** 与 **免费线路自动同步**：启动与按间隔自动把线路替换为实时 `:free` 目录（仅免费模型），保留手工容量/兼容字段，可一键“立即同步”
 - 可复制已有供应商，自动生成独立的凭据引用草稿，避免覆盖原线路
 - 可筛选长模型列表、复制模型参数，并在保存前拒绝重复模型 ID
 - 已知需要该字段的 DeepSeek 方言模型会在切换前自动补齐历史回传兼容项
@@ -97,10 +99,11 @@
 <td width="50%">
 
 ### 📦 模型预置
-- **44 项内置预置**：上下文窗口、最大输出、文本/视觉输入类型与已知推理档位
+- **281 项内置预置**（v3）：从 DSH 0.1.6 内置 pi-ai 目录收割的厂商权威数据，覆盖 OpenAI、Anthropic、Google、DeepSeek、Moonshot、Z.AI、MiniMax、Qwen、xAI、Xiaomi 及 OpenRouter 独占模型
 - **在线刷新**：从 GitHub 拉取最新预置数据
 - **自动补全**：为精确匹配的模型自动填充缺失参数
-- **手动选择**：私有网关别名可手动选择官方预置
+- **搜索式选择**：预置以输入 + datalist 呈现，支持按名称过滤，不再渲染数百项下拉
+- 预置卡片内联显示上下文、最大输出与推理档位数
 - 供应商默认输入与单模型输入均可选继承、纯文本、文本 + 图片或仅图片
 - 绝不猜测未知别名，只应用经过核验的数据
 
@@ -135,7 +138,7 @@
 ### 安装
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
 ```
 
 重启 `dsh web`，然后按下 **<kbd>Alt+M</kbd>**，或点击输入区里的模型触发器。

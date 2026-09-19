@@ -2,7 +2,7 @@ import type { ClientRemote, ConnectionHandle } from '@deepseek-ai/dsh-api-remote
 import { ModelPalette } from './ModelPalette.tsx'
 import { en, NS, zh } from './locales.ts'
 import { paletteApi } from './remote-compat.ts'
-import type { DirectoryStore, PaletteProps, Selection } from './types.ts'
+import type { DirectoryStore, PaletteProps, Selection, SelectionOutcome } from './types.ts'
 import './style.css'
 
 interface LocaleService {
@@ -12,7 +12,7 @@ interface LocaleService {
 interface DirectoryHandle {
   store: DirectoryStore
   load(): Promise<void>
-  select(selection: Selection): Promise<void>
+  select(selection: Selection): Promise<SelectionOutcome | undefined>
 }
 
 interface ModelDirectoryService {
@@ -79,14 +79,13 @@ export function apply(ctx: ClientContext): void {
                 console.error('[dsh-model-palette] model directory load failed', error)
               })
             },
-            select: async (selection) => {
-              if (!available) return false
+            select: async (selection: Selection) => {
+              if (!available) return undefined
               try {
-                await directory.select(selection)
-                return true
+                return await directory.select(selection)
               } catch (error) {
                 console.error('[dsh-model-palette] model selection failed', error)
-                return false
+                return undefined
               }
             },
             api: paletteApi(ctx.remote),

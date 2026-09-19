@@ -8,14 +8,25 @@ import {
   probeProviderProtocols,
   resolveProviderModels,
   revealCredential,
+  syncProviderFreeModels,
   validateProviderApiKeys,
   validateProviderApiKey,
   type ApiKeyValidationResult,
   type BatchApiKeyValidationResult,
+  type FreeSyncSummary,
   type ModelProtocolProbeResult,
   type OpenRouterFreeModelCatalog,
   type ProtocolProbeResult,
 } from './config-api.ts'
+import { ProviderIcon } from './ProviderIcon.tsx'
+import {
+  API_KEY_TEMPLATES,
+  CUSTOM_TEMPLATES,
+  SUBSCRIPTION_TEMPLATES,
+  filterTemplates,
+  providerMeta,
+  type ProviderTemplate,
+} from './provider-catalog.ts'
 import {
   CREDENTIAL_REF_PATTERN,
   PROVIDER_ID_PATTERN,
@@ -134,6 +145,19 @@ function sourcePreset(model: Record<string, unknown>, presets: readonly ModelPre
   return typeof model.id === 'string' ? matchModelPreset(model.id, presets) : undefined
 }
 
+/** Resolve free-typed preset text by exact id, exact name, or unique name substring. */
+function resolvePresetInput(text: string, presets: readonly ModelPreset[]): ModelPreset | undefined {
+  const needle = text.trim()
+  if (needle === '') return undefined
+  const lower = needle.toLocaleLowerCase()
+  const byId = presets.find(preset => preset.id === needle)
+  if (byId !== undefined) return byId
+  const byName = presets.find(preset => preset.name.toLocaleLowerCase() === lower)
+  if (byName !== undefined) return byName
+  const contains = presets.filter(preset => preset.name.toLocaleLowerCase().includes(lower) || preset.id.toLocaleLowerCase().includes(lower))
+  return contains.length === 1 ? contains[0] : undefined
+}
+
 function draftSignature(providerId: string, draft: Record<string, unknown>): string {
   return JSON.stringify({ providerId, draft })
 }
@@ -211,6 +235,31 @@ function mergeCatalogOverrides(
 
 const MODEL_OVERRIDE_FIELDS = ['name', 'contextWindow', 'maxTokens', 'input', 'reasoningEfforts', 'compat'] as const
 
+interface FreeSyncDraft {
+  enabled: boolean
+  intervalHours: number
+}
+
+function cloneFreeSyncDraft(value: unknown): FreeSyncDraft {
+  if (!isRecord(value)) return { enabled: false, intervalHours: 6 }
+  const interval = typeof value.intervalHours === 'number' && Number.isInteger(value.intervalHours) && value.intervalHours >= 0 && value.intervalHours <= 168
+    ? value.intervalHours
+    : 6
+  return { enabled: value.enabled === true, intervalHours: interval }
+}
+
+function freeSyncProviders(value: unknown): Record<string, Record<string, unknown>> {
+  if (!isRecord(value) || !isRecord(value.freeSync) || !isRecord(value.freeSync.providers)) return {}
+  return Object.fromEntries(Object.entries(value.freeSync.providers)
+    .filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])))
+}
+
+function freeSyncStates(value: unknown): Record<string, Record<string, unknown>> {
+  if (!isRecord(value) || !isRecord(value.freeSync) || !isRecord(value.freeSync.state)) return {}
+  return Object.fromEntries(Object.entries(value.freeSync.state)
+    .filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])))
+}
+
 function catalogOverrides(
   catalog: readonly Record<string, unknown>[],
   models: readonly Record<string, unknown>[],
@@ -282,7 +331,12 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const [openRouterFreeSelection, setOpenRouterFreeSelection] = useState<string[]>([])
   const [openRouterFreeQuery, setOpenRouterFreeQuery] = useState('')
   const [liveCatalogModels, setLiveCatalogModels] = useState<Record<string, Record<string, unknown>[]>>({})
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | null>('load')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | 'free-sync' | null>('load')
+  const [providerQuery, setProviderQuery] = useState('')
+  const [templateCatalogOpen, setTemplateCatalogOpen] = useState(false)
+  const [templateQuery, setTemplateQuery] = useState('')
+  const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
+  const [freeSyncInfo, setFreeSyncInfo] = useState<Record<string, unknown> | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -315,6 +369,28 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
   const dirty = baselineSignature !== '' && (draftSignature(providerId, draft) !== baselineSignature || keyDraft !== '' || retryDirty)
   const batchProblemCount = batchApiKeyValidation?.filter(result => result.status !== 'valid').length ?? 0
   const openRouterProfile = isOpenRouterProfile(providerId, draft)
+  const configuredProviderCards = useMemo(() => providerIds.map((id) => {
+    const profile = profiles[id] ?? {}
+    const meta = providerMeta(id, profile)
+    const declared = modelRecords(profile)
+    const count = declared.length > 0
+      ? declared.length
+      : (liveCatalogModels[id]?.length ?? (isRecord(profile.modelOverrides) ? Object.keys(profile.modelOverrides).length : 0))
+    return {
+      id,
+      displayName: stringField(profile, 'displayName') || meta.brandName || id,
+      icon: meta.icon,
+      modelCount: count,
+      protocol: stringField(profile, 'api'),
+      freeSync: cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[id] ?? undefined) && freeSyncProviders(retryNamespace?.value)[id]?.enabled === true,
+      active: id === providerId,
+    }
+  }), [liveCatalogModels, profiles, providerIds, providerId, retryNamespace])
+  const filteredProviderCards = useMemo(() => {
+    const needle = providerQuery.trim().toLocaleLowerCase()
+    if (needle === '') return configuredProviderCards
+    return configuredProviderCards.filter(card => `${card.displayName} ${card.id} ${card.protocol}`.toLocaleLowerCase().includes(needle))
+  }, [configuredProviderCards, providerQuery])
   const configuredModelIds = useMemo(() => new Set([
     ...models.flatMap(model => typeof model.id === 'string' ? [model.id] : []),
     ...(isRecord(draft.modelOverrides) ? Object.keys(draft.modelOverrides) : []),
@@ -406,6 +482,115 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
 
   const selectProvider = (id: string) => {
     if (confirmDiscard()) openProvider(id)
+  }
+
+  useEffect(() => {
+    if (creating || providerId === '') {
+      setFreeSyncDraft(null)
+      setFreeSyncInfo(undefined)
+      return
+    }
+    setFreeSyncDraft(cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[providerId] ?? undefined))
+    setFreeSyncInfo(freeSyncStates(retryNamespace?.value)[providerId])
+  }, [creating, providerId, retryNamespace])
+
+  const writeFreeSyncRule = async (next: FreeSyncDraft) => {
+    if (retryNamespace === null || providerId.trim() === '') return
+    const id = providerId.trim()
+    if (!PROVIDER_ID_PATTERN.test(id)) throw new Error(t('config.providerIdInvalid'))
+    const response = await api.settings.mutate({
+      ns: RETRY_SETTINGS_NAMESPACE,
+      ops: [{ op: 'set', path: ['freeSync', 'providers', id], value: next }],
+      expectedRevision: retryNamespace.revision,
+    })
+    if (!response.result.ok) throw new Error(response.result.error.message)
+    setRetryNamespace(response.result.value)
+    setFreeSyncDraft(next)
+  }
+
+  const toggleFreeSync = (enabled: boolean) => {
+    setBusy('free-sync')
+    setError(null)
+    setFeedback(null)
+    const next: FreeSyncDraft = { enabled, intervalHours: freeSyncDraft?.intervalHours ?? 6 }
+    void writeFreeSyncRule(next)
+      .then(() => setFeedback(t(enabled ? 'config.freeSyncEnabled' : 'config.freeSyncDisabled')))
+      .catch(cause => setError(messageOf(cause)))
+      .finally(() => setBusy(null))
+  }
+
+  const updateFreeSyncInterval = (hours: number) => {
+    const next: FreeSyncDraft = { enabled: freeSyncDraft?.enabled ?? false, intervalHours: hours }
+    setFreeSyncDraft(next)
+    if (freeSyncDraft?.enabled !== true) return
+    setBusy('free-sync')
+    void writeFreeSyncRule(next)
+      .then(() => setFeedback(t('config.freeSyncIntervalSaved', { hours })))
+      .catch(cause => setError(messageOf(cause)))
+      .finally(() => setBusy(null))
+  }
+
+  const runFreeSyncNow = async () => {
+    if (busy !== null || providerId.trim() === '') return
+    setBusy('free-sync')
+    setError(null)
+    setFeedback(null)
+    try {
+      const summary: FreeSyncSummary = await syncProviderFreeModels(providerId.trim())
+      setFreeSyncInfo({
+        lastSyncAt: summary.lastSyncAt,
+        total: summary.total,
+        added: summary.added,
+        removed: summary.removed,
+      })
+      setFeedback(t('config.freeSyncDone', { total: summary.total, added: summary.added, removed: summary.removed }))
+      void load(true)
+    } catch (cause) {
+      setError(messageOf(cause))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const startCreateFromTemplate = (template: ProviderTemplate) => {
+    if (template.oauthOnly === true) {
+      setFeedback(t('config.templateOauthOnly', { name: template.displayName }))
+      return
+    }
+    if (!confirmDiscard()) return
+    let targetId = template.id
+    if (PROVIDER_ID_PATTERN.test(targetId) && profiles[targetId] !== undefined) targetId = nextProviderCopyId(targetId, providerIds)
+    const draftFromTemplate: Record<string, unknown> = { api: template.api ?? 'openai-responses', models: [] }
+    if (template.baseURL !== undefined) draftFromTemplate.baseURL = template.baseURL
+    if (template.displayName !== undefined) draftFromTemplate.displayName = template.displayName
+    if (template.credentialRef !== undefined) draftFromTemplate.apiKeyEnv = template.credentialRef
+    const emptyRetry = { enabled: false, maxRetries: 0, models: {} }
+    setPreviousProviderId(creating ? previousProviderId : providerId)
+    setCreating(true)
+    setProviderId(targetId)
+    setDraft(draftFromTemplate)
+    setBaselineSignature(draftSignature(targetId, draftFromTemplate))
+    setRetryDraft(emptyRetry)
+    setRetryBaselineSignature(requestRetrySignature(emptyRetry))
+    setModelQuery('')
+    setCredential(null)
+    setKeyDraft('')
+    setKeyVisible(false)
+    setManualPresets({})
+    setProtocolResults(null)
+    setModelProtocolResults(null)
+    setProtocolTestModelId('')
+    setApiKeyValidation(null)
+    setOpenRouterFreeCatalog(null)
+    setOpenRouterFreeSelection([])
+    setOpenRouterFreeQuery('')
+    setTemplateCatalogOpen(false)
+    setTemplateQuery('')
+    setError(null)
+    setFeedback(t('config.templateReady', { name: template.displayName }))
+    if (draftFromTemplate.apiKeyEnv !== undefined) {
+      void describeCredential(String(draftFromTemplate.apiKeyEnv)).catch(cause => setError(messageOf(cause)))
+    }
   }
 
   const load = useCallback(async (force = false) => {
@@ -1234,7 +1419,7 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           {dirty && <span className="dmp-config-dirty">{t('config.unsaved')}</span>}
           <button type="button" disabled={busy !== null || providerIds.length === 0} onClick={() => void validateAllApiKeys()}>{busy === 'api-key-batch' ? t('config.apiKeyBatchRunning') : t('config.apiKeyBatch')}</button>
           <button type="button" disabled={busy !== null} onClick={() => void load()}>{t('config.reload')}</button>
-          <button type="button" disabled={busy !== null} onClick={startCreate}>{t('config.addProvider')}</button>
+          <button type="button" disabled={busy !== null} onClick={() => setTemplateCatalogOpen(value => !value)}>{templateCatalogOpen ? t('config.addProviderClose') : t('config.addProvider')}</button>
         </div>
       </section>
 
@@ -1287,15 +1472,105 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           <div><h3>{t('config.providerTitle')}</h3><p>{t('config.providerDescription')}</p></div>
           <div className="dmp-config-provider-actions">
             {!creating && providerIds.length > 0 && <>
-              <select value={providerId} onChange={event => selectProvider(event.currentTarget.value)} disabled={busy !== null}>
-                {providerIds.map(id => <option key={id} value={id}>{stringField(profiles[id] ?? {}, 'displayName') || id}</option>)}
-              </select>
               <button type="button" disabled={busy !== null} onClick={duplicateProvider}>{t('config.duplicateProvider')}</button>
               <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => void deleteProvider()}>{busy === 'delete' ? t('config.deleting') : t('config.deleteProvider')}</button>
             </>}
             {creating && providerIds.length > 0 && <button type="button" disabled={busy !== null} onClick={cancelCreate}>{t('config.cancelCreate')}</button>}
           </div>
         </div>
+
+        {providerIds.length > 0 && (
+          <div className="dmp-config-provider-browser">
+            <div className="dmp-config-provider-browser-bar">
+              <input
+                value={providerQuery}
+                onChange={event => setProviderQuery(event.currentTarget.value)}
+                placeholder={t('config.providerSearch')}
+                aria-label={t('config.providerSearch')}
+              />
+              <span>{t('config.providerCount', { count: providerIds.length })}</span>
+            </div>
+            <div className="dmp-config-provider-cards">
+              {filteredProviderCards.map(card => (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={`dmp-config-provider-card${card.active ? ' is-active' : ''}`}
+                  disabled={busy !== null}
+                  onClick={() => selectProvider(card.id)}
+                  title={`${card.displayName} · ${card.id}`}
+                >
+                  <span className="dmp-config-provider-card-icon"><ProviderIcon id={card.icon} size={22} /></span>
+                  <span className="dmp-config-provider-card-main">
+                    <strong>{card.displayName}</strong>
+                    <small>{t('config.providerCardMeta', { count: card.modelCount, protocol: card.protocol || '—' })}</small>
+                  </span>
+                  {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
+                </button>
+              ))}
+              {filteredProviderCards.length === 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+            </div>
+          </div>
+        )}
+
+        {templateCatalogOpen && (
+          <div className="dmp-config-template-catalog">
+            <div className="dmp-config-template-heading">
+              <div>
+                <strong>{t('config.templateTitle')}</strong>
+                <span>{t('config.templateHint')}</span>
+              </div>
+              <div className="dmp-config-template-toolbar">
+                <input
+                  value={templateQuery}
+                  onChange={event => setTemplateQuery(event.currentTarget.value)}
+                  placeholder={t('config.templateSearch')}
+                  aria-label={t('config.templateSearch')}
+                />
+                <button type="button" onClick={() => { setTemplateCatalogOpen(false); setTemplateQuery('') }}>{t('config.openRouterFreeClose')}</button>
+              </div>
+            </div>
+            {[
+              { key: 'custom', label: t('config.templateCustom'), templates: filterTemplates(CUSTOM_TEMPLATES, templateQuery), blank: true },
+              { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
+              { key: 'apiKey', label: t('config.templateApiKey'), templates: filterTemplates(API_KEY_TEMPLATES, templateQuery), blank: false },
+            ].map(group => (
+              <div className="dmp-config-template-group" key={group.key}>
+                <h4>{group.label}</h4>
+                <div className="dmp-config-template-grid">
+                  {group.templates.map(template => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className="dmp-config-provider-card"
+                      disabled={busy !== null}
+                      onClick={() => startCreateFromTemplate(template)}
+                      title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
+                    >
+                      <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
+                      <span className="dmp-config-provider-card-main">
+                        <strong>{template.displayName}</strong>
+                        <small>{template.hint ?? (template.models === undefined
+                          ? t('config.templateOauth')
+                          : t('config.templateModelCount', { count: template.models }))}</small>
+                      </span>
+                    </button>
+                  ))}
+                  {group.blank && templateQuery.trim() === '' && (
+                    <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
+                      <span className="dmp-config-provider-card-icon">＋</span>
+                      <span className="dmp-config-provider-card-main">
+                        <strong>{t('config.templateBlank')}</strong>
+                        <small>{t('config.templateBlankHint')}</small>
+                      </span>
+                    </button>
+                  )}
+                  {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="dmp-config-provider-grid">
           <label className="dmp-media-field">
@@ -1497,6 +1772,66 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
         </div>
       </section>
 
+      {openRouterProfile && !creating && (
+        <section className="dmp-config-card dmp-config-freesync-card">
+          <div className="dmp-config-card-heading">
+            <div><h3>{t('config.freeSyncTitle')}</h3><p>{t('config.freeSyncDescription')}</p></div>
+            {freeSyncInfo?.lastSyncAt !== undefined && typeof freeSyncInfo.lastSyncAt === 'string' && (
+              <span className="dmp-config-freesync-state">
+                {typeof freeSyncInfo.total === 'number'
+                  ? t('config.freeSyncStateOk', {
+                    time: new Date(String(freeSyncInfo.lastSyncAt)).toLocaleString(),
+                    total: freeSyncInfo.total,
+                    added: typeof freeSyncInfo.added === 'number' ? freeSyncInfo.added : 0,
+                    removed: typeof freeSyncInfo.removed === 'number' ? freeSyncInfo.removed : 0,
+                  })
+                  : t('config.freeSyncStateAt', { time: new Date(String(freeSyncInfo.lastSyncAt)).toLocaleString() })}
+              </span>
+            )}
+          </div>
+          {typeof freeSyncInfo?.error === 'string' && <div className="dmp-media-error" role="alert">{freeSyncInfo.error}</div>}
+          <div className="dmp-config-provider-grid">
+            <label className="dmp-media-field">
+              <span>{t('config.freeSyncToggle')}</span>
+              <select
+                value={freeSyncDraft?.enabled ? 'on' : 'off'}
+                disabled={readOnly}
+                onChange={event => toggleFreeSync(event.currentTarget.value === 'on')}
+              >
+                <option value="off">{t('config.freeSyncOff')}</option>
+                <option value="on">{t('config.freeSyncOn')}</option>
+              </select>
+            </label>
+            <label className="dmp-media-field">
+              <span>{t('config.freeSyncInterval')}</span>
+              <input
+                type="number"
+                min="1"
+                max="168"
+                step="1"
+                value={freeSyncDraft?.intervalHours ?? 6}
+                disabled={readOnly || freeSyncDraft?.enabled !== true}
+                onChange={event => updateFreeSyncInterval(Number(event.currentTarget.value))}
+              />
+            </label>
+            <div className="dmp-config-retry-note dmp-config-span-2">
+              <strong>{t('config.freeSyncBehaviorTitle')}</strong>
+              <span>{t('config.freeSyncBehaviorDescription')}</span>
+            </div>
+          </div>
+          <div className="dmp-config-status-row">
+            <span className={freeSyncDraft?.enabled ? 'is-ok' : ''}>
+              {freeSyncDraft?.enabled === true ? t('config.freeSyncActive') : t('config.freeSyncIdle')}
+            </span>
+            <div>
+              <button type="button" disabled={busy !== null} onClick={() => void runFreeSyncNow()}>
+                {busy === 'free-sync' ? t('config.freeSyncRunning') : t('config.freeSyncRun')}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="dmp-config-card dmp-config-model-card">
         <div className="dmp-config-card-heading">
           <div><h3>{t('config.modelsTitle')}</h3><p>{t('config.modelsDescription')}</p></div>
@@ -1510,6 +1845,9 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
           </div>
         </div>
         {catalogBacked && <div className="dmp-config-catalog-note">{t('config.catalogModelsManaged')}</div>}
+        <datalist id="dmp-preset-options">
+          {registry.presets.map(preset => <option key={preset.id} value={preset.name}>{preset.name}</option>)}
+        </datalist>
 
         {models.length === 0 && <div className="dmp-config-empty">{t('config.noModels')}</div>}
         {models.length > 0 && visibleModels.length === 0 && <div className="dmp-config-empty">{t('config.noMatchingModels')}</div>}
@@ -1579,15 +1917,23 @@ export function ConfigPanel({ api, isLoopback, t }: ConfigPanelProps) {
                   <div className="dmp-config-preset">
                     <label className="dmp-media-field">
                       <span>{t('config.preset')}</span>
-                      <select value={selectedPresetId} disabled={readOnly} onChange={event => setManualPresets(current => ({ ...current, [index]: event.currentTarget.value }))}>
-                        <option value="">{t('config.noPreset')}</option>
-                        {registry.presets.map(preset => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
-                      </select>
+                      <input
+                        list="dmp-preset-options"
+                        value={selectedPreset !== undefined ? selectedPreset.name : selectedPresetId}
+                        disabled={readOnly}
+                        onChange={event => {
+                          const preset = resolvePresetInput(event.currentTarget.value, registry.presets)
+                          setManualPresets(current => ({ ...current, [index]: preset?.id ?? '' }))
+                        }}
+                        placeholder={t('config.noPreset')}
+                      />
                     </label>
                     <button type="button" disabled={readOnly || selectedPreset === undefined} onClick={() => applyPreset(index, selectedPresetId)}>{t('config.applyPreset')}</button>
                     {selectedPreset !== undefined && <a href={selectedPreset.sourceUrl} target="_blank" rel="noreferrer">{selectedPreset.sourceLabel}</a>}
                     {selectedPreset !== undefined && <small>{[
                       selectedPreset.input?.join(' + '),
+                      selectedPreset.contextWindow === undefined ? undefined : t('config.presetContext', { value: selectedPreset.contextWindow.toLocaleString() }),
+                      selectedPreset.maxTokens === undefined ? undefined : t('config.presetMaxTokens', { value: selectedPreset.maxTokens.toLocaleString() }),
                       selectedPreset.reasoningEfforts === undefined ? undefined : t('config.presetReasoningLevels', { count: Object.keys(selectedPreset.reasoningEfforts).length }),
                     ].filter(Boolean).join(' · ')}</small>}
                   </div>

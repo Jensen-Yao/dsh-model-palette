@@ -21,9 +21,9 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.10.3](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.10.3)
+Current release: [v0.11.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.11.0)
 
-`v0.10.3` keeps the `@deepseek-ai/dsh@0.1.2-alpha.3` adaptation and makes live protocol diagnostics credential-aware: a 401, 403/WAF block, rate limit, or transport failure is no longer presented as proof that both protocols are unsupported.
+`v0.11.0` targets `@deepseek-ai/dsh@0.1.6-alpha.2`: the configuration panel gains a visual provider card catalog with template-based creation, OpenRouter free routes can auto-sync the live `:free` catalog on startup and on an interval, and the preset registry expands to 281 vendor-authoritative entries.
 
 ## ✨ Features
 
@@ -74,6 +74,8 @@ Current release: [v0.10.3](https://github.com/Jensen-Yao/dsh-model-palette/relea
 
 ### ⚙️ Provider & Model Configuration
 Add, edit, or remove provider profiles directly from the UI:
+- **Visual provider catalog**: configured routes render as a searchable card grid with brand icons, model counts, and protocol badges
+- **Template gallery**: custom (OpenAI Compatible / Responses / Anthropic), OAuth subscription, and API-key templates that prefill endpoint, protocol, and credential reference on click
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - New OpenAI-compatible provider drafts default to `openai-responses`
 - Classify explicit models, live DSH catalog models, and `modelOverrides` with real Responses and Chat Completions requests, then explicitly split Completions-only models into a generated `provider-completions` route
@@ -81,7 +83,7 @@ Add, edit, or remove provider profiles directly from the UI:
 - Set **credential reference** and **API key** (masked by default)
 - Validate every configured runtime key in one click and jump directly to any provider that needs editing
 - **Test connection** via `llm.discoverModels`; discovered models are immediately added and enriched with live metadata plus exact presets
-- On OpenRouter routes, **Check free models** opens a searchable live `:free` catalog so you can select exactly which models to import
+- On OpenRouter routes, **Check free models** opens a searchable live `:free` catalog, and **free-route auto sync** replaces the route with the live free catalog on DSH startup and on a configurable interval — free models only, with manual capacities and compatibility fields preserved and one-click "sync now"
 - Duplicate a working provider into a new draft with a separate credential reference
 - Duplicate model parameters, filter long model lists, and reject duplicate model IDs before saving
 - Auto-repair known DeepSeek-dialect replay fields before switching models on custom OpenAI-compatible gateways
@@ -97,10 +99,11 @@ Add, edit, or remove provider profiles directly from the UI:
 <td width="50%">
 
 ### 📦 Model Presets
-- **44 bundled presets** for context windows, max outputs, text/vision input types, and known reasoning efforts
+- **281 bundled presets** (v3): vendor-authoritative data harvested from the DSH 0.1.6 built-in pi-ai catalog, covering OpenAI, Anthropic, Google, DeepSeek, Moonshot, Z.AI, MiniMax, Qwen, xAI, Xiaomi, and OpenRouter exclusives
 - **Online refresh** from GitHub — always up-to-date
 - **Auto-fill** missing parameters for exact model matches
-- **Manual preset selection** for private gateway aliases
+- **Searchable selection**: presets render through an input + datalist filter instead of a 281-option dropdown
+- Inline context window, output cap, and reasoning-level counts on each applied preset
 - Provider default input and per-model input can be set to inherit, text, text + image, or image only
 - Unknown aliases are never guessed — only verified data is applied
 
@@ -135,7 +138,7 @@ Add, edit, or remove provider profiles directly from the UI:
 ### Install
 
 ```sh
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
 ```
 
 Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in the composer area.

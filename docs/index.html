@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.10.3 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.10.3：适配 @deepseek-ai/dsh 0.1.2-alpha.3，区分凭据失败与协议不兼容，并提供 Responses 优先、Re/CC 安全切分、请求重试、B.AI 中继与 OpenRouter 工具。" />
+<title>dsh-model-palette v0.11.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette v0.11.0：适配 @deepseek-ai/dsh 0.1.6-alpha.2，区分凭据失败与协议不兼容，并提供 Responses 优先、Re/CC 安全切分、请求重试、B.AI 中继与 OpenRouter 工具。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -544,7 +544,7 @@
 </nav>
 
 <header class="hero">
-    <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.10.3</div>
+    <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.11.0</div>
   <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
@@ -700,7 +700,7 @@
       <div class="ico">📦</div>
       <h3>在线模型预置</h3>
       <ul>
-        <li>44 项上下文 / 输出 / 输入 / 推理预置</li>
+        <li>281 项厂商权威预置（上下文 / 输出 / 输入 / 推理）</li>
         <li>GitHub 在线刷新，离线自动回退</li>
         <li>自动补全缺失参数</li>
         <li>供应商默认和单模型文本/视觉输入</li>
@@ -769,14 +769,14 @@ dsh-model-palette:
       </div>
       <div class="tab-pane active" id="install-zh">
         <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
 
 <span class="cm"># 重启 dsh web，然后按 Alt+M</span>
 dsh web</pre>
       </div>
       <div class="tab-pane" id="install-en">
         <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.10.3
+dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.11.0
 
 <span class="cm"># Restart dsh web, then press Alt+M</span>
 dsh web</pre>
@@ -786,7 +786,7 @@ dsh web</pre>
       <h3>环境要求</h3>
       <ul>
         <li><strong>Node.js</strong> ≥ 22.19</li>
-        <li><strong>DeepSeek Harness</strong> @deepseek-ai/dsh ≥ 0.1.2-alpha.3</li>
+        <li><strong>DeepSeek Harness</strong> @deepseek-ai/dsh ≥ 0.1.6-alpha.2</li>
         <li><strong>pnpm</strong> ≥ 11.21（仅开发）</li>
         <li>无需构建：仓库已提交预构建 lib/ 产物</li>
       </ul>
@@ -872,7 +872,7 @@ dsh web</pre>
         <div class="n"></div>
         <div>
           <h4>配置模型参数并应用预置</h4>
-          <p>从 44 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；目录型供应商只改线路字段时继续保留 modelOverrides，编辑模型时才安全物化完整列表。</p>
+          <p>从 281 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；目录型供应商只改线路字段时继续保留 modelOverrides，编辑模型时才安全物化完整列表。</p>
         </div>
       </div>
       <div class="step">

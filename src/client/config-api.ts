@@ -234,3 +234,30 @@ export async function fetchOpenRouterFreeModels(): Promise<OpenRouterFreeModelCa
   }
   return payload.value
 }
+
+export type FreeSyncSummary = {
+  provider: string
+  lastSyncAt: string
+  total: number
+  added: number
+  removed: number
+}
+
+/** Synchronize one provider's model list to the live OpenRouter :free catalog right now. */
+export async function syncProviderFreeModels(provider: string): Promise<FreeSyncSummary> {
+  const response = await fetch('/model-palette/api/free-sync', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  })
+  let payload: ConfigApiSuccess<FreeSyncSummary> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<FreeSyncSummary> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
+}

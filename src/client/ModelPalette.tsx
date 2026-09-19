@@ -167,9 +167,10 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         return
       }
     }
-    const accepted = await select(choice.selection)
-    if (!accepted) {
-      setError(t('palette.selectFailed'))
+    const outcome = await select(choice.selection)
+    if (outcome === undefined || outcome.ok !== true) {
+      const reason = outcome?.error?.message ?? ''
+      setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
       return
     }
     setRecents(pushRecent(recents, choice.key))
@@ -191,7 +192,11 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         model: snapshot.current.model,
         ...(value === '' ? {} : { reasoningEffort: value }),
       }
-      if (!await select(selection)) setError(t('palette.selectFailed'))
+      const outcome = await select(selection)
+      if (outcome === undefined || outcome.ok !== true) {
+        const reason = outcome?.error?.message ?? ''
+        setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
+      }
     } catch (cause) {
       setError(t('palette.reasoningEnableFailed', { message: messageOf(cause) }))
     } finally {

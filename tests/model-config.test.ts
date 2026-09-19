@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import {
   applyMissingPresets,
   applyReasoningCompatibilityDefaults,
@@ -276,7 +276,7 @@ describe('model configuration helpers', () => {
       { id: 'gpt-5.6-sol-openai-compact' },
     ], BUNDLED_PRESET_REGISTRY.presets)
     expect(result.applied).toBe(1)
-    expect(result.models[0]).toMatchObject({ contextWindow: 1050000, maxTokens: 128000 })
+    expect(result.models[0]).toMatchObject({ contextWindow: 272000, maxTokens: 128000 })
     expect(result.models[1]).toEqual({ id: 'gpt-5.6-sol-openai-compact' })
   })
 
@@ -300,7 +300,7 @@ describe('model configuration helpers', () => {
     ], BUNDLED_PRESET_REGISTRY.presets)
     expect(result).toMatchObject({ added: 1, enriched: 0, presetsApplied: 1 })
     expect(result.models[0]).toMatchObject({
-      id: 'gpt-5.6-sol', name: 'Gateway GPT', contextWindow: 1050000, maxTokens: 128000, input: ['text', 'image'],
+      id: 'gpt-5.6-sol', name: 'Gateway GPT', contextWindow: 272000, maxTokens: 128000, input: ['text', 'image'],
     })
   })
 

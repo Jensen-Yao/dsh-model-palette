@@ -1,474 +1,4736 @@
 {
-  "version": 2,
-  "updatedAt": "2026-08-28",
+  "version": 3,
+  "updatedAt": "2026-09-19",
   "presets": [
     {
-      "id": "openai-gpt-5.6-sol",
-      "name": "OpenAI GPT-5.6 Sol",
-      "aliases": ["gpt-5.6-sol", "openai/gpt-5.6-sol"],
-      "contextWindow": 1050000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-      "sourceLabel": "OpenAI model docs",
-      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+      "id": "ant-ling-ling-2-6-1t",
+      "name": "Ant Ling: Ling 2.6 1T",
+      "aliases": [
+        "ling-2-6-1t"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Ant Ling docs",
+      "sourceUrl": "https://ling.antgroup.com/"
     },
     {
-      "id": "openai-gpt-5.6-terra",
-      "name": "OpenAI GPT-5.6 Terra",
-      "aliases": ["gpt-5.6-terra", "openai/gpt-5.6-terra"],
-      "contextWindow": 1050000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-      "sourceLabel": "OpenAI model docs",
-      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      "id": "ant-ling-ling-2-6-flash",
+      "name": "Ant Ling: Ling 2.6 Flash",
+      "aliases": [
+        "ling-2-6-flash"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Ant Ling docs",
+      "sourceUrl": "https://ling.antgroup.com/"
     },
     {
-      "id": "openai-gpt-5.6-luna",
-      "name": "OpenAI GPT-5.6 Luna",
-      "aliases": ["gpt-5.6-luna", "openai/gpt-5.6-luna"],
-      "contextWindow": 1050000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-      "sourceLabel": "OpenAI model docs",
-      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
-    },
-    {
-      "id": "openai-gpt-5.5",
-      "name": "OpenAI GPT-5.5",
-      "aliases": ["gpt-5.5", "openai/gpt-5.5"],
-      "contextWindow": 1050000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
-      "sourceLabel": "OpenAI model docs",
-      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.5"
+      "id": "ant-ling-ring-2-6-1t",
+      "name": "Ant Ling: Ring 2.6 1T",
+      "aliases": [
+        "ring-2-6-1t"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "Ant Ling docs",
+      "sourceUrl": "https://ling.antgroup.com/"
     },
     {
       "id": "anthropic-claude-fable-5",
       "name": "Anthropic Claude Fable 5",
-      "aliases": ["claude-fable-5", "anthropic/claude-fable-5"],
+      "aliases": [
+        "claude-fable-5"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-fable-5-1",
+      "name": "Anthropic: Claude Fable 5.1",
+      "aliases": [
+        "claude-fable-5-1"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-haiku-4-5-20251001",
+      "name": "Anthropic: Claude Haiku 4.5",
+      "aliases": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-haiku-4.5",
+      "name": "Anthropic Claude Haiku 4.5",
+      "aliases": [
+        "claude-haiku-4-5"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "anthropic-claude-opus-4-5",
+      "name": "Anthropic: Claude Opus 4.5 (latest)",
+      "aliases": [
+        "claude-opus-4-5"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-opus-4-5-20251101",
+      "name": "Anthropic: Claude Opus 4.5",
+      "aliases": [
+        "claude-opus-4-5-20251101"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-opus-4-7",
+      "name": "Anthropic: Claude Opus 4.7",
+      "aliases": [
+        "claude-opus-4-7"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-opus-4.6",
+      "name": "Anthropic Claude Opus 4.6",
+      "aliases": [
+        "claude-opus-4-6"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "max": "max"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "anthropic-claude-opus-4.8",
+      "name": "Anthropic Claude Opus 4.8",
+      "aliases": [
+        "claude-opus-4-8"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "xhigh": "xhigh",
+        "max": "max"
+      },
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
     {
       "id": "anthropic-claude-opus-5",
       "name": "Anthropic Claude Opus 5",
-      "aliases": ["claude-opus-5", "anthropic/claude-opus-5"],
+      "aliases": [
+        "claude-opus-5"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "xhigh": "xhigh",
+        "max": "max"
+      },
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-sonnet-4-5",
+      "name": "Anthropic: Claude Sonnet 4.5 (latest)",
+      "aliases": [
+        "claude-sonnet-4-5"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-sonnet-4-5-20250929",
+      "name": "Anthropic: Claude Sonnet 4.5",
+      "aliases": [
+        "claude-sonnet-4-5-20250929"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Anthropic model overview",
+      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
+    },
+    {
+      "id": "anthropic-claude-sonnet-4.6",
+      "name": "Anthropic Claude Sonnet 4.6",
+      "aliases": [
+        "claude-sonnet-4-6"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "max": "max"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "anthropic-claude-sonnet-5",
       "name": "Anthropic Claude Sonnet 5",
-      "aliases": ["claude-sonnet-5", "anthropic/claude-sonnet-5"],
+      "aliases": [
+        "claude-sonnet-5"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-      "sourceLabel": "Anthropic model overview",
-      "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
-    },
-    {
-      "id": "anthropic-claude-opus-4.8",
-      "name": "Anthropic Claude Opus 4.8",
-      "aliases": ["claude-opus-4.8", "claude-opus-4-8", "anthropic/claude-opus-4.8"],
-      "contextWindow": 1000000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "xhigh": "xhigh",
+        "max": "max"
+      },
       "sourceLabel": "Anthropic model overview",
       "sourceUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview"
     },
     {
       "id": "deepseek-v4-flash",
       "name": "DeepSeek V4 Flash",
-      "aliases": ["deepseek-v4-flash", "deepseek/deepseek-v4-flash"],
+      "aliases": [
+        "deepseek-v4-flash"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 384000,
-      "input": ["text"],
-      "reasoningEfforts": {"high": "high", "max": "max"},
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
     {
       "id": "deepseek-v4-flash-vision-exp",
       "name": "DeepSeek V4 Flash Vision Exp",
-      "aliases": ["deepseek-v4-flash-vision-exp"],
+      "aliases": [
+        "deepseek-v4-flash-vision-exp"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 384000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"high": "high", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
     {
       "id": "deepseek-v4-pro",
       "name": "DeepSeek V4 Pro",
-      "aliases": ["deepseek-v4-pro", "deepseek/deepseek-v4-pro"],
+      "aliases": [
+        "deepseek-v4-pro"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 384000,
-      "input": ["text"],
-      "reasoningEfforts": {"high": "high", "max": "max"},
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "high": "high",
+        "max": "max"
+      },
       "sourceLabel": "DeepSeek API docs",
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing"
     },
     {
-      "id": "google-gemini-3.6-flash",
-      "name": "Google Gemini 3.6 Flash",
-      "aliases": ["gemini-3.6-flash", "google/gemini-3.6-flash"],
+      "id": "google-deep-research-max-preview-04-2026",
+      "name": "Google: Deep Research Max Preview (Apr-21-2026)",
+      "aliases": [
+        "deep-research-max-preview-04-2026"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-deep-research-preview-04-2026",
+      "name": "Google: Deep Research Preview (Apr-21-2026)",
+      "aliases": [
+        "deep-research-preview-04-2026"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-2-5-computer-use-preview-10-2025",
+      "name": "Google: Gemini 2.5 Computer Use Preview 10-2025",
+      "aliases": [
+        "gemini-2-5-computer-use-preview-10-2025"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-2-5-flash-lite",
+      "name": "Google: Gemini 2.5 Flash-Lite",
+      "aliases": [
+        "gemini-2-5-flash-lite"
+      ],
       "contextWindow": 1048576,
       "maxTokens": 65536,
-      "input": ["text", "image"],
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "Google Gemini model docs",
-      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models/gemini"
-    },
-    {
-      "id": "zai-glm-5.3",
-      "name": "Z.ai GLM-5.3",
-      "aliases": ["glm-5.3", "z-ai/glm-5.3"],
-      "contextWindow": 1000000,
-      "maxTokens": 131072,
-      "input": ["text"],
-      "reasoningEfforts": {"low": "low", "high": "high", "max": "max"},
-      "sourceLabel": "Z.ai model docs",
-      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
-    },
-    {
-      "id": "zai-glm-5.2",
-      "name": "Z.ai GLM-5.2",
-      "aliases": ["glm-5.2", "z-ai/glm-5.2"],
-      "contextWindow": 1000000,
-      "maxTokens": 131072,
-      "input": ["text"],
-      "sourceLabel": "Z.ai model docs",
-      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.2"
-    },
-    {
-      "id": "zai-glm-5.1",
-      "name": "Z.ai GLM-5.1",
-      "aliases": ["glm-5.1", "z-ai/glm-5.1"],
-      "contextWindow": 200000,
-      "maxTokens": 131072,
-      "input": ["text"],
-      "sourceLabel": "Z.ai model docs",
-      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.1"
-    },
-    {
-      "id": "zai-glm-5",
-      "name": "Z.ai GLM-5",
-      "aliases": ["glm-5", "z-ai/glm-5"],
-      "contextWindow": 200000,
-      "maxTokens": 131072,
-      "input": ["text"],
-      "sourceLabel": "Z.ai model docs",
-      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5"
-    },
-    {
-      "id": "minimax-m3",
-      "name": "MiniMax M3",
-      "aliases": ["minimax-m3", "minimax/minimax-m3"],
-      "contextWindow": 1000000,
-      "maxTokens": 524288,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-      "sourceLabel": "MiniMax model docs",
-      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
-    },
-    {
-      "id": "minimax-m2.7",
-      "name": "MiniMax M2.7",
-      "aliases": ["minimax-m2.7", "minimax/minimax-m2.7"],
-      "contextWindow": 204800,
-      "maxTokens": 204800,
-      "input": ["text"],
-      "sourceLabel": "MiniMax model docs",
-      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
-    },
-    {
-      "id": "minimax-m2.5",
-      "name": "MiniMax M2.5",
-      "aliases": ["minimax-m2.5", "minimax/minimax-m2.5"],
-      "contextWindow": 204800,
-      "maxTokens": 204800,
-      "input": ["text"],
-      "sourceLabel": "MiniMax model docs",
-      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
-    },
-    {
-      "id": "moonshot-kimi-k3",
-      "name": "Moonshot Kimi K3",
-      "aliases": ["kimi-k3", "moonshotai/kimi-k3"],
-      "contextWindow": 1048576,
-      "maxTokens": 131072,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "high": "high", "max": "max"},
-      "sourceLabel": "Moonshot model docs",
-      "sourceUrl": "https://platform.moonshot.ai/docs/models/kimi-k3"
-    },
-    {
-      "id": "moonshot-kimi-k2.7-code",
-      "name": "Moonshot Kimi K2.7 Code",
-      "aliases": ["kimi-k2.7-code", "moonshotai/kimi-k2.7-code"],
-      "contextWindow": 262144,
-      "maxTokens": 262144,
-      "input": ["text", "image"],
-      "sourceLabel": "Moonshot model docs",
-      "sourceUrl": "https://platform.moonshot.ai/docs/models"
-    },
-    {
-      "id": "moonshot-kimi-k2.6",
-      "name": "Moonshot Kimi K2.6",
-      "aliases": ["kimi-k2.6", "moonshotai/kimi-k2.6"],
-      "contextWindow": 262144,
-      "maxTokens": 262144,
-      "input": ["text", "image"],
-      "sourceLabel": "Moonshot model docs",
-      "sourceUrl": "https://platform.moonshot.ai/docs/models"
-    },
-    {
-      "id": "moonshot-kimi-k2.5",
-      "name": "Moonshot Kimi K2.5",
-      "aliases": ["kimi-k2.5", "moonshotai/kimi-k2.5"],
-      "contextWindow": 262144,
-      "maxTokens": 262144,
-      "input": ["text", "image"],
-      "sourceLabel": "Moonshot model docs",
-      "sourceUrl": "https://platform.moonshot.ai/docs/models"
-    },
-    {
-      "id": "openai-gpt-5",
-      "name": "OpenAI GPT-5",
-      "aliases": ["gpt-5", "openai/gpt-5"],
-      "contextWindow": 400000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"minimal": "minimal", "low": "low", "medium": "medium", "high": "high"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-gpt-5.2",
-      "name": "OpenAI GPT-5.2",
-      "aliases": ["gpt-5.2", "openai/gpt-5.2"],
-      "contextWindow": 400000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-gpt-5.3-codex",
-      "name": "OpenAI GPT-5.3 Codex",
-      "aliases": ["gpt-5.3-codex", "openai/gpt-5.3-codex"],
-      "contextWindow": 400000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-gpt-5.4",
-      "name": "OpenAI GPT-5.4",
-      "aliases": ["gpt-5.4", "openai/gpt-5.4"],
-      "contextWindow": 272000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": "none", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-gpt-5.4-pro",
-      "name": "OpenAI GPT-5.4 Pro",
-      "aliases": ["gpt-5.4-pro", "openai/gpt-5.4-pro"],
-      "contextWindow": 1050000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"medium": "medium", "high": "high", "xhigh": "xhigh"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-o3",
-      "name": "OpenAI o3",
-      "aliases": ["o3", "openai/o3"],
-      "contextWindow": 200000,
-      "maxTokens": 100000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-o3-mini",
-      "name": "OpenAI o3-mini",
-      "aliases": ["o3-mini", "openai/o3-mini"],
-      "contextWindow": 200000,
-      "maxTokens": 100000,
-      "input": ["text"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "openai-o4-mini",
-      "name": "OpenAI o4-mini",
-      "aliases": ["o4-mini", "openai/o4-mini"],
-      "contextWindow": 200000,
-      "maxTokens": 100000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "anthropic-claude-opus-4.6",
-      "name": "Anthropic Claude Opus 4.6",
-      "aliases": ["claude-opus-4.6", "claude-opus-4-6", "anthropic/claude-opus-4.6"],
-      "contextWindow": 1000000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "anthropic-claude-sonnet-4.6",
-      "name": "Anthropic Claude Sonnet 4.6",
-      "aliases": ["claude-sonnet-4.6", "claude-sonnet-4-6", "anthropic/claude-sonnet-4.6"],
-      "contextWindow": 1000000,
-      "maxTokens": 128000,
-      "input": ["text", "image"],
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
-    },
-    {
-      "id": "anthropic-claude-haiku-4.5",
-      "name": "Anthropic Claude Haiku 4.5",
-      "aliases": ["claude-haiku-4.5", "claude-haiku-4-5", "anthropic/claude-haiku-4.5"],
-      "contextWindow": 200000,
-      "maxTokens": 64000,
-      "input": ["text", "image"],
-      "sourceLabel": "DSH bundled pi-ai catalog",
-      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
     },
     {
       "id": "google-gemini-2.5-flash",
       "name": "Google Gemini 2.5 Flash",
-      "aliases": ["gemini-2.5-flash", "google/gemini-2.5-flash"],
+      "aliases": [
+        "gemini-2-5-flash"
+      ],
       "contextWindow": 1048576,
       "maxTokens": 65536,
-      "input": ["text", "image"],
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "google-gemini-2.5-pro",
       "name": "Google Gemini 2.5 Pro",
-      "aliases": ["gemini-2.5-pro", "google/gemini-2.5-pro"],
+      "aliases": [
+        "gemini-2-5-pro"
+      ],
       "contextWindow": 1048576,
       "maxTokens": 65536,
-      "input": ["text", "image"],
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
-      "id": "qwen-qwen3.6-flash",
-      "name": "Qwen 3.6 Flash",
-      "aliases": ["qwen3.6-flash", "qwen/qwen3.6-flash"],
+      "id": "google-gemini-3-1-flash-lite",
+      "name": "Google: Gemini 3.1 Flash Lite",
+      "aliases": [
+        "gemini-3-1-flash-lite"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-1-flash-lite-image",
+      "name": "Google: Nano Banana 2 Lite",
+      "aliases": [
+        "gemini-3-1-flash-lite-image"
+      ],
+      "contextWindow": 65536,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-1-flash-lite-preview",
+      "name": "Google: Gemini 3.1 Flash Lite Preview",
+      "aliases": [
+        "gemini-3-1-flash-lite-preview"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-1-flash-live-preview",
+      "name": "Google: Gemini 3.1 Flash Live Preview",
+      "aliases": [
+        "gemini-3-1-flash-live-preview"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-1-pro-preview",
+      "name": "Google: Gemini 3.1 Pro Preview",
+      "aliases": [
+        "gemini-3-1-pro-preview"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "LOW",
+        "high": "HIGH"
+      },
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-1-pro-preview-customtools",
+      "name": "Google: Gemini 3.1 Pro Preview Custom Tools",
+      "aliases": [
+        "gemini-3-1-pro-preview-customtools"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "LOW",
+        "high": "HIGH"
+      },
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-5-flash",
+      "name": "Google: Gemini 3.5 Flash",
+      "aliases": [
+        "gemini-3-5-flash"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-5-flash-lite",
+      "name": "Google: Gemini 3.5 Flash Lite",
+      "aliases": [
+        "gemini-3-5-flash-lite"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-7-flash",
+      "name": "Google: Gemini 3.7 Flash",
+      "aliases": [
+        "gemini-3-7-flash"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-8-flash",
+      "name": "Google: Gemini 3.8 Flash",
+      "aliases": [
+        "gemini-3-8-flash"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3-flash-preview",
+      "name": "Google: Gemini 3 Flash Preview",
+      "aliases": [
+        "gemini-3-flash-preview"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-3.6-flash",
+      "name": "Google Gemini 3.6 Flash",
+      "aliases": [
+        "gemini-3-6-flash"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models/gemini"
+    },
+    {
+      "id": "google-gemini-flash-latest",
+      "name": "Google: Gemini Flash Latest",
+      "aliases": [
+        "gemini-flash-latest"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemini-flash-lite-latest",
+      "name": "Google: Gemini Flash-Lite Latest",
+      "aliases": [
+        "gemini-flash-lite-latest"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemma-4-26b-a4b-it",
+      "name": "Google: Gemma 4 26B A4B IT",
+      "aliases": [
+        "gemma-4-26b-a4b-it"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "MINIMAL",
+        "high": "HIGH"
+      },
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "google-gemma-4-31b-it",
+      "name": "Google: Gemma 4 31B IT",
+      "aliases": [
+        "gemma-4-31b-it"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "MINIMAL",
+        "high": "HIGH"
+      },
+      "sourceLabel": "Google Gemini model docs",
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/models"
+    },
+    {
+      "id": "kimi-coding-k3",
+      "name": "Kimi For Coding: Kimi K3",
+      "aliases": [
+        "k3"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Kimi For Coding docs",
+      "sourceUrl": "https://www.kimi.com/coding"
+    },
+    {
+      "id": "kimi-coding-k3-256k",
+      "name": "Kimi For Coding: Kimi K3-256K",
+      "aliases": [
+        "k3-256k"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Kimi For Coding docs",
+      "sourceUrl": "https://www.kimi.com/coding"
+    },
+    {
+      "id": "kimi-coding-kimi-for-coding",
+      "name": "Kimi For Coding: Kimi K2.7 Code",
+      "aliases": [
+        "kimi-for-coding"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Kimi For Coding docs",
+      "sourceUrl": "https://www.kimi.com/coding"
+    },
+    {
+      "id": "kimi-coding-kimi-for-coding-highspeed",
+      "name": "Kimi For Coding: Kimi For Coding HighSpeed",
+      "aliases": [
+        "kimi-for-coding-highspeed"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Kimi For Coding docs",
+      "sourceUrl": "https://www.kimi.com/coding"
+    },
+    {
+      "id": "minimax-m2.5",
+      "name": "MiniMax M2.5",
+      "aliases": [
+        "minimax-m2-5"
+      ],
+      "contextWindow": 196608,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "MiniMax model docs",
+      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
+    },
+    {
+      "id": "minimax-m2.7",
+      "name": "MiniMax M2.7",
+      "aliases": [
+        "minimax-m2-7"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "MiniMax model docs",
+      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
+    },
+    {
+      "id": "minimax-m3",
+      "name": "MiniMax M3",
+      "aliases": [
+        "minimax-m3"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 512000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "MiniMax model docs",
+      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
+    },
+    {
+      "id": "minimax-minimax-m2-7-highspeed",
+      "name": "MiniMax: MiniMax-M2.7-highspeed",
+      "aliases": [
+        "minimax-m2-7-highspeed"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "MiniMax model docs",
+      "sourceUrl": "https://platform.minimax.io/docs/guides/models-text"
+    },
+    {
+      "id": "mistral-codestral-latest",
+      "name": "Mistral: Codestral (latest)",
+      "aliases": [
+        "codestral-latest"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 4096,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-2512",
+      "name": "Mistral: Devstral 2",
+      "aliases": [
+        "devstral-2512"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-latest",
+      "name": "Mistral: Devstral 2",
+      "aliases": [
+        "devstral-latest"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-medium-2507",
+      "name": "Mistral: Devstral Medium",
+      "aliases": [
+        "devstral-medium-2507"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-medium-latest",
+      "name": "Mistral: Devstral 2 (latest)",
+      "aliases": [
+        "devstral-medium-latest"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-small-2505",
+      "name": "Mistral: Devstral Small 2505",
+      "aliases": [
+        "devstral-small-2505"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-devstral-small-2507",
+      "name": "Mistral: Devstral Small",
+      "aliases": [
+        "devstral-small-2507"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-labs-devstral-small-2512",
+      "name": "Mistral: Devstral Small 2",
+      "aliases": [
+        "labs-devstral-small-2512"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 256000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-magistral-medium-latest",
+      "name": "Mistral: Magistral Medium (latest)",
+      "aliases": [
+        "magistral-medium-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-magistral-small",
+      "name": "Mistral: Magistral Small",
+      "aliases": [
+        "magistral-small"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-ministral-3b-latest",
+      "name": "Mistral: Ministral 3B (latest)",
+      "aliases": [
+        "ministral-3b-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-ministral-8b-latest",
+      "name": "Mistral: Ministral 8B (latest)",
+      "aliases": [
+        "ministral-8b-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-large-2411",
+      "name": "Mistral: Mistral Large 2.1",
+      "aliases": [
+        "mistral-large-2411"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-large-2512",
+      "name": "Mistral: Mistral Large 3",
+      "aliases": [
+        "mistral-large-2512"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-large-latest",
+      "name": "Mistral: Mistral Large (latest)",
+      "aliases": [
+        "mistral-large-latest"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-medium-2505",
+      "name": "Mistral: Mistral Medium 3",
+      "aliases": [
+        "mistral-medium-2505"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-medium-2508",
+      "name": "Mistral: Mistral Medium 3.1",
+      "aliases": [
+        "mistral-medium-2508"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-medium-2604",
+      "name": "Mistral: Mistral Medium 3.5",
+      "aliases": [
+        "mistral-medium-2604"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-medium-3-5",
+      "name": "Mistral: Mistral Medium 3.5",
+      "aliases": [
+        "mistral-medium-3-5"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-medium-latest",
+      "name": "Mistral: Mistral Medium (latest)",
+      "aliases": [
+        "mistral-medium-latest"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-nemo",
+      "name": "Mistral: Mistral Nemo",
+      "aliases": [
+        "mistral-nemo"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-small-2506",
+      "name": "Mistral: Mistral Small 3.2",
+      "aliases": [
+        "mistral-small-2506"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-small-2603",
+      "name": "Mistral: Mistral Small 4",
+      "aliases": [
+        "mistral-small-2603"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 256000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-mistral-small-latest",
+      "name": "Mistral: Mistral Small (latest)",
+      "aliases": [
+        "mistral-small-latest"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 256000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-open-mistral-7b",
+      "name": "Mistral: Mistral 7B",
+      "aliases": [
+        "open-mistral-7b"
+      ],
+      "contextWindow": 8000,
+      "maxTokens": 8000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-open-mistral-nemo",
+      "name": "Mistral: Open Mistral Nemo",
+      "aliases": [
+        "open-mistral-nemo"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-open-mixtral-8x22b",
+      "name": "Mistral: Mixtral 8x22B",
+      "aliases": [
+        "open-mixtral-8x22b"
+      ],
+      "contextWindow": 64000,
+      "maxTokens": 64000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-open-mixtral-8x7b",
+      "name": "Mistral: Mixtral 8x7B",
+      "aliases": [
+        "open-mixtral-8x7b"
+      ],
+      "contextWindow": 32000,
+      "maxTokens": 32000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-pixtral-12b",
+      "name": "Mistral: Pixtral 12B",
+      "aliases": [
+        "pixtral-12b"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-pixtral-large-latest",
+      "name": "Mistral: Pixtral Large (latest)",
+      "aliases": [
+        "pixtral-large-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-voxtral-small-latest",
+      "name": "Mistral: Voxtral Small (latest)",
+      "aliases": [
+        "voxtral-small-latest"
+      ],
+      "contextWindow": 32000,
+      "maxTokens": 32000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "mistral-zai-glm-5-2",
+      "name": "Mistral: GLM-5.2",
+      "aliases": [
+        "zai-glm-5-2"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Mistral model docs",
+      "sourceUrl": "https://docs.mistral.ai/getting-started/models/"
+    },
+    {
+      "id": "moonshot-kimi-k2.5",
+      "name": "Moonshot Kimi K2.5",
+      "aliases": [
+        "kimi-k2-5"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshot-kimi-k2.6",
+      "name": "Moonshot Kimi K2.6",
+      "aliases": [
+        "kimi-k2-6"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshot-kimi-k2.7-code",
+      "name": "Moonshot Kimi K2.7 Code",
+      "aliases": [
+        "kimi-k2-7-code"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshot-kimi-k3",
+      "name": "Moonshot Kimi K3",
+      "aliases": [
+        "kimi-k3"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models/kimi-k3"
+    },
+    {
+      "id": "moonshotai-kimi-k2-0711-preview",
+      "name": "Moonshot AI: Kimi K2 0711",
+      "aliases": [
+        "kimi-k2-0711-preview"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshotai-kimi-k2-0905-preview",
+      "name": "Moonshot AI: Kimi K2 0905",
+      "aliases": [
+        "kimi-k2-0905-preview"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshotai-kimi-k2-7-code-highspeed",
+      "name": "Moonshot AI: Kimi K2.7 Code HighSpeed",
+      "aliases": [
+        "kimi-k2-7-code-highspeed"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshotai-kimi-k2-thinking",
+      "name": "Moonshot AI: Kimi K2 Thinking",
+      "aliases": [
+        "kimi-k2-thinking"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshotai-kimi-k2-thinking-turbo",
+      "name": "Moonshot AI: Kimi K2 Thinking Turbo",
+      "aliases": [
+        "kimi-k2-thinking-turbo"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "moonshotai-kimi-k2-turbo-preview",
+      "name": "Moonshot AI: Kimi K2 Turbo",
+      "aliases": [
+        "kimi-k2-turbo-preview"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Moonshot model docs",
+      "sourceUrl": "https://platform.moonshot.ai/docs/models"
+    },
+    {
+      "id": "openai-gpt-4",
+      "name": "OpenAI: GPT-4",
+      "aliases": [
+        "gpt-4"
+      ],
+      "contextWindow": 8192,
+      "maxTokens": 8192,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4-1",
+      "name": "OpenAI: GPT-4.1",
+      "aliases": [
+        "gpt-4-1"
+      ],
+      "contextWindow": 1047576,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4-1-mini",
+      "name": "OpenAI: GPT-4.1 mini",
+      "aliases": [
+        "gpt-4-1-mini"
+      ],
+      "contextWindow": 1047576,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4-1-nano",
+      "name": "OpenAI: GPT-4.1 nano",
+      "aliases": [
+        "gpt-4-1-nano"
+      ],
+      "contextWindow": 1047576,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4-turbo",
+      "name": "OpenAI: GPT-4 Turbo",
+      "aliases": [
+        "gpt-4-turbo"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 4096,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4o",
+      "name": "OpenAI: GPT-4o",
+      "aliases": [
+        "gpt-4o"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4o-2024-05-13",
+      "name": "OpenAI: GPT-4o (2024-05-13)",
+      "aliases": [
+        "gpt-4o-2024-05-13"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 4096,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4o-2024-08-06",
+      "name": "OpenAI: GPT-4o (2024-08-06)",
+      "aliases": [
+        "gpt-4o-2024-08-06"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4o-2024-11-20",
+      "name": "OpenAI: GPT-4o (2024-11-20)",
+      "aliases": [
+        "gpt-4o-2024-11-20"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-4o-mini",
+      "name": "OpenAI: GPT-4o mini",
+      "aliases": [
+        "gpt-4o-mini"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5",
+      "name": "OpenAI GPT-5",
+      "aliases": [
+        "gpt-5"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5-1",
+      "name": "OpenAI: GPT-5.1",
+      "aliases": [
+        "gpt-5-1"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-2-chat-latest",
+      "name": "OpenAI: GPT-5.2 Chat",
+      "aliases": [
+        "gpt-5-2-chat-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-2-pro",
+      "name": "OpenAI: GPT-5.2 Pro",
+      "aliases": [
+        "gpt-5-2-pro"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-3-chat-latest",
+      "name": "OpenAI: GPT-5.3 Chat (latest)",
+      "aliases": [
+        "gpt-5-3-chat-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-3-codex-spark",
+      "name": "OpenAI: GPT-5.3 Codex Spark",
+      "aliases": [
+        "gpt-5-3-codex-spark"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 32000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-4-mini",
+      "name": "OpenAI: GPT-5.4 mini",
+      "aliases": [
+        "gpt-5-4-mini"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-4-nano",
+      "name": "OpenAI: GPT-5.4 nano",
+      "aliases": [
+        "gpt-5-4-nano"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-5-pro",
+      "name": "OpenAI: GPT-5.5 Pro",
+      "aliases": [
+        "gpt-5-5-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-chat-latest",
+      "name": "OpenAI: GPT-5 Chat Latest",
+      "aliases": [
+        "gpt-5-chat-latest"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-mini",
+      "name": "OpenAI: GPT-5 Mini",
+      "aliases": [
+        "gpt-5-mini"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-nano",
+      "name": "OpenAI: GPT-5 Nano",
+      "aliases": [
+        "gpt-5-nano"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5-pro",
+      "name": "OpenAI: GPT-5 Pro",
+      "aliases": [
+        "gpt-5-pro"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-5.2",
+      "name": "OpenAI GPT-5.2",
+      "aliases": [
+        "gpt-5-2"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.3-codex",
+      "name": "OpenAI GPT-5.3 Codex",
+      "aliases": [
+        "gpt-5-3-codex"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.4",
+      "name": "OpenAI GPT-5.4",
+      "aliases": [
+        "gpt-5-4"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.4-pro",
+      "name": "OpenAI GPT-5.4 Pro",
+      "aliases": [
+        "gpt-5-4-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-gpt-5.5",
+      "name": "OpenAI GPT-5.5",
+      "aliases": [
+        "gpt-5-5"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.5"
+    },
+    {
+      "id": "openai-gpt-5.6-luna",
+      "name": "OpenAI GPT-5.6 Luna",
+      "aliases": [
+        "gpt-5-6-luna"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+    },
+    {
+      "id": "openai-gpt-5.6-sol",
+      "name": "OpenAI GPT-5.6 Sol",
+      "aliases": [
+        "gpt-5-6-sol"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+    },
+    {
+      "id": "openai-gpt-5.6-terra",
+      "name": "OpenAI GPT-5.6 Terra",
+      "aliases": [
+        "gpt-5-6-terra"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+    },
+    {
+      "id": "openai-gpt-6-astra",
+      "name": "OpenAI: GPT-6 Astra",
+      "aliases": [
+        "gpt-6-astra"
+      ],
+      "contextWindow": 272000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-gpt-realtime-2-1",
+      "name": "OpenAI: GPT-Realtime-2.1",
+      "aliases": [
+        "gpt-realtime-2-1"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 32000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-o1",
+      "name": "OpenAI: o1",
+      "aliases": [
+        "o1"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-o1-pro",
+      "name": "OpenAI: o1-pro",
+      "aliases": [
+        "o1-pro"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-o3",
+      "name": "OpenAI o3",
+      "aliases": [
+        "o3"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-o3-mini",
+      "name": "OpenAI o3-mini",
+      "aliases": [
+        "o3-mini"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openai-o3-pro",
+      "name": "OpenAI: o3-pro",
+      "aliases": [
+        "o3-pro"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenAI model docs",
+      "sourceUrl": "https://platform.openai.com/docs/models"
+    },
+    {
+      "id": "openai-o4-mini",
+      "name": "OpenAI o4-mini",
+      "aliases": [
+        "o4-mini"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "DSH bundled pi-ai catalog",
+      "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "openrouter-claude-3-haiku",
+      "name": "OpenRouter: Anthropic: Claude 3 Haiku",
+      "aliases": [
+        "claude-3-haiku",
+        "anthropic/claude-3-haiku"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 4096,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-claude-opus-4",
+      "name": "OpenRouter: Anthropic: Claude Opus 4",
+      "aliases": [
+        "claude-opus-4",
+        "anthropic/claude-opus-4"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 32000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-claude-opus-4-1",
+      "name": "OpenRouter: Anthropic: Claude Opus 4.1",
+      "aliases": [
+        "claude-opus-4-1",
+        "anthropic/claude-opus-4-1"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 32000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-claude-sonnet-4",
+      "name": "OpenRouter: Anthropic: Claude Sonnet 4",
+      "aliases": [
+        "claude-sonnet-4",
+        "anthropic/claude-sonnet-4"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 64000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-codestral-2508",
+      "name": "OpenRouter: Mistral: Codestral 2508",
+      "aliases": [
+        "codestral-2508",
+        "mistralai/codestral-2508"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 204800,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-chat",
+      "name": "OpenRouter: DeepSeek: DeepSeek V3",
+      "aliases": [
+        "deepseek-chat",
+        "deepseek/deepseek-chat"
+      ],
+      "contextWindow": 163840,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-chat-v3-0324",
+      "name": "OpenRouter: DeepSeek: DeepSeek V3 0324",
+      "aliases": [
+        "deepseek-chat-v3-0324",
+        "deepseek/deepseek-chat-v3-0324"
+      ],
+      "contextWindow": 163840,
+      "maxTokens": 147456,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-chat-v3-1",
+      "name": "OpenRouter: DeepSeek: DeepSeek V3.1",
+      "aliases": [
+        "deepseek-chat-v3-1",
+        "deepseek/deepseek-chat-v3-1"
+      ],
+      "contextWindow": 161000,
+      "maxTokens": 144900,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-r1",
+      "name": "OpenRouter: DeepSeek: R1",
+      "aliases": [
+        "deepseek-r1",
+        "deepseek/deepseek-r1"
+      ],
+      "contextWindow": 64000,
+      "maxTokens": 16000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-r1-0528",
+      "name": "OpenRouter: DeepSeek: R1 0528",
+      "aliases": [
+        "deepseek-r1-0528",
+        "deepseek/deepseek-r1-0528"
+      ],
+      "contextWindow": 163840,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-v3-1-terminus",
+      "name": "OpenRouter: DeepSeek: DeepSeek V3.1 Terminus",
+      "aliases": [
+        "deepseek-v3-1-terminus",
+        "deepseek/deepseek-v3-1-terminus"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-deepseek-v3-2-exp",
+      "name": "OpenRouter: DeepSeek: DeepSeek V3.2 Exp",
+      "aliases": [
+        "deepseek-v3-2-exp",
+        "deepseek/deepseek-v3-2-exp"
+      ],
+      "contextWindow": 163840,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gemini-2-5-pro-preview",
+      "name": "OpenRouter: Google: Gemini 2.5 Pro Preview 06-05",
+      "aliases": [
+        "gemini-2-5-pro-preview",
+        "google/gemini-2-5-pro-preview"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gemini-2-5-pro-preview-05-06",
+      "name": "OpenRouter: Google: Gemini 2.5 Pro Preview 05-06",
+      "aliases": [
+        "gemini-2-5-pro-preview-05-06",
+        "google/gemini-2-5-pro-preview-05-06"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 65535,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gemini-3-pro-image",
+      "name": "OpenRouter: Google: Nano Banana Pro (Gemini 3 Pro Image)",
+      "aliases": [
+        "gemini-3-pro-image",
+        "google/gemini-3-pro-image"
+      ],
+      "contextWindow": 65536,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gemma-3-12b-it",
+      "name": "OpenRouter: Google: Gemma 3 12B",
+      "aliases": [
+        "gemma-3-12b-it",
+        "google/gemma-3-12b-it"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gemma-3-27b-it",
+      "name": "OpenRouter: Google: Gemma 3 27B",
+      "aliases": [
+        "gemma-3-27b-it",
+        "google/gemma-3-27b-it"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 117964,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-5",
+      "name": "OpenRouter: Z.ai: GLM 4.5",
+      "aliases": [
+        "glm-4-5",
+        "z-ai/glm-4-5"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 98304,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-5-air",
+      "name": "OpenRouter: Z.ai: GLM 4.5 Air",
+      "aliases": [
+        "glm-4-5-air",
+        "z-ai/glm-4-5-air"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 98304,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-5v",
+      "name": "OpenRouter: Z.ai: GLM 4.5V",
+      "aliases": [
+        "glm-4-5v",
+        "z-ai/glm-4-5v"
+      ],
+      "contextWindow": 65536,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-6",
+      "name": "OpenRouter: Z.ai: GLM 4.6",
+      "aliases": [
+        "glm-4-6",
+        "z-ai/glm-4-6"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-6v",
+      "name": "OpenRouter: Z.ai: GLM 4.6V",
+      "aliases": [
+        "glm-4-6v",
+        "z-ai/glm-4-6v"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-4-7-flash",
+      "name": "OpenRouter: Z.ai: GLM 4.7 Flash",
+      "aliases": [
+        "glm-4-7-flash",
+        "z-ai/glm-4-7-flash"
+      ],
+      "contextWindow": 202752,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-glm-5v-turbo",
+      "name": "OpenRouter: Z.ai: GLM 5V Turbo",
+      "aliases": [
+        "glm-5v-turbo",
+        "z-ai/glm-5v-turbo"
+      ],
+      "contextWindow": 202752,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-3-5-turbo",
+      "name": "OpenRouter: OpenAI: GPT-3.5 Turbo",
+      "aliases": [
+        "gpt-3-5-turbo",
+        "openai/gpt-3-5-turbo"
+      ],
+      "contextWindow": 16385,
+      "maxTokens": 4096,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-3-5-turbo-0613",
+      "name": "OpenRouter: OpenAI: GPT-3.5 Turbo (older v0613)",
+      "aliases": [
+        "gpt-3-5-turbo-0613",
+        "openai/gpt-3-5-turbo-0613"
+      ],
+      "contextWindow": 4095,
+      "maxTokens": 3685,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-3-5-turbo-16k",
+      "name": "OpenRouter: OpenAI: GPT-3.5 Turbo 16k",
+      "aliases": [
+        "gpt-3-5-turbo-16k",
+        "openai/gpt-3-5-turbo-16k"
+      ],
+      "contextWindow": 16385,
+      "maxTokens": 4096,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-4-turbo-preview",
+      "name": "OpenRouter: OpenAI: GPT-4 Turbo Preview",
+      "aliases": [
+        "gpt-4-turbo-preview",
+        "openai/gpt-4-turbo-preview"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 4096,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-4o-mini-2024-07-18",
+      "name": "OpenRouter: OpenAI: GPT-4o-mini (2024-07-18)",
+      "aliases": [
+        "gpt-4o-mini-2024-07-18",
+        "openai/gpt-4o-mini-2024-07-18"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-1-codex",
+      "name": "OpenRouter: OpenAI: GPT-5.1-Codex",
+      "aliases": [
+        "gpt-5-1-codex",
+        "openai/gpt-5-1-codex"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-1-codex-max",
+      "name": "OpenRouter: OpenAI: GPT-5.1-Codex-Max",
+      "aliases": [
+        "gpt-5-1-codex-max",
+        "openai/gpt-5-1-codex-max"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-1-codex-mini",
+      "name": "OpenRouter: OpenAI: GPT-5.1-Codex-Mini",
+      "aliases": [
+        "gpt-5-1-codex-mini",
+        "openai/gpt-5-1-codex-mini"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-2-chat",
+      "name": "OpenRouter: OpenAI: GPT-5.2 Chat",
+      "aliases": [
+        "gpt-5-2-chat",
+        "openai/gpt-5-2-chat"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 32000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-2-codex",
+      "name": "OpenRouter: OpenAI: GPT-5.2-Codex",
+      "aliases": [
+        "gpt-5-2-codex",
+        "openai/gpt-5-2-codex"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-6-luna-pro",
+      "name": "OpenRouter: OpenAI: GPT-5.6 Luna Pro",
+      "aliases": [
+        "gpt-5-6-luna-pro",
+        "openai/gpt-5-6-luna-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-6-sol-pro",
+      "name": "OpenRouter: OpenAI: GPT-5.6 Sol Pro",
+      "aliases": [
+        "gpt-5-6-sol-pro",
+        "openai/gpt-5-6-sol-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-5-6-terra-pro",
+      "name": "OpenRouter: OpenAI: GPT-5.6 Terra Pro",
+      "aliases": [
+        "gpt-5-6-terra-pro",
+        "openai/gpt-5-6-terra-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-6-astra-pro",
+      "name": "OpenRouter: OpenAI: GPT-6 Astra Pro",
+      "aliases": [
+        "gpt-6-astra-pro",
+        "openai/gpt-6-astra-pro"
+      ],
+      "contextWindow": 1050000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-audio",
+      "name": "OpenRouter: OpenAI: GPT Audio",
+      "aliases": [
+        "gpt-audio",
+        "openai/gpt-audio"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-audio-mini",
+      "name": "OpenRouter: OpenAI: GPT Audio Mini",
+      "aliases": [
+        "gpt-audio-mini",
+        "openai/gpt-audio-mini"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-chat-latest",
+      "name": "OpenRouter: OpenAI: GPT Chat Latest",
+      "aliases": [
+        "gpt-chat-latest",
+        "openai/gpt-chat-latest"
+      ],
+      "contextWindow": 400000,
+      "maxTokens": 128000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-oss-120b",
+      "name": "OpenRouter: OpenAI: gpt-oss-120b",
+      "aliases": [
+        "gpt-oss-120b",
+        "openai/gpt-oss-120b"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 117964,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-oss-20b",
+      "name": "OpenRouter: OpenAI: gpt-oss-20b",
+      "aliases": [
+        "gpt-oss-20b",
+        "openai/gpt-oss-20b"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 117964,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-gpt-oss-safeguard-20b",
+      "name": "OpenRouter: OpenAI: gpt-oss-safeguard-20b",
+      "aliases": [
+        "gpt-oss-safeguard-20b",
+        "openai/gpt-oss-safeguard-20b"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-grok-4-20",
+      "name": "OpenRouter: SpaceXAI: Grok 4.20",
+      "aliases": [
+        "grok-4-20",
+        "x-ai/grok-4-20"
+      ],
+      "contextWindow": 2000000,
+      "maxTokens": 1800000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-grok-build-0-1",
+      "name": "OpenRouter: SpaceXAI: Grok Build 0.1",
+      "aliases": [
+        "grok-build-0-1",
+        "x-ai/grok-build-0-1"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 230400,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-hy3",
+      "name": "OpenRouter: Tencent: Hy3",
+      "aliases": [
+        "hy3",
+        "tencent/hy3"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-hy3-preview",
+      "name": "OpenRouter: Tencent: Hy3 preview",
+      "aliases": [
+        "hy3-preview",
+        "tencent/hy3-preview"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-hy4-preview",
+      "name": "OpenRouter: Tencent: Hy4 preview",
+      "aliases": [
+        "hy4-preview",
+        "tencent/hy4-preview"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 64000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-inkling",
+      "name": "OpenRouter: Thinking Machines: Inkling",
+      "aliases": [
+        "inkling",
+        "thinkingmachines/inkling"
+      ],
+      "contextWindow": 524288,
+      "maxTokens": 471859,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-inkling-small",
+      "name": "OpenRouter: Thinking Machines: Inkling Small",
+      "aliases": [
+        "inkling-small",
+        "thinkingmachines/inkling-small"
+      ],
+      "contextWindow": 524288,
+      "maxTokens": 262144,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-kimi-k2",
+      "name": "OpenRouter: MoonshotAI: Kimi K2 0711",
+      "aliases": [
+        "kimi-k2",
+        "moonshotai/kimi-k2"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 100352,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-kimi-k2-0905",
+      "name": "OpenRouter: MoonshotAI: Kimi K2 0905",
+      "aliases": [
+        "kimi-k2-0905",
+        "moonshotai/kimi-k2-0905"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 100352,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-laguna-s-2-1",
+      "name": "OpenRouter: Poolside: Laguna S 2.1",
+      "aliases": [
+        "laguna-s-2-1",
+        "poolside/laguna-s-2-1"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-laguna-xs-2-1",
+      "name": "OpenRouter: Poolside: Laguna XS 2.1",
+      "aliases": [
+        "laguna-xs-2-1",
+        "poolside/laguna-xs-2-1"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-ling-3-0-flash",
+      "name": "OpenRouter: inclusionAI: Ling 3.0 Flash",
+      "aliases": [
+        "ling-3-0-flash",
+        "inclusionai/ling-3-0-flash"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-ling-3-0-flash-fin",
+      "name": "OpenRouter: inclusionAI: Ling 3.0 Flash Fin",
+      "aliases": [
+        "ling-3-0-flash-fin",
+        "inclusionai/ling-3-0-flash-fin"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-minimax-m1",
+      "name": "OpenRouter: MiniMax: MiniMax M1",
+      "aliases": [
+        "minimax-m1",
+        "minimax/minimax-m1"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 40000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-minimax-m2",
+      "name": "OpenRouter: MiniMax: MiniMax M2",
+      "aliases": [
+        "minimax-m2",
+        "minimax/minimax-m2"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-minimax-m2-1",
+      "name": "OpenRouter: MiniMax: MiniMax M2.1",
+      "aliases": [
+        "minimax-m2-1",
+        "minimax/minimax-m2-1"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-ministral-14b-2512",
+      "name": "OpenRouter: Mistral: Ministral 3 14B 2512",
+      "aliases": [
+        "ministral-14b-2512",
+        "mistralai/ministral-14b-2512"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 209715,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-ministral-3b-2512",
+      "name": "OpenRouter: Mistral: Ministral 3 3B 2512",
+      "aliases": [
+        "ministral-3b-2512",
+        "mistralai/ministral-3b-2512"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 104857,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-ministral-8b-2512",
+      "name": "OpenRouter: Mistral: Ministral 3 8B 2512",
+      "aliases": [
+        "ministral-8b-2512",
+        "mistralai/ministral-8b-2512"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 209715,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-large",
+      "name": "OpenRouter: Mistral Large",
+      "aliases": [
+        "mistral-large",
+        "mistralai/mistral-large"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 102400,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-large-2407",
+      "name": "OpenRouter: Mistral Large 2407",
+      "aliases": [
+        "mistral-large-2407",
+        "mistralai/mistral-large-2407"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 104857,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-medium-3",
+      "name": "OpenRouter: Mistral: Mistral Medium 3",
+      "aliases": [
+        "mistral-medium-3",
+        "mistralai/mistral-medium-3"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 104857,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-medium-3-1",
+      "name": "OpenRouter: Mistral: Mistral Medium 3.1",
+      "aliases": [
+        "mistral-medium-3-1",
+        "mistralai/mistral-medium-3-1"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 104857,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-saba",
+      "name": "OpenRouter: Mistral: Saba",
+      "aliases": [
+        "mistral-saba",
+        "mistralai/mistral-saba"
+      ],
+      "contextWindow": 32768,
+      "maxTokens": 26214,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mistral-small-3-2-24b-instruct",
+      "name": "OpenRouter: Mistral: Mistral Small 3.2 24B",
+      "aliases": [
+        "mistral-small-3-2-24b-instruct",
+        "mistralai/mistral-small-3-2-24b-instruct"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-mixtral-8x22b-instruct",
+      "name": "OpenRouter: Mistral: Mixtral 8x22B Instruct",
+      "aliases": [
+        "mixtral-8x22b-instruct",
+        "mistralai/mixtral-8x22b-instruct"
+      ],
+      "contextWindow": 65536,
+      "maxTokens": 52428,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-nemotron-3-5-lightning",
+      "name": "OpenRouter: NVIDIA: Nemotron 3.5 Lightning",
+      "aliases": [
+        "nemotron-3-5-lightning",
+        "nvidia/nemotron-3-5-lightning"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-nemotron-3-nano-30b-a3b",
+      "name": "OpenRouter: NVIDIA: Nemotron 3 Nano 30B A3B",
+      "aliases": [
+        "nemotron-3-nano-30b-a3b",
+        "nvidia/nemotron-3-nano-30b-a3b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-nemotron-3-super-120b-a12b",
+      "name": "OpenRouter: NVIDIA: Nemotron 3 Super",
+      "aliases": [
+        "nemotron-3-super-120b-a12b",
+        "nvidia/nemotron-3-super-120b-a12b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-nemotron-3-ultra-550b-a55b",
+      "name": "OpenRouter: NVIDIA: Nemotron 3 Ultra",
+      "aliases": [
+        "nemotron-3-ultra-550b-a55b",
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-o3-mini-high",
+      "name": "OpenRouter: OpenAI: o3 Mini High",
+      "aliases": [
+        "o3-mini-high",
+        "openai/o3-mini-high"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-o4-mini-high",
+      "name": "OpenRouter: OpenAI: o4 Mini High",
+      "aliases": [
+        "o4-mini-high",
+        "openai/o4-mini-high"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 100000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen-2-5-72b-instruct",
+      "name": "OpenRouter: Qwen2.5 72B Instruct",
+      "aliases": [
+        "qwen-2-5-72b-instruct",
+        "qwen/qwen-2-5-72b-instruct"
+      ],
+      "contextWindow": 32768,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen-2-5-7b-instruct",
+      "name": "OpenRouter: Qwen: Qwen2.5 7B Instruct",
+      "aliases": [
+        "qwen-2-5-7b-instruct",
+        "qwen/qwen-2-5-7b-instruct"
+      ],
+      "contextWindow": 32768,
+      "maxTokens": 29491,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen-plus",
+      "name": "OpenRouter: Qwen: Qwen-Plus",
+      "aliases": [
+        "qwen-plus",
+        "qwen/qwen-plus"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen-plus-2025-07-28",
+      "name": "OpenRouter: Qwen: Qwen Plus 0728",
+      "aliases": [
+        "qwen-plus-2025-07-28",
+        "qwen/qwen-plus-2025-07-28"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-14b",
+      "name": "OpenRouter: Qwen: Qwen3 14B",
+      "aliases": [
+        "qwen3-14b",
+        "qwen/qwen3-14b"
+      ],
+      "contextWindow": 40960,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-235b-a22b",
+      "name": "OpenRouter: Qwen: Qwen3 235B A22B",
+      "aliases": [
+        "qwen3-235b-a22b",
+        "qwen/qwen3-235b-a22b"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-235b-a22b-2507",
+      "name": "OpenRouter: Qwen: Qwen3 235B A22B Instruct 2507",
+      "aliases": [
+        "qwen3-235b-a22b-2507",
+        "qwen/qwen3-235b-a22b-2507"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-235b-a22b-thinking-2507",
+      "name": "OpenRouter: Qwen: Qwen3 235B A22B Thinking 2507",
+      "aliases": [
+        "qwen3-235b-a22b-thinking-2507",
+        "qwen/qwen3-235b-a22b-thinking-2507"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 117964,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-30b-a3b",
+      "name": "OpenRouter: Qwen: Qwen3 30B A3B",
+      "aliases": [
+        "qwen3-30b-a3b",
+        "qwen/qwen3-30b-a3b"
+      ],
+      "contextWindow": 40960,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-30b-a3b-instruct-2507",
+      "name": "OpenRouter: Qwen: Qwen3 30B A3B Instruct 2507",
+      "aliases": [
+        "qwen3-30b-a3b-instruct-2507",
+        "qwen/qwen3-30b-a3b-instruct-2507"
+      ],
+      "contextWindow": 128000,
+      "maxTokens": 32000,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-30b-a3b-thinking-2507",
+      "name": "OpenRouter: Qwen: Qwen3 30B A3B Thinking 2507",
+      "aliases": [
+        "qwen3-30b-a3b-thinking-2507",
+        "qwen/qwen3-30b-a3b-thinking-2507"
+      ],
+      "contextWindow": 81920,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-32b",
+      "name": "OpenRouter: Qwen: Qwen3 32B",
+      "aliases": [
+        "qwen3-32b",
+        "qwen/qwen3-32b"
+      ],
+      "contextWindow": 40960,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-122b-a10b",
+      "name": "OpenRouter: Qwen: Qwen3.5-122B-A10B",
+      "aliases": [
+        "qwen3-5-122b-a10b",
+        "qwen/qwen3-5-122b-a10b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 81920,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-27b",
+      "name": "OpenRouter: Qwen: Qwen3.5-27B",
+      "aliases": [
+        "qwen3-5-27b",
+        "qwen/qwen3-5-27b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-35b-a3b",
+      "name": "OpenRouter: Qwen: Qwen3.5-35B-A3B",
+      "aliases": [
+        "qwen3-5-35b-a3b",
+        "qwen/qwen3-5-35b-a3b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-397b-a17b",
+      "name": "OpenRouter: Qwen: Qwen3.5 397B A17B",
+      "aliases": [
+        "qwen3-5-397b-a17b",
+        "qwen/qwen3-5-397b-a17b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-9b",
+      "name": "OpenRouter: Qwen: Qwen3.5-9B",
+      "aliases": [
+        "qwen3-5-9b",
+        "qwen/qwen3-5-9b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-flash-02-23",
+      "name": "OpenRouter: Qwen: Qwen3.5-Flash",
+      "aliases": [
+        "qwen3-5-flash-02-23",
+        "qwen/qwen3-5-flash-02-23"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 65536,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-plus-02-15",
+      "name": "OpenRouter: Qwen: Qwen3.5 Plus 2026-02-15",
+      "aliases": [
+        "qwen3-5-plus-02-15",
+        "qwen/qwen3-5-plus-02-15"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-5-plus-20260420",
+      "name": "OpenRouter: Qwen: Qwen3.5 Plus 2026-04-20",
+      "aliases": [
+        "qwen3-5-plus-20260420",
+        "qwen/qwen3-5-plus-20260420"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-6-27b",
+      "name": "OpenRouter: Qwen: Qwen3.6 27B",
+      "aliases": [
+        "qwen3-6-27b",
+        "qwen/qwen3-6-27b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-6-35b-a3b",
+      "name": "OpenRouter: Qwen: Qwen3.6 35B A3B",
+      "aliases": [
+        "qwen3-6-35b-a3b",
+        "qwen/qwen3-6-35b-a3b"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-6-max-preview",
+      "name": "OpenRouter: Qwen: Qwen3.6 Max Preview",
+      "aliases": [
+        "qwen3-6-max-preview",
+        "qwen/qwen3-6-max-preview"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-7-flash",
+      "name": "OpenRouter: Qwen: Qwen3.7 Flash",
+      "aliases": [
+        "qwen3-7-flash",
+        "qwen/qwen3-7-flash"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-8-2-4t-a95b",
+      "name": "OpenRouter: Qwen: Qwen3.8 2.4T A95B",
+      "aliases": [
+        "qwen3-8-2-4t-a95b",
+        "qwen/qwen3-8-2-4t-a95b"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 262144,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-8-27b",
+      "name": "OpenRouter: Qwen: Qwen3.8 27B",
+      "aliases": [
+        "qwen3-8-27b",
+        "qwen/qwen3-8-27b"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-8-max-0902",
+      "name": "OpenRouter: Qwen: Qwen3.8 Max (0902)",
+      "aliases": [
+        "qwen3-8-max-0902",
+        "qwen/qwen3-8-max-0902"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-8b",
+      "name": "OpenRouter: Qwen: Qwen3 8B",
+      "aliases": [
+        "qwen3-8b",
+        "qwen/qwen3-8b"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-coder",
+      "name": "OpenRouter: Qwen: Qwen3 Coder 480B A35B",
+      "aliases": [
+        "qwen3-coder",
+        "qwen/qwen3-coder"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-coder-30b-a3b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 Coder 30B A3B Instruct",
+      "aliases": [
+        "qwen3-coder-30b-a3b-instruct",
+        "qwen/qwen3-coder-30b-a3b-instruct"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-coder-flash",
+      "name": "OpenRouter: Qwen: Qwen3 Coder Flash",
+      "aliases": [
+        "qwen3-coder-flash",
+        "qwen/qwen3-coder-flash"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-coder-next",
+      "name": "OpenRouter: Qwen: Qwen3 Coder Next",
+      "aliases": [
+        "qwen3-coder-next",
+        "qwen/qwen3-coder-next"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-coder-plus",
+      "name": "OpenRouter: Qwen: Qwen3 Coder Plus",
+      "aliases": [
+        "qwen3-coder-plus",
+        "qwen/qwen3-coder-plus"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-max",
+      "name": "OpenRouter: Qwen: Qwen3 Max",
+      "aliases": [
+        "qwen3-max",
+        "qwen/qwen3-max"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-max-thinking",
+      "name": "OpenRouter: Qwen: Qwen3 Max Thinking",
+      "aliases": [
+        "qwen3-max-thinking",
+        "qwen/qwen3-max-thinking"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-next-80b-a3b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 Next 80B A3B Instruct",
+      "aliases": [
+        "qwen3-next-80b-a3b-instruct",
+        "qwen/qwen3-next-80b-a3b-instruct"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 235929,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-next-80b-a3b-thinking",
+      "name": "OpenRouter: Qwen: Qwen3 Next 80B A3B Thinking",
+      "aliases": [
+        "qwen3-next-80b-a3b-thinking",
+        "qwen/qwen3-next-80b-a3b-thinking"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-235b-a22b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 VL 235B A22B Instruct",
+      "aliases": [
+        "qwen3-vl-235b-a22b-instruct",
+        "qwen/qwen3-vl-235b-a22b-instruct"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-235b-a22b-thinking",
+      "name": "OpenRouter: Qwen: Qwen3 VL 235B A22B Thinking",
+      "aliases": [
+        "qwen3-vl-235b-a22b-thinking",
+        "qwen/qwen3-vl-235b-a22b-thinking"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-30b-a3b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 VL 30B A3B Instruct",
+      "aliases": [
+        "qwen3-vl-30b-a3b-instruct",
+        "qwen/qwen3-vl-30b-a3b-instruct"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 16384,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-30b-a3b-thinking",
+      "name": "OpenRouter: Qwen: Qwen3 VL 30B A3B Thinking",
+      "aliases": [
+        "qwen3-vl-30b-a3b-thinking",
+        "qwen/qwen3-vl-30b-a3b-thinking"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-32b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 VL 32B Instruct",
+      "aliases": [
+        "qwen3-vl-32b-instruct",
+        "qwen/qwen3-vl-32b-instruct"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-8b-instruct",
+      "name": "OpenRouter: Qwen: Qwen3 VL 8B Instruct",
+      "aliases": [
+        "qwen3-vl-8b-instruct",
+        "qwen/qwen3-vl-8b-instruct"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-qwen3-vl-8b-thinking",
+      "name": "OpenRouter: Qwen: Qwen3 VL 8B Thinking",
+      "aliases": [
+        "qwen3-vl-8b-thinking",
+        "qwen/qwen3-vl-8b-thinking"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "input": [
+        "text",
+        "image"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-solar-pro-3",
+      "name": "OpenRouter: Upstage: Solar Pro 3",
+      "aliases": [
+        "solar-pro-3",
+        "upstage/solar-pro-3"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 117964,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-solar-pro4",
+      "name": "OpenRouter: Upstage: Solar Pro 4",
+      "aliases": [
+        "solar-pro4",
+        "upstage/solar-pro4"
+      ],
+      "contextWindow": 524288,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-step-3-5-flash",
+      "name": "OpenRouter: StepFun: Step 3.5 Flash",
+      "aliases": [
+        "step-3-5-flash",
+        "stepfun/step-3-5-flash"
+      ],
+      "contextWindow": 262144,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-step-3-7-flash",
+      "name": "OpenRouter: StepFun: Step 3.7 Flash",
+      "aliases": [
+        "step-3-7-flash",
+        "stepfun/step-3-7-flash"
+      ],
+      "contextWindow": 256000,
+      "maxTokens": 230400,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "openrouter-voxtral-small-24b-2507",
+      "name": "OpenRouter: Mistral: Voxtral Small 24B 2507",
+      "aliases": [
+        "voxtral-small-24b-2507",
+        "mistralai/voxtral-small-24b-2507"
+      ],
+      "contextWindow": 32768,
+      "maxTokens": 26214,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "OpenRouter models",
+      "sourceUrl": "https://openrouter.ai/models"
+    },
+    {
+      "id": "qwen-qwen3.6-flash",
+      "name": "Qwen 3.6 Flash",
+      "aliases": [
+        "qwen3-6-flash"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "qwen-qwen3.6-plus",
       "name": "Qwen 3.6 Plus",
-      "aliases": ["qwen3.6-plus", "qwen/qwen3.6-plus"],
+      "aliases": [
+        "qwen3-6-plus"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 65536,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "qwen-qwen3.7-max",
       "name": "Qwen 3.7 Max",
-      "aliases": ["qwen3.7-max", "qwen/qwen3.7-max"],
+      "aliases": [
+        "qwen3-7-max"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 131072,
-      "input": ["text"],
-      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "qwen-qwen3.7-plus",
       "name": "Qwen 3.7 Plus",
-      "aliases": ["qwen3.7-plus", "qwen/qwen3.7-plus"],
+      "aliases": [
+        "qwen3-7-plus"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 65536,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
       "id": "qwen-qwen3.8-max-preview",
       "name": "Qwen 3.8 Max Preview",
-      "aliases": ["qwen3.8-max-preview", "qwen/qwen3.8-max-preview"],
+      "aliases": [
+        "qwen3.8-max-preview",
+        "qwen/qwen3.8-max-preview"
+      ],
       "contextWindow": 1000000,
       "maxTokens": 131072,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"off": null, "minimal": "minimal", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "minimal": "minimal",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
+    },
+    {
+      "id": "qwen-token-plan-deepseek-v3-2",
+      "name": "Qwen Token Plan: DeepSeek V3.2",
+      "aliases": [
+        "deepseek-v3-2"
+      ],
+      "contextWindow": 131072,
+      "maxTokens": 65536,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Qwen Token Plan docs",
+      "sourceUrl": "https://www.alibabacloud.com/help/en/model-studio"
+    },
+    {
+      "id": "qwen-token-plan-deepseek-v4-flash-0731",
+      "name": "Qwen Token Plan: DeepSeek V4 Flash 0731",
+      "aliases": [
+        "deepseek-v4-flash-0731"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 384000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Qwen Token Plan docs",
+      "sourceUrl": "https://www.alibabacloud.com/help/en/model-studio"
+    },
+    {
+      "id": "qwen-token-plan-deepseek-v4-pro-0813",
+      "name": "Qwen Token Plan: DeepSeek V4 Pro 0813",
+      "aliases": [
+        "deepseek-v4-pro-0813"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 384000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Qwen Token Plan docs",
+      "sourceUrl": "https://www.alibabacloud.com/help/en/model-studio"
+    },
+    {
+      "id": "qwen-token-plan-qwen3-8-flash",
+      "name": "Qwen Token Plan: Qwen3.8 Flash",
+      "aliases": [
+        "qwen3-8-flash"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "Qwen Token Plan docs",
+      "sourceUrl": "https://www.alibabacloud.com/help/en/model-studio"
+    },
+    {
+      "id": "qwen-token-plan-qwen3-8-max",
+      "name": "Qwen Token Plan: Qwen3.8 Max",
+      "aliases": [
+        "qwen3-8-max"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "Qwen Token Plan docs",
+      "sourceUrl": "https://www.alibabacloud.com/help/en/model-studio"
+    },
+    {
+      "id": "xai-grok-4-3",
+      "name": "xAI: Grok 4.3",
+      "aliases": [
+        "grok-4-3"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 30000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sourceLabel": "xAI model docs",
+      "sourceUrl": "https://docs.x.ai/docs/models"
+    },
+    {
+      "id": "xai-grok-4-6",
+      "name": "xAI: Grok 4.6",
+      "aliases": [
+        "grok-4-6"
+      ],
+      "contextWindow": 500000,
+      "maxTokens": 500000,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh"
+      },
+      "sourceLabel": "xAI model docs",
+      "sourceUrl": "https://docs.x.ai/docs/models"
     },
     {
       "id": "xai-grok-4.5",
       "name": "xAI Grok 4.5",
-      "aliases": ["grok-4.5", "x-ai/grok-4.5", "xai/grok-4.5"],
+      "aliases": [
+        "grok-4-5"
+      ],
       "contextWindow": 500000,
       "maxTokens": 500000,
-      "input": ["text", "image"],
-      "reasoningEfforts": {"low": "low", "medium": "medium", "high": "high"},
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
       "sourceLabel": "DSH bundled pi-ai catalog",
       "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/llm/llm-pi-ai"
     },
     {
-      "id": "xiaomi-mimo-v2.5-pro",
-      "name": "Xiaomi MiMo V2.5 Pro",
-      "aliases": ["mimo-v2.5-pro", "xiaomi/mimo-v2.5-pro"],
+      "id": "xiaomi-mimo-v2-5-pro-ultraspeed",
+      "name": "Xiaomi: MiMo-V2.5-Pro-UltraSpeed",
+      "aliases": [
+        "mimo-v2-5-pro-ultraspeed"
+      ],
       "contextWindow": 1048576,
       "maxTokens": 131072,
-      "input": ["text"],
+      "input": [
+        "text"
+      ],
       "sourceLabel": "Xiaomi MiMo repository",
-      "sourceUrl": "https://github.com/XiaomiMiMo/MiMo-V2.5"
+      "sourceUrl": "https://github.com/XiaomiMiMo/MiMo"
     },
     {
       "id": "xiaomi-mimo-v2.5",
       "name": "Xiaomi MiMo V2.5",
-      "aliases": ["mimo-v2.5", "xiaomi/mimo-v2.5"],
+      "aliases": [
+        "mimo-v2-5"
+      ],
       "contextWindow": 1048576,
       "maxTokens": 131072,
-      "input": ["text", "image"],
+      "input": [
+        "text",
+        "image"
+      ],
       "sourceLabel": "Xiaomi MiMo repository",
       "sourceUrl": "https://github.com/XiaomiMiMo/MiMo-V2.5"
+    },
+    {
+      "id": "xiaomi-mimo-v2.5-pro",
+      "name": "Xiaomi MiMo V2.5 Pro",
+      "aliases": [
+        "mimo-v2-5-pro"
+      ],
+      "contextWindow": 1048576,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Xiaomi MiMo repository",
+      "sourceUrl": "https://github.com/XiaomiMiMo/MiMo-V2.5"
+    },
+    {
+      "id": "zai-glm-4-7",
+      "name": "Z.AI: GLM-4.7",
+      "aliases": [
+        "glm-4-7"
+      ],
+      "contextWindow": 204800,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
+    },
+    {
+      "id": "zai-glm-5",
+      "name": "Z.ai GLM-5",
+      "aliases": [
+        "glm-5"
+      ],
+      "contextWindow": 202752,
+      "maxTokens": 16384,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5"
+    },
+    {
+      "id": "zai-glm-5-2-highspeed",
+      "name": "Z.AI: GLM-5.2 Highspeed",
+      "aliases": [
+        "glm-5-2-highspeed"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
+    },
+    {
+      "id": "zai-glm-5-3-flash",
+      "name": "Z.AI: GLM-5.3-Flash",
+      "aliases": [
+        "glm-5-3-flash"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text",
+        "image"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
+    },
+    {
+      "id": "zai-glm-5-3-highspeed",
+      "name": "Z.AI: GLM-5.3 Highspeed",
+      "aliases": [
+        "glm-5-3-highspeed"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
+    },
+    {
+      "id": "zai-glm-5-turbo",
+      "name": "Z.AI: GLM-5-Turbo",
+      "aliases": [
+        "glm-5-turbo"
+      ],
+      "contextWindow": 200000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
+    },
+    {
+      "id": "zai-glm-5.1",
+      "name": "Z.ai GLM-5.1",
+      "aliases": [
+        "glm-5-1"
+      ],
+      "contextWindow": 202752,
+      "maxTokens": 128000,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.1"
+    },
+    {
+      "id": "zai-glm-5.2",
+      "name": "Z.ai GLM-5.2",
+      "aliases": [
+        "glm-5-2"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": "none",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.2"
+    },
+    {
+      "id": "zai-glm-5.3",
+      "name": "Z.ai GLM-5.3",
+      "aliases": [
+        "glm-5-3"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "input": [
+        "text"
+      ],
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sourceLabel": "Z.ai model docs",
+      "sourceUrl": "https://docs.z.ai/guides/llm/glm-5.3"
     }
   ]
 }

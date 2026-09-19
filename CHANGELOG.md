@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 - 2026-09-19
+
+- Target `@deepseek-ai/dsh@0.1.6-alpha.2`: peer ranges and dev dependencies move to the 0.1.6 line, and the composer seat returns the DSH 0.1.6 `RemoteResult` selection outcome instead of a boolean.
+- Rebuild the configuration panel's provider picker as a visual catalog: searchable card grid with brand icons, model counts, protocol badges, and a template gallery (custom, OAuth subscription, API-key) that prefills endpoint, protocol, and credential reference.
+- Add OpenRouter free-route auto sync: a `freeSync` rule (preset for `openrouter-free`) replaces the provider's model list with the live OpenRouter `:free` catalog on DSH startup and on a configurable interval, keeps manual capacity/compatibility fields on surviving ids, adds DeepSeek replay compatibility automatically, records per-provider sync state, and exposes "sync now" plus on/off controls in the panel.
+- Expand the model preset registry to 281 vendor-authoritative entries (version 3) harvested from the DSH 0.1.6 built-in pi-ai catalog — current context windows, output caps, input modalities, and reasoning effort maps for OpenAI, Anthropic, Google, DeepSeek, Moonshot, Z.AI, MiniMax, Qwen, xAI, Xiaomi, OpenRouter exclusives, and more; presets now render through a searchable input instead of a 281-option dropdown.
+- Show context window, output cap, and reasoning-level counts inline with each preset selection.
+
 ## 0.10.3 - 2026-09-01
 
 - Distinguish API-key authentication failures, provider/WAF blocks, temporary upstream failures, and protocol rejection during live protocol probes.

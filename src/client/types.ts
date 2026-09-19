@@ -51,6 +51,12 @@ export interface Selection {
   reasoningEffort?: string
 }
 
+/** The selection outcome the DSH 0.1.6 composer seat face returns. */
+export interface SelectionOutcome {
+  ok?: boolean
+  error?: { message?: string }
+}
+
 export interface ModelChoice {
   key: string
   provider: CatalogGroup
@@ -64,7 +70,7 @@ export interface PaletteProps {
   available: boolean
   directory: DirectoryStore
   load: () => void
-  select: (selection: Selection) => Promise<boolean>
+  select: (selection: Selection) => Promise<SelectionOutcome | undefined>
   api: PaletteApi
   isLoopback: boolean
   t: (key: string, params?: Record<string, unknown>) => string

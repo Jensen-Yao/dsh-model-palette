@@ -21,19 +21,23 @@ describe('model presets', () => {
 
   it('fills missing fields without overwriting existing compatibility data', () => {
     const preset = matchModelPreset('glm-5.3', BUNDLED_PRESET_REGISTRY.presets)!
-    expect(applyModelPreset({ id: 'glm-5.3', contextWindow: 42, compat: { supportsDeveloperRole: false } }, preset, false)).toEqual({
+    const applied = applyModelPreset({ id: 'glm-5.3', contextWindow: 42, compat: { supportsDeveloperRole: false } }, preset, false)
+    expect(applied).toMatchObject({
       id: 'glm-5.3',
       contextWindow: 42,
       maxTokens: 131072,
       input: ['text'],
-      reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
       compat: { supportsDeveloperRole: false },
     })
+    expect(applied.reasoningEfforts).toMatchObject({ off: null, low: 'low', high: 'high', max: 'max' })
   })
 
   it('applies verified input and reasoning metadata without replacing manual declarations', () => {
     const preset = matchModelPreset('gpt-5.6-sol', BUNDLED_PRESET_REGISTRY.presets)!
+    expect(preset).toMatchObject({ contextWindow: 272000, maxTokens: 128000 })
     expect(applyModelPreset({ id: 'gpt-5.6-sol' }, preset, false)).toMatchObject({
+      contextWindow: 272000,
+      maxTokens: 128000,
       input: ['text', 'image'],
       reasoningEfforts: { off: 'none', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
     })
@@ -42,7 +46,7 @@ describe('model presets', () => {
     const glmPreset = matchModelPreset('glm-5.3', BUNDLED_PRESET_REGISTRY.presets)!
     expect(glmPreset).toMatchObject({
       input: ['text'],
-      reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
+      reasoningEfforts: { off: null, low: 'low', high: 'high', max: 'max' },
     })
   })
 
