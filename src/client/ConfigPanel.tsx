@@ -35,10 +35,12 @@ import {
   applyReasoningDispatchDefaults,
   applyUniversalReasoningDefaults,
   applyUniversalReasoningToProvider,
+  applyModelRenderLimit,
   compatValue,
   deriveCredentialRef,
   duplicateModelIds,
   duplicateModelTemplate,
+  formatTokenCount,
   inputMode,
   importSelectedOpenRouterFreeModels,
   isRecord,
@@ -341,6 +343,8 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
   const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
   const [freeSyncInfo, setFreeSyncInfo] = useState<Record<string, unknown> | undefined>(undefined)
   const [modelImport, setModelImport] = useState<{ models: Record<string, unknown>[]; query: string; selection: string[] } | null>(null)
+  const [credentialStatus, setCredentialStatus] = useState<Record<string, 'configured' | 'missing' | 'unknown'>>({})
+  const [showAllModels, setShowAllModels] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -360,6 +364,10 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     return models.map((model, index) => ({ model, index })).filter(({ model }) => query === '' || [model.id, model.name]
       .some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
   }, [modelQuery, models])
+  const { rendered: renderedModels, hidden: hiddenModels } = useMemo(
+    () => applyModelRenderLimit(visibleModels, showAllModels),
+    [showAllModels, visibleModels],
+  )
   const protocol = stringField(draft, 'api')
   const protocolTestModel = models.find(model => model.id === protocolTestModelId)
     ?? models.find(model => typeof model.id === 'string' && model.id.trim() !== '')
@@ -380,6 +388,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     const count = declared.length > 0
       ? declared.length
       : (liveCatalogModels[id]?.length ?? (isRecord(profile.modelOverrides) ? Object.keys(profile.modelOverrides).length : 0))
+    const ref = stringField(profile, 'apiKeyEnv')
     return {
       id,
       displayName: stringField(profile, 'displayName') || meta.brandName || id,
@@ -388,8 +397,9 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       protocol: stringField(profile, 'api'),
       freeSync: cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[id] ?? undefined) && freeSyncProviders(retryNamespace?.value)[id]?.enabled === true,
       active: id === providerId,
+      keyDot: ref === '' ? 'none' : credentialStatus[ref] ?? 'unknown',
     }
-  }), [liveCatalogModels, profiles, providerIds, providerId, retryNamespace])
+  }), [credentialStatus, liveCatalogModels, profiles, providerIds, providerId, retryNamespace])
   const filteredProviderCards = useMemo(() => {
     const needle = providerQuery.trim().toLocaleLowerCase()
     if (needle === '') return configuredProviderCards
@@ -486,6 +496,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     setOpenRouterFreeSelection([])
     setOpenRouterFreeQuery('')
     setModelImport(null)
+    setShowAllModels(false)
     setError(null)
     setFeedback(null)
     void describeCredential(ref).catch(cause => setError(messageOf(cause)))
@@ -504,6 +515,30 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     setFreeSyncDraft(cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[providerId] ?? undefined))
     setFreeSyncInfo(freeSyncStates(retryNamespace?.value)[providerId])
   }, [creating, providerId, retryNamespace])
+
+  // One describe call resolves the key status for every provider card badge.
+  useEffect(() => {
+    if (namespace === null) return
+    const currentProfiles = providerProfiles(namespace.user ?? namespace.value)
+    const refs = [...new Set(Object.values(currentProfiles).flatMap(profile => {
+      const ref = stringField(profile, 'apiKeyEnv')
+      return ref === '' ? [] : [ref]
+    }))]
+    if (refs.length === 0) {
+      setCredentialStatus({})
+      return
+    }
+    let cancelled = false
+    void api.credentials.describe({ refs }).then(response => {
+      if (cancelled || !response.result.ok) return
+      const next: Record<string, 'configured' | 'missing' | 'unknown'> = {}
+      for (const [ref, info] of Object.entries(response.result.value.credentials)) {
+        next[ref] = info?.configured === true ? 'configured' : 'missing'
+      }
+      setCredentialStatus(next)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [api.credentials, namespace])
 
   const writeFreeSyncRule = async (next: FreeSyncDraft) => {
     if (retryNamespace === null || providerId.trim() === '') return
@@ -1532,9 +1567,13 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   <span className="dmp-config-provider-card-icon"><ProviderIcon id={template.icon} size={22} /></span>
                   <span className="dmp-config-provider-card-main">
                     <strong>{template.displayName}</strong>
-                    <small>{template.hint ?? (template.models === undefined
-                      ? t('config.templateOauth')
-                      : t('config.templateModelCount', { count: template.models }))}</small>
+                    <small>{(() => {
+                      const liveCount = template.catalog === true ? liveCatalogModels[template.id]?.length : undefined
+                      if (liveCount !== undefined) return t('config.templateModelCount', { count: liveCount })
+                      return template.hint ?? (template.models === undefined
+                        ? t('config.templateOauth')
+                        : t('config.templateModelCount', { count: template.models }))
+                    })()}</small>
                   </span>
                 </button>
               ))}
@@ -1614,6 +1653,15 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
         </div>
       )}
 
+      {providerIds.length === 0 && !creating && (
+        <section className="dmp-config-welcome">
+          <strong>{t('config.emptyTitle')}</strong>
+          <span>{t('config.emptyHint')}</span>
+          <button type="button" className="dmp-media-primary" disabled={busy !== null} onClick={() => onSwitchMode?.('catalog')}>{t('config.addProvider')}</button>
+        </section>
+      )}
+
+      {!(providerIds.length === 0 && !creating) && (
       <section className="dmp-config-card">
         <div className="dmp-config-card-heading">
           <div><h3>{t('config.providerTitle')}</h3><p>{t('config.providerDescription')}</p></div>
@@ -1652,6 +1700,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                     <small>{t('config.providerCardMeta', { count: card.modelCount, protocol: card.protocol || '—' })}</small>
                   </span>
                   {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
+                  <i className={`dmp-key-dot is-${card.keyDot}`} title={t(card.keyDot === 'configured' ? 'config.keyDotConfigured' : card.keyDot === 'missing' ? 'config.keyDotMissing' : 'config.keyDotNone')} aria-hidden="true" />
                 </button>
               ))}
               {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
@@ -1898,39 +1947,48 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           </div>
         )}
       </section>
+      )}
 
       <section className="dmp-config-card dmp-config-retry-card">
-        <div className="dmp-config-card-heading">
-          <div><h3>{t('config.retryTitle')}</h3><p>{t('config.retryDescription')}</p></div>
-          {retryDraft.enabled && retryDraft.maxRetries === 50 && <span className="dmp-config-retry-preset">{t('config.retryPreset50')}</span>}
-        </div>
-        <div className="dmp-config-provider-grid">
-          <label className="dmp-media-field">
-            <span>{t('config.retryProviderMode')}</span>
-            <select value={retryDraft.enabled ? 'custom' : 'inherit'} disabled={readOnly} onChange={event => setRetryDraft(current => ({
-              ...current,
-              enabled: event.currentTarget.value === 'custom',
-              maxRetries: event.currentTarget.value === 'custom' && current.maxRetries === 0 ? 3 : current.maxRetries,
-            }))}>
-              <option value="inherit">{t('config.retryProviderInherit')}</option>
-              <option value="custom">{t('config.retryProviderCustom')}</option>
-            </select>
-          </label>
-          <label className="dmp-media-field">
-            <span>{t('config.retryProviderCount')}</span>
-            <input type="number" min="0" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.maxRetries} disabled={readOnly || !retryDraft.enabled} onChange={event => updateProviderRetryCount(event.currentTarget.value)} />
-          </label>
-          <div className="dmp-config-retry-note dmp-config-span-2">
-            <strong>{t('config.retrySafetyTitle')}</strong>
-            <span>{t('config.retrySafetyDescription', { retries: retryDraft.maxRetries, attempts: retryDraft.maxRetries + 1 })}</span>
+        <details className="dmp-config-fold">
+          <summary>
+            <span className="dmp-config-fold-title">{t('config.retryTitle')}</span>
+            {retryDraft.enabled && retryDraft.maxRetries === 50 && <span className="dmp-config-retry-preset">{t('config.retryPreset50')}</span>}
+            <span className="dmp-config-fold-state">{retryDraft.enabled ? t('config.retryFoldOn', { retries: retryDraft.maxRetries }) : t('config.retryFoldOff')}</span>
+          </summary>
+          <p className="dmp-config-fold-hint">{t('config.retryDescription')}</p>
+          <div className="dmp-config-provider-grid">
+            <label className="dmp-media-field">
+              <span>{t('config.retryProviderMode')}</span>
+              <select value={retryDraft.enabled ? 'custom' : 'inherit'} disabled={readOnly} onChange={event => setRetryDraft(current => ({
+                ...current,
+                enabled: event.currentTarget.value === 'custom',
+                maxRetries: event.currentTarget.value === 'custom' && current.maxRetries === 0 ? 3 : current.maxRetries,
+              }))}>
+                <option value="inherit">{t('config.retryProviderInherit')}</option>
+                <option value="custom">{t('config.retryProviderCustom')}</option>
+              </select>
+            </label>
+            <label className="dmp-media-field">
+              <span>{t('config.retryProviderCount')}</span>
+              <input type="number" min="0" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.maxRetries} disabled={readOnly || !retryDraft.enabled} onChange={event => updateProviderRetryCount(event.currentTarget.value)} />
+            </label>
+            <div className="dmp-config-retry-note dmp-config-span-2">
+              <strong>{t('config.retrySafetyTitle')}</strong>
+              <span>{t('config.retrySafetyDescription', { retries: retryDraft.maxRetries, attempts: retryDraft.maxRetries + 1 })}</span>
+            </div>
           </div>
-        </div>
+        </details>
       </section>
 
       {openRouterProfile && !creating && (
         <section className="dmp-config-card dmp-config-freesync-card">
-          <div className="dmp-config-card-heading">
-            <div><h3>{t('config.freeSyncTitle')}</h3><p>{t('config.freeSyncDescription')}</p></div>
+          <details className="dmp-config-fold">
+            <summary>
+              <span className="dmp-config-fold-title">{t('config.freeSyncTitle')}</span>
+              <span className="dmp-config-fold-state">{freeSyncDraft?.enabled === true ? t('config.freeSyncOnShort') : t('config.freeSyncOffShort')}</span>
+            </summary>
+            <p className="dmp-config-fold-hint">{t('config.freeSyncDescription')}</p>
             {freeSyncInfo?.lastSyncAt !== undefined && typeof freeSyncInfo.lastSyncAt === 'string' && (
               <span className="dmp-config-freesync-state">
                 {typeof freeSyncInfo.total === 'number'
@@ -1943,7 +2001,6 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   : t('config.freeSyncStateAt', { time: new Date(String(freeSyncInfo.lastSyncAt)).toLocaleString() })}
               </span>
             )}
-          </div>
           {typeof freeSyncInfo?.error === 'string' && <div className="dmp-media-error" role="alert">{freeSyncInfo.error}</div>}
           <div className="dmp-config-provider-grid">
             <label className="dmp-media-field">
@@ -1984,6 +2041,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               </button>
             </div>
           </div>
+          </details>
         </section>
       )}
 
@@ -2007,7 +2065,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
         {models.length === 0 && <div className="dmp-config-empty">{t('config.noModels')}</div>}
         {models.length > 0 && visibleModels.length === 0 && <div className="dmp-config-empty">{t('config.noMatchingModels')}</div>}
         <div className="dmp-config-models">
-          {visibleModels.map(({ model, index }) => {
+          {renderedModels.map(({ model, index }) => {
             const automatic = sourcePreset(model, registry.presets)
             const selectedPresetId = manualPresets[index] ?? automatic?.id ?? ''
             const selectedPreset = registry.presets.find(preset => preset.id === selectedPresetId)
@@ -2021,13 +2079,22 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 <div className="dmp-config-model-top">
                   <span className="dmp-config-model-title">
                     <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : typeof model.id === 'string' && model.id !== '' ? model.id : `${t('config.model')} ${index + 1}`}</strong>
-                    {openRouterProfile && typeof model.id === 'string' && model.id.toLocaleLowerCase().endsWith(':free') && <small>{t('config.freeModelBadge')}</small>}
+                    <code>{modelId}</code>
+                    <span className="dmp-config-model-badges">
+                      {typeof model.contextWindow === 'number' && Number.isFinite(model.contextWindow) && <em title={t('config.contextWindow')}>{formatTokenCount(model.contextWindow)}</em>}
+                      {typeof model.maxTokens === 'number' && Number.isFinite(model.maxTokens) && <em title={t('config.maxTokens')}>↩{formatTokenCount(model.maxTokens)}</em>}
+                      {modelInputMode === 'text-image' && <em title={t('config.inputTextImage')}>👁</em>}
+                      {openRouterProfile && modelId.toLocaleLowerCase().endsWith(':free') && <em className="is-free">{t('config.freeModelBadge')}</em>}
+                      {selectedPreset !== undefined && <em className="is-preset" title={selectedPreset.name}>◈</em>}
+                    </span>
                   </span>
                   <div>
                     <button type="button" disabled={busy !== null} onClick={() => duplicateModel(index)}>{t('config.duplicateModel')}</button>
                     <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>
                   </div>
                 </div>
+                <details className="dmp-config-model-body">
+                  <summary>{t('config.editModel')}</summary>
                 <div className="dmp-config-model-grid">
                   <label className="dmp-media-field dmp-config-span-2">
                     <span>{t('config.modelId')}</span>
@@ -2180,11 +2247,27 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                     </div>
                   ) : <p>{t('config.compatNone')}</p>}
                 </details>
+                </details>
               </article>
             )
           })}
         </div>
+        {hiddenModels > 0 && (
+          <button type="button" className="dmp-config-show-all" disabled={busy !== null} onClick={() => setShowAllModels(true)}>
+            {t('config.showAllModels', { count: hiddenModels + renderedModels.length })}
+          </button>
+        )}
       </section>
+
+      {dirty && (
+        <div className="dmp-config-savebar">
+          <span>{t('config.unsaved')}</span>
+          <div>
+            <button type="button" disabled={busy !== null} onClick={() => void load(true)}>{t('config.discardChanges')}</button>
+            <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

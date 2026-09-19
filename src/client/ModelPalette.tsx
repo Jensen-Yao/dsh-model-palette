@@ -4,13 +4,63 @@ import { ConfigPanel } from './ConfigPanel.tsx'
 import { MediaPanel } from './MediaPanel.tsx'
 import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
-import { REASONING_LEVELS } from './model-config.ts'
+import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
 import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
 const RECENTS_KEY = 'dsh-model-palette:recents:v1'
 type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay'
+
+interface ModelBadges {
+  context?: number
+  output?: number
+  image: boolean
+  free: boolean
+}
+
+// Session-level capacity index filled once from the live catalog; failures stay silent.
+let badgeIndex: Map<string, Map<string, ModelBadges>> | null = null
+let badgePromise: Promise<Map<string, Map<string, ModelBadges>>> | null = null
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function buildBadgeIndex(value: unknown): Map<string, Map<string, ModelBadges>> {
+  const index = new Map<string, Map<string, ModelBadges>>()
+  if (!isRecordValue(value) || !Array.isArray(value.groups)) return index
+  for (const group of value.groups) {
+    if (!isRecordValue(group) || typeof group.id !== 'string' || !Array.isArray(group.models)) continue
+    const inner = new Map<string, ModelBadges>()
+    for (const model of group.models) {
+      if (!isRecordValue(model) || typeof model.id !== 'string' || model.id === '') continue
+      inner.set(model.id, {
+        context: typeof model.contextWindow === 'number' && Number.isFinite(model.contextWindow) ? model.contextWindow : undefined,
+        output: typeof model.maxTokens === 'number' && Number.isFinite(model.maxTokens) ? model.maxTokens : undefined,
+        image: Array.isArray(model.input) && model.input.includes('image'),
+        free: model.id.toLocaleLowerCase().endsWith(':free'),
+      })
+    }
+    index.set(group.id, inner)
+  }
+  return index
+}
+
+function loadBadgeIndex(api: PaletteProps['api']): Promise<Map<string, Map<string, ModelBadges>>> {
+  if (badgeIndex !== null) return Promise.resolve(badgeIndex)
+  if (badgePromise === null) {
+    badgePromise = api.llm.models({}).then(response => {
+      const index = response.result.ok ? buildBadgeIndex(response.result.value) : new Map()
+      badgeIndex = index
+      return index
+    }).catch(() => {
+      badgePromise = null
+      return new Map()
+    })
+  }
+  return badgePromise
+}
 
 function readStoredList(key: string): string[] {
   try {
@@ -282,6 +332,16 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       return (leftIndex < 0 ? REASONING_LEVELS.length : leftIndex) - (rightIndex < 0 ? REASONING_LEVELS.length : rightIndex)
     })
   const hasEffortControl = snapshot.current !== null && reasoningOptions.length > 0
+  const [badges, setBadges] = useState<Map<string, Map<string, ModelBadges>>>(new Map())
+  useEffect(() => {
+    if (badgeIndex !== null) {
+      setBadges(badgeIndex)
+      return
+    }
+    let cancelled = false
+    void loadBadgeIndex(api).then(index => { if (!cancelled) setBadges(index) })
+    return () => { cancelled = true }
+  }, [api])
 
   return (
     <div className="dmp-launcher">
@@ -418,10 +478,8 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
               {view === 'media' ? (
                 <MediaPanel t={t} />
-              ) : view === 'config' ? (
-                <ConfigPanel api={api} isLoopback={isLoopback} mode="config" onSwitchMode={next => setView(next)} t={t} />
-              ) : view === 'catalog' ? (
-                <ConfigPanel api={api} isLoopback={isLoopback} mode="catalog" onSwitchMode={next => setView(next)} t={t} />
+              ) : view === 'config' || view === 'catalog' ? (
+                <ConfigPanel api={api} isLoopback={isLoopback} mode={view} onSwitchMode={next => setView(next)} t={t} />
               ) : view === 'relay' ? (
                 <RelayPanel onOpenConfig={() => setView('config')} t={t} />
               ) : <main className="dmp-results">
@@ -446,6 +504,18 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                         <span className="dmp-result-main">
                           <span className="dmp-result-title">
                             {choice.model.name}
+                            {(() => {
+                              const badge = badges.get(choice.provider.id)?.get(choice.model.id)
+                              if (badge === undefined) return null
+                              return (
+                                <span className="dmp-result-badges">
+                                  {badge.free && <em className="is-free">free</em>}
+                                  {badge.image && <em title="vision">👁</em>}
+                                  {badge.context !== undefined && <em>{formatTokenCount(badge.context)}</em>}
+                                  {badge.output !== undefined && <em>↩{formatTokenCount(badge.output)}</em>}
+                                </span>
+                              )
+                            })()}
                             {isCurrent && <em>{t('palette.current')}</em>}
                             {isRecent && !isCurrent && <em>{t('palette.recent')}</em>}
                           </span>

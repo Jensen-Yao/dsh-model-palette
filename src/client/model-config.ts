@@ -7,6 +7,27 @@ export const REASONING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhi
 export type ReasoningLevel = typeof REASONING_LEVELS[number]
 export type ReasoningEfforts = Partial<Record<ReasoningLevel, string | null>>
 
+/** Compact token-count badge: 1050000 → "1.05M", 272000 → "272k", 4096 → "4096". */
+export function formatTokenCount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '?'
+  if (value >= 1_000_000) {
+    const millions = value / 1_000_000
+    const text = millions >= 10 ? String(Math.round(millions)) : millions.toFixed(millions % 1 === 0 ? 0 : 2).replace(/0+$/u, '').replace(/\.$/u, '')
+    return `${text}M`
+  }
+  if (value >= 1000) return `${Math.round(value / 1000)}k`
+  return String(value)
+}
+
+export const MODEL_RENDER_LIMIT = 50
+export const MODEL_RENDER_THRESHOLD = 60
+
+/** Render cap for long model lists: above the threshold only the first N rows render until expanded. */
+export function applyModelRenderLimit<T>(items: readonly T[], showAll: boolean): { rendered: readonly T[]; hidden: number } {
+  if (showAll || items.length < MODEL_RENDER_THRESHOLD) return { rendered: items, hidden: 0 }
+  return { rendered: items.slice(0, MODEL_RENDER_LIMIT), hidden: items.length - MODEL_RENDER_LIMIT }
+}
+
 export interface ModelCandidate {
   id: string
   name?: string

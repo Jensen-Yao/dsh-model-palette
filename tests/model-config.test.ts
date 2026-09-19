@@ -1,5 +1,6 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  applyModelRenderLimit,
   applyMissingPresets,
   applyReasoningCompatibilityDefaults,
   applyReasoningDispatchDefaults,
@@ -8,6 +9,7 @@ import {
   deriveCredentialRef,
   duplicateModelIds,
   duplicateModelTemplate,
+  formatTokenCount,
   mergeDiscoveredModels,
   mergeDiscoveredModelsWithPresets,
   materializeProviderModels,
@@ -336,5 +338,25 @@ describe('model configuration helpers', () => {
       { id: 'old/free:free', contextWindow: 20 },
       { id: 'live/model:free', name: 'Live', contextWindow: 100, maxTokens: 40, input: ['text', 'image'], compat: { thinkingFormat: 'openrouter' } },
     ])
+  })
+})
+
+describe('capacity badges and render limit', () => {
+  it('formats token counts as compact badges', () => {
+    expect(formatTokenCount(1_050_000)).toBe('1.05M')
+    expect(formatTokenCount(1_000_000)).toBe('1M')
+    expect(formatTokenCount(272_000)).toBe('272k')
+    expect(formatTokenCount(4096)).toBe('4k')
+    expect(formatTokenCount(0)).toBe('?')
+  })
+
+  it('caps long model lists until the user expands them', () => {
+    const items = Array.from({ length: 120 }, (_, index) => index)
+    const capped = applyModelRenderLimit(items, false)
+    expect(capped.rendered).toHaveLength(50)
+    expect(capped.hidden).toBe(70)
+    expect(applyModelRenderLimit(items, true)).toEqual({ rendered: items, hidden: 0 })
+    const small = items.slice(0, 59)
+    expect(applyModelRenderLimit(small, false).hidden).toBe(0)
   })
 })

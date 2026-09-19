@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 - 2026-09-19
+
+- Cut config-page crowding: retry and free-sync cards fold away, every model row collapses to a summary line (id, capacity badges, vision/free/preset markers) with the editor revealed on demand, and lists above 60 models render the first 50 until expanded.
+- Add a sticky unsaved-changes bar with save/discard so the save action is reachable in long lists, and an empty-state card that routes new users straight to the add-provider catalog.
+- Provider cards now show a credential health dot (configured / missing / none) resolved with a single credentials describe call, and the add-provider catalog shows live built-in model counts from the runtime catalog instead of hardcoded numbers.
+- Palette result rows gain compact capacity badges (context, output, vision, free) from a session-cached live catalog index.
+
 ## 0.12.2 - 2026-09-19
 
 - Promote add-provider to a first-class sidebar view: the template catalog renders as its own full page, fully separated from the model-config card; the dashed card inside config jumps to it.
