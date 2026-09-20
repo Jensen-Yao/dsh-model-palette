@@ -1,10 +1,33 @@
 import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { homedir, tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MANUAL_PAID_ACKNOWLEDGEMENT } from '../src/media-protocol.ts'
-import { createMediaApiHandler, registerOpenRouterMedia } from '../src/openrouter-media.js'
+import { createMediaApiHandler, registerOpenRouterMedia, resolveConfig } from '../src/openrouter-media.js'
+
+describe('media config defaults', () => {
+  it('works with zero config and reuses the DSH OpenRouter key', () => {
+    const config = resolveConfig(undefined)
+    expect(config.credentialRef).toBe('OPENROUTER_API_KEY')
+    expect(config.outputDir).toBe(resolve(join(homedir(), '.dsh', 'media-output')))
+    expect(config.allowPaidImages).toBe(false)
+    expect(config.allowPaidVideos).toBe(false)
+  })
+
+  it('keeps every field overridable', () => {
+    const config = resolveConfig({
+      credentialRef: 'MY_OPENROUTER_KEY',
+      outputDir: 'D:/media',
+      allowPaidImages: true,
+      preferredImageModels: ['google/gemini-3-pro-image'],
+    })
+    expect(config.credentialRef).toBe('MY_OPENROUTER_KEY')
+    expect(config.outputDir).toBe(resolve('D:/media'))
+    expect(config.allowPaidImages).toBe(true)
+    expect(config.preferredImageModels).toEqual(['google/gemini-3-pro-image'])
+  })
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()

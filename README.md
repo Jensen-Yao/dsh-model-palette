@@ -145,21 +145,25 @@ Restart `dsh web`, then press **<kbd>Alt+M</kbd>** or click the model trigger in
 
 ### Enable OpenRouter Media Tools (Optional)
 
-Add a profile patch to enable the optional image/video generation tools:
+Media tools are **enabled by default with zero configuration**: they reuse the `OPENROUTER_API_KEY` already stored in your DSH credentials (the same key your OpenRouter chat routes use) and write outputs to `~/.dsh/media-output`. Free image/video endpoints are used automatically; paid generation asks for per-run confirmation in the panel unless you allow it in config.
+
+Opt out or customize via a profile patch — every field is optional:
 
 ```yaml
 # cordis.patch.yml or your profile patch file
 - id: dsh-model-palette
   config:
     openrouterMedia:
-      enabled: true
-      credentialRef: OPENROUTER_API_KEY
+      enabled: false                # set false to turn the tools off
+      credentialRef: OPENROUTER_API_KEY   # any DSH credential reference
       outputDir: 'D:\AI\openrouter\outputs'
       allowPaidImages: false
       allowPaidVideos: false
       preferredImageModels: []
       preferredVideoModels: []
 ```
+
+If the key is missing you get a clear `Credential OPENROUTER_API_KEY is not configured in DSH` message — add it on the config panel like any other provider key.
 
 This registers five agent tools:
 

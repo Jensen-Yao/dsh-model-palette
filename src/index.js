@@ -12,10 +12,10 @@ export function apply(ctx, config = {}) {
   const retrySettings = registerRequestRetrySettings(ctx)
   registerModelConfigApi(ctx)
   registerOpenRouterFreeSync(ctx)
+  if (config.openrouterMedia?.enabled !== false) {
+    registerOpenRouterMedia(ctx, config.openrouterMedia)
+  }
   registerBaiRelay(ctx, config.baiRelay)
   registerProviderRelays(ctx, config.providerRelays)
   registerGatewayRecovery(ctx, config.gatewayRecovery, retrySettings)
-  if (config.openrouterMedia?.enabled === true) {
-    registerOpenRouterMedia(ctx, config.openrouterMedia)
-  }
 }

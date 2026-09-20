@@ -145,21 +145,25 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
 
 ### 启用 OpenRouter 媒体工具（可选）
 
-如需启用可选的图像 / 视频生成工具，在配置文件中加入以下补丁：
+媒体工具**默认启用、零配置**：直接复用 DSH 凭据库里已保存的 `OPENROUTER_API_KEY`（与你 OpenRouter 聊天线路同一把 key），产物写入 `~/.dsh/media-output`。优先使用免费端点；付费生成默认关闭，面板内逐次勾选确认后才执行，也可在配置中放行。
+
+如需关闭或自定义，在配置文件中加入补丁（所有字段均可选）：
 
 ```yaml
 # cordis.patch.yml 或你的 profile 补丁文件
 - id: dsh-model-palette
   config:
     openrouterMedia:
-      enabled: true
-      credentialRef: OPENROUTER_API_KEY
+      enabled: false                # 设为 false 关闭媒体工具
+      credentialRef: OPENROUTER_API_KEY   # 任意 DSH 凭据引用
       outputDir: 'D:\AI\openrouter\outputs'
       allowPaidImages: false
       allowPaidVideos: false
       preferredImageModels: []
       preferredVideoModels: []
 ```
+
+密钥缺失时会明确提示 `Credential OPENROUTER_API_KEY is not configured in DSH`——像其他供应商一样在配置页填好即可。
 
 ### B.AI 无 VPN 连接修复
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.1 - 2026-09-20
+
+- OpenRouter media tools are now zero-config and enabled by default: they reuse the OPENROUTER_API_KEY already stored in DSH credentials (the same key chat routes use) and write outputs to ~/.dsh/media-output, so the media panel stops erroring with unregistered endpoints on fresh installs. `enabled: false` opts out and every field stays overridable via plugin config.
+
 ## 0.15.0 - 2026-09-20
 
 - Preset registry v5 (487 entries): add mainstream coverage the built-in catalog lacks — Doubao Seed family (Seed 2.0 Code Preview 256K/128K, Seed 1.8 / 1.6 / 1.6 Vision 256K/32K text+image, Seed Character, Doubao 1.5 Pro 32K) from the official Volcano Ark model list; Hunyuan A13B (256K/32K) and Vision models from Tencent Cloud docs; Cohere Command A (256K) and the Perplexity Sonar family (Sonar 128K, Sonar Pro / Pro Search 200K) from their model docs.

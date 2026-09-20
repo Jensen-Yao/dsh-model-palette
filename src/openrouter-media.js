@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { hasManualPaidAcknowledgement } from './media-protocol.ts'
 
@@ -10,6 +11,7 @@ const REQUEST_TIMEOUT_MS = 180_000
 const DOWNLOAD_TIMEOUT_MS = 600_000
 const REQUEST_BODY_LIMIT = 1_048_576
 const CREDENTIAL_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
+const DEFAULT_CREDENTIAL_REF = 'OPENROUTER_API_KEY'
 
 const RESULT_SCHEMA = { type: 'object', additionalProperties: true, properties: {} }
 const IMAGE_EXTENSIONS = new Map([
@@ -129,19 +131,29 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function resolveConfig(rawConfig) {
-  const credentialRef = requireString(rawConfig.credentialRef, 'credentialRef')
+/**
+ * Zero-config by default: reuse the DSH credential store's OPENROUTER_API_KEY
+ * (the same key the chat routes use) and write outputs under ~/.dsh/media-output.
+ * `enabled: false` opts out; every field stays overridable through plugin config.
+ */
+export function resolveConfig(rawConfig) {
+  const source = rawConfig === undefined || rawConfig === null ? {} : rawConfig
+  const credentialRef = source.credentialRef === undefined || source.credentialRef === ''
+    ? DEFAULT_CREDENTIAL_REF
+    : requireString(source.credentialRef, 'credentialRef')
   if (!CREDENTIAL_PATTERN.test(credentialRef)) throw new TypeError(`credentialRef must match ${String(CREDENTIAL_PATTERN)}`)
-  const rawOutputDir = requireString(rawConfig.outputDir, 'outputDir')
+  const rawOutputDir = source.outputDir === undefined || source.outputDir === ''
+    ? join(homedir(), '.dsh', 'media-output')
+    : requireString(source.outputDir, 'outputDir')
   if (!isAbsolute(rawOutputDir)) throw new TypeError('outputDir must be absolute')
   const outputDir = resolve(rawOutputDir)
   return {
     credentialRef,
     outputDir,
-    allowPaidImages: requireBoolean(rawConfig.allowPaidImages, 'allowPaidImages'),
-    allowPaidVideos: requireBoolean(rawConfig.allowPaidVideos, 'allowPaidVideos'),
-    preferredImageModels: optionalStringArray(rawConfig.preferredImageModels, 'preferredImageModels'),
-    preferredVideoModels: optionalStringArray(rawConfig.preferredVideoModels, 'preferredVideoModels'),
+    allowPaidImages: source.allowPaidImages === undefined ? false : requireBoolean(source.allowPaidImages, 'allowPaidImages'),
+    allowPaidVideos: source.allowPaidVideos === undefined ? false : requireBoolean(source.allowPaidVideos, 'allowPaidVideos'),
+    preferredImageModels: optionalStringArray(source.preferredImageModels, 'preferredImageModels'),
+    preferredVideoModels: optionalStringArray(source.preferredVideoModels, 'preferredVideoModels'),
   }
 }
 
