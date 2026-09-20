@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1 - 2026-09-20
+
+- Add four Agnes presets from the official Agnes AI docs: agnes-2.5-flash and agnes-3.0-flash (512K context, 65,536 output, text+image) and agnes-2.5-pro / agnes-2.5-pro-beta (1M context, 65,536 output, text+image); no reasoning-effort guesses are included because the docs define no effort wire values.
+
 ## 0.14.0 - 2026-09-19
 
 - Beautification pass: brand-colored provider icons with tinted tiles across the config cards, the add-provider catalog, the palette sidebar rail, and the footer current-model chip.
