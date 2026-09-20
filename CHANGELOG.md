@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0 - 2026-09-20
+
+- Preset registry v5 (487 entries): add mainstream coverage the built-in catalog lacks — Doubao Seed family (Seed 2.0 Code Preview 256K/128K, Seed 1.8 / 1.6 / 1.6 Vision 256K/32K text+image, Seed Character, Doubao 1.5 Pro 32K) from the official Volcano Ark model list; Hunyuan A13B (256K/32K) and Vision models from Tencent Cloud docs; Cohere Command A (256K) and the Perplexity Sonar family (Sonar 128K, Sonar Pro / Pro Search 200K) from their model docs.
+- Agnes presets (v0.14.1) included: agnes-2.5-flash / 3.0-flash 512K, agnes-2.5-pro / pro-beta 1M, all text+image.
+- ERNIE 5.0 and SenseNova 6.7 remain intentionally absent — no verified public context numbers yet; they will land once official docs publish them.
+
 ## 0.14.1 - 2026-09-20
 
 - Add four Agnes presets from the official Agnes AI docs: agnes-2.5-flash and agnes-3.0-flash (512K context, 65,536 output, text+image) and agnes-2.5-pro / agnes-2.5-pro-beta (1M context, 65,536 output, text+image); no reasoning-effort guesses are included because the docs define no effort wire values.
