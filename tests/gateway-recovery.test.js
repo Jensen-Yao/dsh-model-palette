@@ -37,7 +37,7 @@ describe('gateway recovery', () => {
       expect(options.base).not.toBe(DEFAULT_REQUEST_RETRY_SETTINGS)
       return { get: () => options.base }
     })
-    registerRequestRetrySettings({ settings: { register } })
+    registerRequestRetrySettings({ register })
     expect(register).toHaveBeenCalledOnce()
     expect(DEFAULT_REQUEST_RETRY_SETTINGS.requestRetries.providers['b.ai'].maxRetries).toBe(50)
   })

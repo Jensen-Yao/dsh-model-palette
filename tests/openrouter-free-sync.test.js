@@ -85,7 +85,7 @@ describe('free sync runtime', () => {
       llm: { providers: { 'openrouter-free': { api: 'openai-completions', baseURL: 'https://openrouter.ai/api/v1', models: [{ id: 'stale:free', name: 'Stale' }] } } },
     }
     const ctx = ctxStub(value)
-    const runtime = createFreeSyncRuntime(ctx)
+    const runtime = createFreeSyncRuntime(ctx, settingsStub(value))
     const summary = await runtime.syncProvider('openrouter-free')
     expect(summary.total).toBeGreaterThan(0)
     expect(value.llm.providers['openrouter-free'].models.length).toBe(summary.total)
@@ -98,7 +98,7 @@ describe('free sync runtime', () => {
       plugin: { freeSync: { providers: { evil: { enabled: true, intervalHours: 6 } }, state: {} } },
       llm: { providers: { evil: { api: 'openai-completions', baseURL: 'https://api.example.com/v1', models: [] } } },
     }
-    const runtime = createFreeSyncRuntime(ctxStub(value))
+    const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
     await expect(runtime.syncProvider('evil')).rejects.toThrow('openrouter.ai')
     expect(value.plugin.freeSync.state.evil.error).toContain('openrouter.ai')
     await runtime.dispose()
@@ -114,7 +114,7 @@ describe('free sync runtime', () => {
       },
       llm: {},
     }
-    const runtime = createFreeSyncRuntime(ctxStub(value))
+    const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
     const settings = value.plugin
     expect(runtime.isDue(settings, 'a')).toBe(true)
     expect(runtime.isDue(settings, 'b')).toBe(false)

@@ -51,8 +51,8 @@ export const DEFAULT_REQUEST_RETRY_SETTINGS = Object.freeze({
 })
 
 /** Register live request-retry and free-sync settings with plugin-presets applied. */
-export function registerRequestRetrySettings(ctx) {
-  return ctx.settings.register(
+export function registerRequestRetrySettings(settings) {
+  return settings.register(
     REQUEST_RETRY_SETTINGS_NAMESPACE,
     RequestRetrySettingsSchema,
     { base: structuredClone(DEFAULT_REQUEST_RETRY_SETTINGS), applies: 'live' },

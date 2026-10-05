@@ -4,14 +4,16 @@ import { registerGatewayRecovery } from './gateway-recovery.js'
 import { registerBaiRelay, registerProviderRelays } from './bai-relay.js'
 import { registerRequestRetrySettings } from './request-retry-settings.js'
 import { registerOpenRouterFreeSync } from './openrouter-free-sync.js'
+import { createSettingsBackend } from './compat/settings-backend.js'
 
 export const name = 'dsh-model-palette'
 export const inject = ['tools', 'credentials', 'webServer', 'llm', 'settings']
 
 export function apply(ctx, config = {}) {
-  const retrySettings = registerRequestRetrySettings(ctx)
+  const settings = createSettingsBackend(ctx)
+  const retrySettings = registerRequestRetrySettings(settings)
   registerModelConfigApi(ctx)
-  registerOpenRouterFreeSync(ctx)
+  registerOpenRouterFreeSync(ctx, settings)
   if (config.openrouterMedia?.enabled !== false) {
     registerOpenRouterMedia(ctx, config.openrouterMedia)
   }

@@ -10,8 +10,8 @@ const CATALOG_TIMEOUT_MS = 20_000
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models'
 
 /** Register startup free-model synchronization for OpenRouter free-only provider routes. */
-export function registerOpenRouterFreeSync(ctx) {
-  const runtime = createFreeSyncRuntime(ctx)
+export function registerOpenRouterFreeSync(ctx, settings) {
+  const runtime = createFreeSyncRuntime(ctx, settings)
   const startupTimer = setTimeout(() => { void runtime.syncDueProviders('startup') }, STARTUP_DELAY_MS)
   startupTimer.unref?.()
   const tickTimer = setInterval(() => { void runtime.syncDueProviders('interval') }, TICK_INTERVAL_MS)
@@ -29,12 +29,12 @@ export function registerOpenRouterFreeSync(ctx) {
 }
 
 /** Create the free-sync runtime so provider synchronization stays unit-testable. */
-export function createFreeSyncRuntime(ctx) {
+export function createFreeSyncRuntime(ctx, settingsApi) {
   const inFlight = new Map()
   let stopped = false
 
   async function pluginSettings() {
-    return ctx.settings.get(REQUEST_RETRY_SETTINGS_NAMESPACE)
+    return settingsApi.get(REQUEST_RETRY_SETTINGS_NAMESPACE)
   }
 
   function dueProviders(settings) {
@@ -78,7 +78,7 @@ export function createFreeSyncRuntime(ctx) {
         if (resolveFreeSyncRule(settings, providerId) === undefined) {
           throw new Error(`free sync is not enabled for provider "${providerId}"`)
         }
-        const profile = providerProfile(ctx, providerId)
+        const profile = await providerProfile(settingsApi, providerId)
         if (profile === undefined) throw new Error(`provider "${providerId}" is not configured`)
         if (!isOpenRouterRoute(profile)) throw new Error(`provider "${providerId}" does not point at openrouter.ai`)
         const live = await fetchLiveFreeModels()
@@ -86,7 +86,7 @@ export function createFreeSyncRuntime(ctx) {
           ? profile.models.filter(isRecord)
           : []
         const merged = mergeFreeSyncModels(previous, live, stringField(profile, 'api') || 'openai-completions')
-        await ctx.settings.mutate(LLM_SETTINGS_NAMESPACE, [{
+        await settingsApi.mutate(LLM_SETTINGS_NAMESPACE, [{
           op: 'set',
           path: ['providers', providerId, 'models'],
           value: merged.models,
@@ -97,7 +97,7 @@ export function createFreeSyncRuntime(ctx) {
           added: merged.added,
           removed: merged.removed,
         }
-        await ctx.settings.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
+        await settingsApi.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
           op: 'set',
           path: ['freeSync', 'state', providerId],
           value: state,
@@ -107,7 +107,7 @@ export function createFreeSyncRuntime(ctx) {
       } catch (error) {
         const message = errorMessage(error)
         try {
-          await ctx.settings.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
+          await settingsApi.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
             op: 'set',
             path: ['freeSync', 'state', providerId],
             value: { lastSyncAt: new Date().toISOString(), error: message },
@@ -214,8 +214,8 @@ function createFreeSyncHandler(runtime) {
   }
 }
 
-function providerProfile(ctx, providerId) {
-  const section = ctx.settings.get(LLM_SETTINGS_NAMESPACE)
+async function providerProfile(settingsApi, providerId) {
+  const section = await settingsApi.get(LLM_SETTINGS_NAMESPACE)
   const providers = isRecord(section?.providers) ? section.providers : undefined
   const profile = isRecord(providers?.[providerId]) ? providers[providerId] : undefined
   return profile
