@@ -23,14 +23,20 @@ const freeSyncState = z.object({
   error: z.string().required(false),
 })
 
+const requestRetriesSchema = z.object({ providers: z.dict(providerRule).default({}) })
+const freeSyncSchema = z.object({
+  providers: z.dict(freeSyncRule).default({}),
+  state: z.dict(freeSyncState).default({}),
+})
+
+/** Host-config section: per-provider request retry rules (0.2 Config export). */
+export const RequestRetrySectionSchema = requestRetriesSchema
+/** Host-config section: free-sync rules plus recorded sync state (0.2 Config export). */
+export const FreeSyncSectionSchema = freeSyncSchema
+
 export const RequestRetrySettingsSchema = z.object({
-  requestRetries: z.object({
-    providers: z.dict(providerRule).default({}),
-  }),
-  freeSync: z.object({
-    providers: z.dict(freeSyncRule).default({}),
-    state: z.dict(freeSyncState).default({}),
-  }),
+  requestRetries: requestRetriesSchema,
+  freeSync: freeSyncSchema,
 })
 
 export const DEFAULT_REQUEST_RETRY_SETTINGS = Object.freeze({
