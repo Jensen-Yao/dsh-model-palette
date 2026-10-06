@@ -30,12 +30,14 @@ function debugLog(msg) {
  * through its own panel are declared loosely so legacy entry config survives.
  */
 export const Config = z.object({
+  // volatile = 可由设置面板/运行时实时编辑；0.2 的 describe 只收录
+  // 「至少含一个 volatile 字段」的条目，漏标会导致整个命名空间消失
   requestRetries: RequestRetrySectionSchema.default(
     structuredClone(DEFAULT_REQUEST_RETRY_SETTINGS.requestRetries),
-  ),
+  ).volatile(),
   freeSync: FreeSyncSectionSchema.default(
     structuredClone(DEFAULT_REQUEST_RETRY_SETTINGS.freeSync),
-  ),
+  ).volatile(),
   openrouterMedia: z.any().required(false),
   baiRelay: z.any().required(false),
   providerRelays: z.any().required(false),
