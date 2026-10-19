@@ -72,6 +72,8 @@ import {
   type ModelPresetRegistry,
 } from './model-presets.ts'
 import type { PaletteApi } from './remote-compat.ts'
+import { settingsEntry } from '../settings-namespace.ts'
+import { ConfigTransferPanel } from './ConfigTransferPanel.tsx'
 
 interface ConfigPanelProps {
   api: PaletteApi
@@ -79,6 +81,8 @@ interface ConfigPanelProps {
   /** 'config' edits configured routes; 'catalog' is the dedicated add-provider view. */
   mode?: 'config' | 'catalog'
   onSwitchMode?: (mode: 'config' | 'catalog') => void
+  /** Parent navigation invokes the current guard before unmounting the editor. */
+  onLeaveGuardChange?: (guard: (() => boolean) | null) => void
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
@@ -319,7 +323,7 @@ function isOpenRouterProfile(providerId: string, profile: Record<string, unknown
   }
 }
 
-export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t }: ConfigPanelProps) {
+export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, onLeaveGuardChange, t }: ConfigPanelProps) {
   const [namespace, setNamespace] = useState<SettingsNamespaceView | null>(null)
   const [retryNamespace, setRetryNamespace] = useState<SettingsNamespaceView | null>(null)
   const [providerId, setProviderId] = useState('')
@@ -345,7 +349,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
   const [openRouterFreeSelection, setOpenRouterFreeSelection] = useState<string[]>([])
   const [openRouterFreeQuery, setOpenRouterFreeQuery] = useState('')
   const [liveCatalogModels, setLiveCatalogModels] = useState<Record<string, Record<string, unknown>[]>>({})
-  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | 'free-sync' | null>('load')
+  const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | 'free-sync' | 'transfer' | null>('load')
   const [providerQuery, setProviderQuery] = useState('')
   const [templateQuery, setTemplateQuery] = useState('')
   const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
@@ -462,7 +466,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     id: string,
     current: readonly Record<string, unknown>[],
   ): Promise<Record<string, unknown>[]> => {
-    const discoveredResponse = await api.llm.discoverModels({ settingsNs: SETTINGS_NAMESPACE, provider: id })
+    const discoveredResponse = await api.llm.discoverModels({ settingsNs: namespace?.ns ?? SETTINGS_NAMESPACE, provider: id })
     if (!discoveredResponse.result.ok) throw new Error(discoveredResponse.result.error.message)
     const discovered = discoveredResponse.result.value.models.map(model => ({ ...model }))
     const ids = discovered.flatMap(model => model.id.trim() === '' ? [] : [model.id.trim()])
@@ -471,9 +475,15 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       resolved.push(...await resolveProviderModels({ provider: id, models: ids.slice(offset, offset + PROTOCOL_SCAN_BATCH_SIZE) }))
     }
     return mergeModelCandidates(current, discovered, resolved)
-  }, [api.llm])
+  }, [api.llm, namespace?.ns])
 
   const confirmDiscard = useCallback(() => !dirty || window.confirm(t('config.discardConfirm')), [dirty, t])
+
+  useEffect(() => {
+    const writing = busy === 'save' || busy === 'delete' || busy === 'protocol-split' || busy === 'free-sync' || busy === 'transfer'
+    onLeaveGuardChange?.(() => !writing && confirmDiscard())
+    return () => onLeaveGuardChange?.(null)
+  }, [busy, confirmDiscard, onLeaveGuardChange])
 
   const openProvider = useCallback((
     id: string,
@@ -553,7 +563,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     const id = providerId.trim()
     if (!PROVIDER_ID_PATTERN.test(id)) throw new Error(t('config.providerIdInvalid'))
     const response = await api.settings.mutate({
-      ns: RETRY_SETTINGS_NAMESPACE,
+      ns: retryNamespace.ns,
       ops: [{ op: 'set', path: ['freeSync', 'providers', id], value: next }],
       expectedRevision: retryNamespace.revision,
     })
@@ -661,9 +671,9 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     try {
       const response = await api.settings.describe({})
       if (!response.result.ok) throw new Error(response.result.error.message)
-      const view = response.result.value.namespaces.find(candidate => candidate.ns === SETTINGS_NAMESPACE)
+      const view = settingsEntry(response.result.value.namespaces, SETTINGS_NAMESPACE)
       if (view === undefined) throw new Error(t('config.namespaceMissing'))
-      const nextRetryNamespace = response.result.value.namespaces.find(candidate => candidate.ns === RETRY_SETTINGS_NAMESPACE)
+      const nextRetryNamespace = settingsEntry(response.result.value.namespaces, RETRY_SETTINGS_NAMESPACE)
       if (nextRetryNamespace === undefined) throw new Error(t('config.retryNamespaceMissing'))
       const catalogResponse = await api.llm.models({})
       if (!catalogResponse.result.ok) throw new Error(catalogResponse.result.error.message)
@@ -914,7 +924,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       if (apiProtocol === '') throw new Error(t('config.protocolRequired'))
       const key = keyDraft.trim()
       const response = await api.llm.discoverModels({
-        settingsNs: SETTINGS_NAMESPACE,
+        settingsNs: namespace?.ns ?? SETTINGS_NAMESPACE,
         provider: id,
         baseURL,
         api: apiProtocol,
@@ -972,7 +982,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       const baseURL = stringField(draft, 'baseURL').trim()
       const key = keyDraft.trim()
       const response = await api.llm.discoverModels({
-        settingsNs: SETTINGS_NAMESPACE,
+        settingsNs: namespace?.ns ?? SETTINGS_NAMESPACE,
         provider: id,
         ...(baseURL === '' ? {} : { baseURL }),
         ...(key === '' ? {} : { apiKey: key }),
@@ -1212,7 +1222,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
         if (!stored.result.ok) throw new Error(stored.result.error.message)
       }
       const response = await api.settings.mutate({
-        ns: SETTINGS_NAMESPACE,
+        ns: namespace.ns,
         ops: [
           { op: 'set', path: ['providers', split.responsesProviderId], value: split.responsesProfile },
           { op: 'set', path: ['providers', split.completionsProviderId], value: split.completionsProfile },
@@ -1223,7 +1233,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       let nextRetryNamespace = retryNamespace
       let retryWarning = ''
       const retryResponse = await api.settings.mutate({
-        ns: RETRY_SETTINGS_NAMESPACE,
+        ns: retryNamespace.ns,
         ops: [
           { op: 'set', path: ['requestRetries', 'providers', split.responsesProviderId], value: split.responsesRetry },
           { op: 'set', path: ['requestRetries', 'providers', split.completionsProviderId], value: split.completionsRetry },
@@ -1390,13 +1400,13 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     setFeedback(null)
     try {
       const response = await api.settings.mutate({
-        ns: SETTINGS_NAMESPACE,
+        ns: namespace.ns,
         ops: [{ op: 'unset', path: ['providers', providerId] }],
         expectedRevision: namespace.revision,
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
       const retryResponse = await api.settings.mutate({
-        ns: RETRY_SETTINGS_NAMESPACE,
+        ns: retryNamespace.ns,
         ops: [{ op: 'unset', path: ['requestRetries', 'providers', providerId] }],
         expectedRevision: retryNamespace.revision,
       })
@@ -1478,7 +1488,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       const repaired = repairProviderCompatibility(profile)
       const savedProfile = repaired.profile
       const response = await api.settings.mutate({
-        ns: SETTINGS_NAMESPACE,
+        ns: namespace.ns,
         ops: [{ op: 'set', path: ['providers', id], value: savedProfile }],
         expectedRevision: namespace.revision,
       })
@@ -1486,7 +1496,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       let nextRetryNamespace = retryNamespace
       if (retryDirty) {
         const retryResponse = await api.settings.mutate({
-          ns: RETRY_SETTINGS_NAMESPACE,
+          ns: retryNamespace.ns,
           ops: [{ op: 'set', path: ['requestRetries', 'providers', id], value: savedRetryDraft }],
           expectedRevision: retryNamespace.revision,
         })
@@ -1619,6 +1629,22 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
 
       {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
       {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+      {namespace !== null && retryNamespace !== null && <ConfigTransferPanel
+        api={api}
+        namespace={namespace}
+        pluginNamespace={retryNamespace}
+        disabled={busy !== null}
+        beforeImport={confirmDiscard}
+        onBusy={value => setBusy(value ? 'transfer' : null)}
+        onApplied={(next, nextPlugin) => {
+          setNamespace(next)
+          setRetryNamespace(nextPlugin)
+          const selected = Object.keys(providerProfiles(next.user ?? next.value)).sort()
+          const id = selected.includes(providerId) ? providerId : selected[0]
+          if (id !== undefined) openProvider(id, next, nextPlugin)
+        }}
+        t={t}
+      />}
       {batchApiKeyValidation !== null && (
         <section className="dmp-config-batch-results" aria-label={t('config.apiKeyBatchResults')}>
           <div className="dmp-config-batch-heading">
@@ -2026,7 +2052,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               <span>{t('config.freeSyncInterval')}</span>
               <input
                 type="number"
-                min="1"
+                min="0"
                 max="168"
                 step="1"
                 value={freeSyncDraft?.intervalHours ?? 6}
@@ -2041,7 +2067,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           </div>
           <div className="dmp-config-status-row">
             <span className={freeSyncDraft?.enabled ? 'is-ok' : ''}>
-              {freeSyncDraft?.enabled === true ? t('config.freeSyncActive') : t('config.freeSyncIdle')}
+              {freeSyncDraft?.enabled === true ? t(freeSyncDraft.intervalHours === 0 ? 'config.freeSyncStartupOnly' : 'config.freeSyncActive') : t('config.freeSyncIdle')}
             </span>
             <div>
               <button type="button" disabled={busy !== null} onClick={() => void runFreeSyncNow()}>

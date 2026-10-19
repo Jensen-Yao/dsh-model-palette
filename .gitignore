@@ -3,3 +3,5 @@ release/
 *.tgz
 *.log
 .DS_Store
+.playwright-cli/
+output/

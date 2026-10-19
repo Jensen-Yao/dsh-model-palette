@@ -1,5 +1,6 @@
 import { ensureModelReasoning, providerProfiles, repairProviderCompatibility } from './model-config.ts'
 import type { PaletteApi } from './remote-compat.ts'
+import { settingsEntry } from '../settings-namespace.ts'
 
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
 
@@ -24,7 +25,7 @@ export async function ensureSelectionCompatibility(
 ): Promise<string[]> {
   const described = await api.settings.describe({})
   if (!described.result.ok) throw new Error(described.result.error.message)
-  const namespace = described.result.value.namespaces.find(candidate => candidate.ns === SETTINGS_NAMESPACE)
+  const namespace = settingsEntry(described.result.value.namespaces, SETTINGS_NAMESPACE)
   if (namespace === undefined) return []
   const profiles = providerProfiles(namespace.user ?? namespace.value)
   const profile = profiles[providerId]
@@ -32,7 +33,7 @@ export async function ensureSelectionCompatibility(
   const repaired = repairProviderCompatibility(profile, modelId)
   if (!repaired.changed) return []
   const mutation = await api.settings.mutate({
-    ns: SETTINGS_NAMESPACE,
+    ns: namespace.ns,
     ops: [{ op: 'set', path: ['providers', providerId], value: repaired.profile }],
     expectedRevision: namespace.revision,
   })
@@ -48,7 +49,7 @@ export async function ensureSelectionReasoning(
 ): Promise<boolean> {
   const described = await api.settings.describe({})
   if (!described.result.ok) throw new Error(described.result.error.message)
-  const namespace = described.result.value.namespaces.find(candidate => candidate.ns === SETTINGS_NAMESPACE)
+  const namespace = settingsEntry(described.result.value.namespaces, SETTINGS_NAMESPACE)
   if (namespace === undefined) throw new Error('The llm-pi-ai settings namespace is not loaded')
   const userProfiles = providerProfiles(namespace.user)
   const effectiveProfiles = providerProfiles(namespace.value)
@@ -57,7 +58,7 @@ export async function ensureSelectionReasoning(
   const updated = ensureModelReasoning(providerId, profile, modelId)
   if (!updated.changed) return false
   const mutation = await api.settings.mutate({
-    ns: SETTINGS_NAMESPACE,
+    ns: namespace.ns,
     ops: [{ op: 'set', path: ['providers', providerId], value: updated.profile }],
     expectedRevision: namespace.revision,
   })

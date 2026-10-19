@@ -413,3 +413,54 @@
 .dmp-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 16px; color: var(--dsw-alias-label-tertiary); text-align: center; }
 .dmp-empty::before { content: '⌕'; font-size: 30px; line-height: 1; opacity: .45; }
 .dmp-current { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dmp-model-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 22px 12px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.dmp-model-filters label { display: inline-flex; align-items: center; gap: 6px; }
+.dmp-model-filters select, .dmp-transfer select { max-width: 100%; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; }
+.dmp-model-filters > span { margin-left: auto; font-variant-numeric: tabular-nums; }
+.dmp-load-more { display: block; width: 100%; padding: 12px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-brand-primary); background: transparent; font: inherit; cursor: pointer; }
+.dmp-transfer { margin: 0 0 14px; padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.dmp-transfer summary { cursor: pointer; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.dmp-transfer p { line-height: 1.6; overflow-wrap: anywhere; }
+.dmp-transfer fieldset { min-width: 0; margin: 12px 0; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
+.dmp-transfer legend { padding: 0 5px; }
+.dmp-transfer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.dmp-transfer-actions button { padding: 6px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; }
+.dmp-transfer-actions button:disabled { opacity: .5; cursor: default; }
+.dmp-transfer-options { display: grid; gap: 5px; max-height: 180px; overflow-y: auto; }
+.dmp-transfer-options label { display: flex; align-items: center; gap: 7px; min-height: 28px; overflow-wrap: anywhere; }
+.dmp-transfer-file { display: grid; gap: 8px; margin-top: 12px; }
+.dmp-transfer-file input { max-width: 100%; color: inherit; font: inherit; }
+.dmp-transfer :focus-visible, .dmp-model-filters :focus-visible, .dmp-load-more:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.dmp-transfer [role="alert"] { color: var(--dsw-alias-state-error-primary); }
+.dmp-launcher { flex-wrap: wrap; }
+.dmp-back-switch, .dmp-quick-chip { border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); cursor: pointer; font: inherit; padding: 4px 8px; }
+.dmp-back-switch { min-width: 30px; font-size: 18px; }
+.dmp-quick-chip { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.dmp-back-switch:disabled, .dmp-quick-chip:disabled { opacity: .45; cursor: default; }
+.dmp-launcher-error { flex-basis: 100%; display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-state-error-primary); font-size: 12px; overflow-wrap: anywhere; }
+.dmp-launcher-error button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.dmp-search-help { margin: -4px 22px 10px; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; }
+.dmp-reset-filters, .dmp-empty button { border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-brand-primary); padding: 6px 8px; font: inherit; cursor: pointer; }
+.dmp-quick-panel { min-width: 0; padding: 18px; overflow-y: auto; font-size: 12px; }
+.dmp-quick-panel h3 { margin: 0 0 8px; font-size: 16px; }
+.dmp-quick-panel p { line-height: 1.65; color: var(--dsw-alias-label-tertiary); }
+.dmp-quick-panel [role="alert"] { color: var(--dsw-alias-state-error-primary); }
+.dmp-quick-panel [role="status"] { color: var(--dsw-alias-brand-primary); }
+.dmp-quick-form { padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; }
+.dmp-quick-form label { display: grid; gap: 7px; color: var(--dsw-alias-label-secondary); }
+.dmp-quick-form input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); font: inherit; }
+.dmp-quick-selection { display: grid; gap: 5px; margin: 10px 0; overflow-wrap: anywhere; }
+.dmp-quick-selection span { color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.dmp-quick-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.dmp-quick-panel button { border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 6px 9px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; }
+.dmp-quick-panel button:disabled { opacity: .45; cursor: default; }
+.dmp-quick-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
+.dmp-quick-list li { padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; }
+.dmp-quick-list li.is-current { border-color: var(--dsw-alias-brand-primary); }
+.dmp-quick-card-head { display: flex; align-items: center; gap: 7px; }
+.dmp-quick-panel .dmp-quick-activate { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; color: var(--dsw-alias-label-primary); }
+.dmp-quick-activate strong { overflow-wrap: anywhere; }
+.dmp-quick-activate kbd { font-size: 9px; color: var(--dsw-alias-label-tertiary); }
+.dmp-quick-activate em { font-size: 10px; font-style: normal; color: var(--dsw-alias-brand-primary); }
+.dmp-quick-undo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.dmp-back-switch:focus-visible, .dmp-quick-chip:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }

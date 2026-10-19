@@ -1,0 +1,11 @@
+# Settings compatibility and configuration portability
+
+The settings backend forwards registration, reads and mutations on DSH 0.1. SettingsForms reads use the owning palette instance id and resolve renamed LLM entries by editable schema fields. Substring namespace matching is removed because it can select an unrelated entry; ambiguous schema candidates fail explicitly. Browser edits and discovery requests use the resolved entry id and retain revision checks.
+
+Provider backups use version-one JSON with explicit provider selection. A provider-field allowlist, recursive secret/header removal and URL omission keep authentication material outside the backup. Credential references remain portable names. Import defaults to skipping existing routes, previews allocated copy ids, and writes only selected incoming fields. Provider and palette settings are independent documents; partial failure is reported without pretending both writes succeeded.
+
+Free sync coalesces requests by provider, re-reads configuration after catalog retrieval, rejects an empty compatible catalog and cancels pending retrieval during disposal. The provider snapshot revision prevents overwriting edits queued after the final read. Model-list and sync-status writes remain separate; a failed status write can leave an updated model list with a failure diagnostic. A zero interval permits startup/manual sync and disables periodic sync.
+
+The native model directory exposes names and reasoning rather than capacities. The palette resolves metadata for displayed rows through its backend API, aborts obsolete browser requests and renders results progressively. Ranking, provider filters and capability filters remain independent of optional capacity lookup failures.
+
+Verification covers native settings forwarding, renamed/ambiguous descriptors, invalid backups, duplicate ids, omitted secrets, conflict plans, sync cancellation, empty catalogs, coalesced requests and edits during retrieval. The keyless browser fixture exercises the real palette and configuration components with renamed in-memory settings entries. Browser smoke checks cover import preview without writes, copied-provider batch import, malformed input, partial failure, focus trapping and restoration. Real provider requests and a fully booted DSH host are outside this keyless verification.

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Model Palette local smoke fixture</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        --dsw-alias-bg-layer-1: #171b24; --dsw-alias-bg-layer-2: #212633;
+        --dsw-alias-label-primary: #f0f2f7; --dsw-alias-label-secondary: #c5ccdc;
+        --dsw-alias-label-tertiary: #a9b1c5; --dsw-alias-label-caption: #a9b1c5;
+        --dsw-alias-label-dimmed: #8e99ae; --dsw-alias-border-l2: #4a536a;
+        --dsw-alias-border-inverted: #343b4c; --dsw-alias-brand-primary: #a7a2ff;
+        --dsw-alias-interactive-bg-hover: #343b4c; --dsw-alias-interactive-bg-hover-accent: #36335a;
+        --dsw-alias-state-error-primary: #ffa5a5;
+      }
+      body { background: #121620; color: #f0f2f7; padding: 32px; }
+    </style>
+  </head>
+  <body>
+    <h1>Model Palette local smoke fixture</h1>
+    <p>仅使用本地内存数据，不发送模型请求，不读取凭据。</p>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

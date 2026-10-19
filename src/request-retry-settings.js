@@ -88,7 +88,7 @@ export function resolveFreeSyncRule(settings, provider) {
   const providers = isRecord(freeSync?.providers) ? freeSync.providers : undefined
   const rule = isRecord(providers?.[provider]) ? providers[provider] : undefined
   if (rule === undefined || rule.enabled === false) return undefined
-  const intervalHours = Number.isFinite(rule.intervalHours) && rule.intervalHours > 0
+  const intervalHours = Number.isInteger(rule.intervalHours) && rule.intervalHours >= 0 && rule.intervalHours <= 168
     ? rule.intervalHours
     : 6
   return { intervalHours }

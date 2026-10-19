@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { ConfigPanel } from './ConfigPanel.tsx'
+import { QuickProfilesPanel } from './QuickProfilesPanel.tsx'
+import { useQuickProfiles } from './quick-profiles-store.ts'
 import { MediaPanel } from './MediaPanel.tsx'
+import { resolveProviderModels } from './config-api.ts'
+import type { RankOptions } from './model.ts'
 import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
@@ -12,7 +16,7 @@ import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
 const RECENTS_KEY = 'dsh-model-palette:recents:v1'
-type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay'
+type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay' | 'quick'
 
 interface ModelBadges {
   context?: number
@@ -21,48 +25,7 @@ interface ModelBadges {
   free: boolean
 }
 
-// Session-level capacity index filled once from the live catalog; failures stay silent.
-let badgeIndex: Map<string, Map<string, ModelBadges>> | null = null
-let badgePromise: Promise<Map<string, Map<string, ModelBadges>>> | null = null
-
-function isRecordValue(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function buildBadgeIndex(value: unknown): Map<string, Map<string, ModelBadges>> {
-  const index = new Map<string, Map<string, ModelBadges>>()
-  if (!isRecordValue(value) || !Array.isArray(value.groups)) return index
-  for (const group of value.groups) {
-    if (!isRecordValue(group) || typeof group.id !== 'string' || !Array.isArray(group.models)) continue
-    const inner = new Map<string, ModelBadges>()
-    for (const model of group.models) {
-      if (!isRecordValue(model) || typeof model.id !== 'string' || model.id === '') continue
-      inner.set(model.id, {
-        context: typeof model.contextWindow === 'number' && Number.isFinite(model.contextWindow) ? model.contextWindow : undefined,
-        output: typeof model.maxTokens === 'number' && Number.isFinite(model.maxTokens) ? model.maxTokens : undefined,
-        image: Array.isArray(model.input) && model.input.includes('image'),
-        free: model.id.toLocaleLowerCase().endsWith(':free'),
-      })
-    }
-    index.set(group.id, inner)
-  }
-  return index
-}
-
-function loadBadgeIndex(api: PaletteProps['api']): Promise<Map<string, Map<string, ModelBadges>>> {
-  if (badgeIndex !== null) return Promise.resolve(badgeIndex)
-  if (badgePromise === null) {
-    badgePromise = api.llm.models({}).then(response => {
-      const index = response.result.ok ? buildBadgeIndex(response.result.value) : new Map()
-      badgeIndex = index
-      return index
-    }).catch(() => {
-      badgePromise = null
-      return new Map()
-    })
-  }
-  return badgePromise
-}
+const RESULT_PAGE_SIZE = 80
 
 function readStoredList(key: string): string[] {
   try {
@@ -89,12 +52,6 @@ function useStoredList(key: string): [string[], (next: string[]) => void] {
     writeStoredList(key, next)
   }
   return [values, update]
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (
-    target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
-  )
 }
 
 function messageOf(error: unknown): string {
@@ -173,11 +130,23 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const [providerId, setProviderId] = useState<string | null>(null)
   const [quickFilter, setQuickFilter] = useState<'all' | 'favorites' | 'recents'>('all')
   const [cursor, setCursor] = useState(0)
+  const [capability, setCapability] = useState<NonNullable<RankOptions['capability']>>('all')
+  const [sort, setSort] = useState<NonNullable<RankOptions['sort']>>('recommended')
+  const [resultLimit, setResultLimit] = useState(RESULT_PAGE_SIZE)
   const [favorites, setFavorites] = useStoredList(FAVORITES_KEY)
   const [recents, setRecents] = useStoredList(RECENTS_KEY)
   const [error, setError] = useState<string | null>(null)
-  const [effortBusy, setEffortBusy] = useState(false)
+  const [selectionBusy, setSelectionBusy] = useState(false)
+  const selectingRef = useRef(false)
+  const [quickProfiles, setQuickProfiles] = useQuickProfiles()
+  const [previousSelection, setPreviousSelection] = useState<Selection | null>(null)
+  const lastSelectionRef = useRef<Selection | null>(null)
+  const leaveGuardRef = useRef<(() => boolean) | null>(null)
+  const registerLeaveGuard = useCallback((guard: (() => boolean) | null) => { leaveGuardRef.current = guard }, [])
+  const selectionDisabled = locked || !available || selectionBusy || snapshot.status === 'selecting'
   const searchRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const providers = useMemo(() => {
@@ -195,14 +164,18 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     favorites,
     recents,
     current: snapshot.current,
-    quickFilter,
-  }), [choices, query, providerId, favorites, recents, snapshot.current, quickFilter])
+    quickFilter, capability, sort,
+  }), [choices, query, providerId, favorites, recents, snapshot.current, quickFilter, capability, sort])
+  const displayedResults = results.slice(0, Math.max(resultLimit, cursor + 1))
 
   const favoriteCount = useMemo(() => choices.filter(choice => favorites.includes(choice.key)).length, [choices, favorites])
   const recentCount = useMemo(() => choices.filter(choice => recents.includes(choice.key)).length, [choices, recents])
+  const previousChoice = choices.find(choice => choice.provider.id === previousSelection?.provider && choice.model.id === previousSelection?.model)
+  const hasFilters = query !== '' || providerId !== null || quickFilter !== 'all' || capability !== 'all' || sort !== 'recommended'
 
   const show = useCallback((nextView: ModelPaletteView = 'models'): boolean => {
     if (!available || locked) return false
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setOpen(true)
     setView(nextView)
     setQuery('')
@@ -214,10 +187,33 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     return true
   }, [available, load, locked])
 
-  const close = () => {
+  const close = useCallback((force = false) => {
+    if (!force && leaveGuardRef.current !== null && !leaveGuardRef.current()) return false
     setOpen(false)
     setError(null)
+    return true
+  }, [])
+
+  const changeView = (next: ModelPaletteView): boolean => {
+    if (next === view) return true
+    const keepsEditor = (view === 'config' || view === 'catalog') && (next === 'config' || next === 'catalog')
+    if (!keepsEditor && leaveGuardRef.current !== null && !leaveGuardRef.current()) return false
+    setView(next)
+    setError(null)
+    return true
   }
+
+  const resetFilters = () => {
+    setQuery(''); setProviderId(null); setQuickFilter('all'); setCapability('all'); setSort('recommended')
+  }
+
+  useEffect(() => {
+    const next = snapshot.current
+    if (next === null) return
+    const last = lastSelectionRef.current
+    if (last !== null && (last.provider !== next.provider || last.model !== next.model)) setPreviousSelection({ ...last })
+    lastSelectionRef.current = { ...next }
+  }, [snapshot.current])
 
   useEffect(() => {
     if (!open || view !== 'models') return
@@ -225,10 +221,66 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     return () => cancelAnimationFrame(frame)
   }, [open, view])
 
+  const activate = useCallback(async (selection: Selection, closeAfter = true): Promise<boolean> => {
+    if (locked || !available || selectingRef.current || snapshot.status === 'selecting') return false
+    if (leaveGuardRef.current !== null && !leaveGuardRef.current()) return false
+    const choice = choices.find(item => item.provider.id === selection.provider && item.model.id === selection.model)
+    if (choice === undefined) { setError(t('quick.unavailable')); return false }
+    selectingRef.current = true
+    setSelectionBusy(true)
+    setError(null)
+    try {
+      if (mayNeedReasoningCompatibility(choice.provider.id, choice.model.id, choice.model.name)) {
+        const repaired = await ensureSelectionCompatibility(api, choice.provider.id, choice.model.id)
+        if (repaired.length > 0) load()
+      }
+      if (selection.reasoningEffort !== undefined && !choice.model.reasoning?.efforts.some(effort => effort.id === selection.reasoningEffort)) {
+        const changed = await ensureSelectionReasoning(api, selection.provider, selection.model)
+        if (changed) load()
+      }
+      const outcome = await select({ ...selection })
+      if (outcome?.ok !== true) {
+        const reason = outcome?.error?.message ?? ''
+        setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
+        return false
+      }
+      setRecents(pushRecent(recents, choice.key))
+      if (closeAfter) close(true)
+      return true
+    } catch (cause) {
+      setError(t('palette.selectFailedReason', { message: messageOf(cause) }))
+      return false
+    } finally {
+      selectingRef.current = false
+      setSelectionBusy(false)
+    }
+  }, [locked, available, snapshot.status, choices, api, load, select, recents, setRecents, close, t])
+
+  const choose = (choice: ModelChoice) => activate(choice.selection)
+  const chooseEffort = (value: string) => snapshot.current === null ? undefined : activate({
+    provider: snapshot.current.provider, model: snapshot.current.model,
+    ...(value === '' ? {} : { reasoningEffort: value }),
+  }, false)
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) return
+      if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        if (event.key.toLocaleLowerCase() === 'm') {
+          event.preventDefault()
+          if (!event.repeat && previousSelection !== null) void activate(previousSelection)
+          return
+        }
+        const slot = /^Digit([1-3])$/u.exec(event.code)
+        if (slot !== null && quickProfiles[Number(slot[1]) - 1] !== undefined) {
+          event.preventDefault()
+          if (!event.repeat) void activate(quickProfiles[Number(slot[1]) - 1]!.selection)
+          return
+        }
+      }
       if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLocaleLowerCase() === 'm') {
         event.preventDefault()
+        if (event.repeat) return
         if (open) close()
         else show()
         return
@@ -239,7 +291,16 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         close()
         return
       }
-      if (view !== 'models') return
+      if (event.key === 'Tab' && dialogRef.current !== null) {
+        const controls = [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], summary, [tabindex]')]
+          .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length > 0)
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+        return
+      }
+      if (view !== 'models' || event.target !== searchRef.current) return
       if (event.key === 'ArrowDown') {
         event.preventDefault()
         setCursor((value) => Math.min(value + 1, Math.max(0, results.length - 1)))
@@ -250,18 +311,19 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         setCursor((value) => Math.max(0, value - 1))
         return
       }
-      if (event.key === 'Enter' && results[cursor] !== undefined && !isTypingTarget(event.target)) {
+      if (event.key === 'Enter' && results[cursor] !== undefined) {
         event.preventDefault()
         void choose(results[cursor])
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, locked, available, results, cursor, view])
+  }, [open, locked, available, results, cursor, view, activate, previousSelection, quickProfiles, close, show])
 
   useEffect(() => {
     setCursor(0)
-  }, [query, providerId])
+    setResultLimit(RESULT_PAGE_SIZE)
+  }, [query, providerId, quickFilter, capability, sort])
 
   useEffect(() => {
     setCursor((value) => Math.min(value, Math.max(0, results.length - 1)))
@@ -270,53 +332,6 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   useEffect(() => {
     rowRefs.current[cursor]?.scrollIntoView({ block: 'nearest' })
   }, [cursor])
-
-  const choose = async (choice: ModelChoice) => {
-    if (mayNeedReasoningCompatibility(choice.provider.id, choice.model.id, choice.model.name)) {
-      try {
-        const repaired = await ensureSelectionCompatibility(api, choice.provider.id, choice.model.id)
-        if (repaired.length > 0) load()
-      } catch (cause) {
-        setError(t('palette.compatRepairFailed', { message: messageOf(cause) }))
-        return
-      }
-    }
-    const outcome = await select(choice.selection)
-    if (outcome === undefined || outcome.ok !== true) {
-      const reason = outcome?.error?.message ?? ''
-      setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
-      return
-    }
-    setRecents(pushRecent(recents, choice.key))
-    close()
-  }
-
-  const chooseEffort = async (value: string) => {
-    if (snapshot.current === null) return
-    setEffortBusy(true)
-    setError(null)
-    try {
-      const alreadyOffered = current?.model.reasoning?.efforts.some(effort => effort.id === value) === true
-      if (value !== '' && !alreadyOffered) {
-        const changed = await ensureSelectionReasoning(api, snapshot.current.provider, snapshot.current.model)
-        if (changed) load()
-      }
-      const selection: Selection = {
-        provider: snapshot.current.provider,
-        model: snapshot.current.model,
-        ...(value === '' ? {} : { reasoningEffort: value }),
-      }
-      const outcome = await select(selection)
-      if (outcome === undefined || outcome.ok !== true) {
-        const reason = outcome?.error?.message ?? ''
-        setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
-      }
-    } catch (cause) {
-      setError(t('palette.reasoningEnableFailed', { message: messageOf(cause) }))
-    } finally {
-      setEffortBusy(false)
-    }
-  }
 
   const currentLabel = current?.model.name ?? snapshot.current?.model ?? t('trigger.fallback')
   const providerLabel = current?.provider.name ?? snapshot.current?.provider
@@ -334,32 +349,72 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       return (leftIndex < 0 ? REASONING_LEVELS.length : leftIndex) - (rightIndex < 0 ? REASONING_LEVELS.length : rightIndex)
     })
   const hasEffortControl = snapshot.current !== null && reasoningOptions.length > 0
-  const [badges, setBadges] = useState<Map<string, Map<string, ModelBadges>>>(new Map())
+  const [badges, setBadges] = useState<Map<string, ModelBadges>>(new Map())
+  const badgeTargetsKey = JSON.stringify(displayedResults.map(choice => [choice.provider.id, choice.model.id]).sort())
   useEffect(() => {
-    if (badgeIndex !== null) {
-      setBadges(badgeIndex)
-      return
+    if (!open || view !== 'models') return
+    const controller = new AbortController()
+    const targets = new Map<string, string[]>()
+    for (const [provider, model] of JSON.parse(badgeTargetsKey) as Array<[string, string]>) {
+      targets.set(provider, [...(targets.get(provider) ?? []), model])
     }
-    let cancelled = false
-    void loadBadgeIndex(api).then(index => { if (!cancelled) setBadges(index) })
-    return () => { cancelled = true }
-  }, [api])
+    // Resolve only displayed rows; the native directory contains names and reasoning, not capacities.
+    void (async () => {
+      const next = new Map<string, ModelBadges>()
+      for (const [provider, models] of targets) {
+        if (controller.signal.aborted) return
+        try {
+          for (let offset = 0; offset < models.length; offset += 100) {
+            const resolved = await resolveProviderModels({ provider, models: models.slice(offset, offset + 100) }, controller.signal)
+            for (const model of resolved) next.set(choiceKey(provider, model.id), {
+              context: model.contextWindow, output: model.maxTokens,
+              image: model.input?.includes('image') === true, free: model.id.toLocaleLowerCase().endsWith(':free'),
+            })
+          }
+        } catch (cause) {
+          if (!controller.signal.aborted) console.warn('[dsh-model-palette] model metadata unavailable', cause)
+        }
+      }
+      if (!controller.signal.aborted) setBadges(next)
+    })()
+    return () => controller.abort()
+  }, [open, view, badgeTargetsKey, snapshot.groups])
+
+  useEffect(() => {
+    if (!open) return
+    const origin = returnFocusRef.current
+    return () => origin?.focus()
+  }, [open])
 
   return (
     <div className="dmp-launcher">
       <button
         type="button"
         className="dmp-trigger"
-        disabled={locked || !available}
+        disabled={selectionDisabled}
         onClick={() => show()}
         title={`${currentLabel}${providerLabel === undefined ? '' : ` · ${providerLabel}`} · Alt+M`}
         aria-label={t('trigger.aria')}
+        aria-keyshortcuts="Alt+M"
       >
         <span className="dmp-trigger-icon" aria-hidden="true">⌘</span>
         <span className="dmp-trigger-model">{currentLabel}</span>
         {providerLabel !== undefined && <span className="dmp-trigger-provider">· {providerLabel}</span>}
         <kbd>Alt M</kbd>
       </button>
+
+      {previousSelection !== null && <button type="button" className="dmp-back-switch"
+        disabled={selectionDisabled || previousChoice === undefined}
+        title={t('quick.switchBackHint', { model: previousChoice?.model.name ?? previousSelection.model })}
+        aria-label={t('quick.switchBack', { model: previousChoice?.model.name ?? previousSelection.model })}
+        aria-keyshortcuts="Alt+Shift+M"
+        onClick={() => void activate(previousSelection)}>↶</button>}
+      {quickProfiles.slice(0, 3).map((profile, index) => <button type="button" className="dmp-quick-chip" key={profile.id}
+        aria-keyshortcuts={`Alt+Shift+${index + 1}`}
+        disabled={selectionDisabled || !choices.some(choice => choice.provider.id === profile.selection.provider && choice.model.id === profile.selection.model)}
+        title={`${profile.selection.provider} / ${profile.selection.model} · ${profile.selection.reasoningEffort ?? t('palette.providerDefault')} · Alt Shift ${index + 1}`}
+        onClick={() => void activate(profile.selection)}>{profile.name}</button>)}
+      {!open && error !== null && <span className="dmp-launcher-error" role="alert">{error}<button type="button" aria-label={t('quick.dismissError')} onClick={() => setError(null)}>×</button></span>}
 
       {!locked && available && hasEffortControl && (
         <EffortSlider
@@ -368,7 +423,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
           options={reasoningOptions}
           defaultLabel={t('palette.providerDefault')}
           label={t('palette.effort')}
-          disabled={effortBusy}
+          disabled={selectionDisabled}
           onChange={value => void chooseEffort(value)}
         />
       )}
@@ -377,13 +432,13 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}>
+          <section ref={dialogRef} className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : view === 'quick' ? 'quick.title' : 'relay.title')}>
             <header className="dmp-header">
               <div>
-                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}</h2>
-                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : view === 'catalog' ? t('config.templateHint') : t(view === 'media' ? 'media.subtitle' : view === 'config' ? 'config.subtitle' : 'relay.subtitle')}</p>
+                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : view === 'quick' ? 'quick.title' : 'relay.title')}</h2>
+                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : view === 'catalog' ? t('config.templateHint') : t(view === 'media' ? 'media.subtitle' : view === 'config' ? 'config.subtitle' : view === 'quick' ? 'quick.subtitle' : 'relay.subtitle')}</p>
               </div>
-              <button type="button" className="dmp-close" onClick={close} aria-label={t('palette.close')}>×</button>
+              <button type="button" className="dmp-close" onClick={() => close()} aria-label={t('palette.close')}>×</button>
             </header>
 
             {view === 'models' && <div className="dmp-search-wrap">
@@ -392,19 +447,35 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 ref={searchRef}
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && results[cursor] !== undefined) {
-                    event.preventDefault()
-                    void choose(results[cursor])
-                  }
-                }}
                 placeholder={t('palette.search')}
                 aria-label={t('palette.search')}
+                title={t('palette.searchHint')}
               />
               {query !== '' && <button type="button" onClick={() => setQuery('')} aria-label={t('palette.clear')}>×</button>}
             </div>}
 
-            {view === 'models' && (snapshot.error !== null || error !== null) && (
+            {view === 'models' && query === '' && <p className="dmp-search-help">{t('palette.searchHint')}</p>}
+
+            {view === 'models' && <div className="dmp-model-filters">
+              <label>{t('palette.capability')}
+                <select value={capability} onChange={event => setCapability(event.currentTarget.value as typeof capability)}>
+                  <option value="all">{t('palette.capabilityAll')}</option>
+                  <option value="reasoning">{t('palette.capabilityReasoning')}</option>
+                  <option value="free">{t('palette.capabilityFree')}</option>
+                </select>
+              </label>
+              <label>{t('palette.sort')}
+                <select value={sort} onChange={event => setSort(event.currentTarget.value as typeof sort)}>
+                  <option value="recommended">{t('palette.sortRecommended')}</option>
+                  <option value="name">{t('palette.sortName')}</option>
+                  <option value="provider">{t('palette.sortProvider')}</option>
+                </select>
+              </label>
+              {hasFilters && <button type="button" className="dmp-reset-filters" onClick={resetFilters}>{t('palette.resetFilters')}</button>}
+              <span role="status">{t('palette.resultCount', { count: results.length })}</span>
+            </div>}
+
+            {(error !== null || view === 'models' && snapshot.error !== null) && (
               <div className="dmp-error">
                 <span>{error ?? snapshot.error}</span>
                 <button type="button" onClick={load}>{t('palette.retry')}</button>
@@ -413,31 +484,34 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
             <div className="dmp-body">
               <nav className="dmp-providers" aria-label={t('palette.providers')}>
+                <button type="button" className={`dmp-media-nav${view === 'quick' ? ' is-active' : ''}`} onClick={() => changeView('quick')}>
+                  <span>{t('quick.nav')}</span><small>{quickProfiles.length || '+'}</small>
+                </button>
                 <button
                   type="button"
                   className={`dmp-media-nav${view === 'media' ? ' is-active' : ''}`}
-                  onClick={() => setView('media')}
+                  onClick={() => changeView('media')}
                 >
                   <span>{t('media.nav')}</span><small>5</small>
                 </button>
                 <button
                   type="button"
                   className={`dmp-media-nav${view === 'config' ? ' is-active' : ''}`}
-                  onClick={() => setView('config')}
+                  onClick={() => changeView('config')}
                 >
                   <span>{t('config.nav')}</span><small>⚙</small>
                 </button>
                 <button
                   type="button"
                   className={`dmp-media-nav${view === 'catalog' ? ' is-active' : ''}`}
-                  onClick={() => setView('catalog')}
+                  onClick={() => changeView('catalog')}
                 >
                   <span>{t('palette.navCatalog')}</span><small>＋</small>
                 </button>
                 <button
                   type="button"
                   className={`dmp-media-nav${view === 'relay' ? ' is-active' : ''}`}
-                  onClick={() => setView('relay')}
+                  onClick={() => changeView('relay')}
                 >
                   <span>{t('relay.nav')}</span><small>↗</small>
                 </button>
@@ -445,21 +519,21 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 <button
                   type="button"
                   className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('all') }}
+                  onClick={() => { if (changeView('models')) resetFilters() }}
                 >
                   <span>{t('palette.allModels')}</span><small>{choices.length}</small>
                 </button>
                 <button
                   type="button"
                   className={view === 'models' && providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('favorites') }}
+                  onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('favorites') } }}
                 >
                   <span>{t('palette.favorites')}</span><small>{favoriteCount}</small>
                 </button>
                 <button
                   type="button"
                   className={view === 'models' && providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('recents') }}
+                  onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('recents') } }}
                 >
                   <span>{t('palette.recents')}</span><small>{recentCount}</small>
                 </button>
@@ -470,7 +544,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                     key={provider.id}
                     type="button"
                     className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
-                    onClick={() => { setView('models'); setProviderId(provider.id); setQuickFilter('all') }}
+                    onClick={() => { if (changeView('models')) { setProviderId(provider.id); setQuickFilter('all') } }}
                     title={`${provider.name} · ${provider.id}`}
                   >
                     <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
@@ -479,16 +553,19 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 ))}
               </nav>
 
-              {view === 'media' ? (
+              {view === 'quick' ? (
+                <QuickProfilesPanel profiles={quickProfiles} current={snapshot.current} choices={choices} busy={selectionDisabled}
+                  onChange={setQuickProfiles} onActivate={selection => void activate(selection)} onReload={load} t={t} />
+              ) : view === 'media' ? (
                 <MediaPanel t={t} />
               ) : view === 'config' || view === 'catalog' ? (
-                <ConfigPanel api={api} isLoopback={isLoopback} mode={view} onSwitchMode={next => setView(next)} t={t} />
+                <ConfigPanel api={api} isLoopback={isLoopback} mode={view} onSwitchMode={next => changeView(next)} onLeaveGuardChange={registerLeaveGuard} t={t} />
               ) : view === 'relay' ? (
-                <RelayPanel onOpenConfig={() => setView('config')} t={t} />
+                <RelayPanel onOpenConfig={() => changeView('config')} t={t} />
               ) : <main className="dmp-results">
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
-                {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.empty')}</div>}
-                {results.map((choice, index) => {
+                {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty"><span>{t('palette.empty')}</span><button type="button" onClick={resetFilters}>{t('palette.resetFilters')}</button></div>}
+                {displayedResults.map((choice, index) => {
                   const isCurrent = snapshot.current?.provider === choice.provider.id && snapshot.current.model === choice.model.id
                   const isFavorite = favorites.includes(choice.key)
                   const isRecent = recents.includes(choice.key)
@@ -502,13 +579,14 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                         ref={(node) => { rowRefs.current[index] = node }}
                         type="button"
                         className="dmp-result-select"
+                        disabled={selectionDisabled}
                         onClick={() => void choose(choice)}
                       >
                         <span className="dmp-result-main">
                           <span className="dmp-result-title">
                             {choice.model.name}
                             {(() => {
-                              const badge = badges.get(choice.provider.id)?.get(choice.model.id)
+                              const badge = badges.get(choice.key)
                               if (badge === undefined) return null
                               return (
                                 <span className="dmp-result-badges">
@@ -540,6 +618,9 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                     </div>
                   )
                 })}
+                {displayedResults.length < results.length && <button type="button" className="dmp-load-more" onClick={() => setResultLimit(Math.max(resultLimit, cursor + 1) + RESULT_PAGE_SIZE)}>
+                  {t('palette.showMore', { count: results.length - displayedResults.length })}
+                </button>}
               </main>}
             </div>
 
@@ -558,7 +639,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                   options={reasoningOptions}
                   defaultLabel={t('palette.providerDefault')}
                   label={t('palette.effort')}
-                  disabled={effortBusy}
+                  disabled={selectionDisabled}
                   onChange={value => void chooseEffort(value)}
                 />
               )}

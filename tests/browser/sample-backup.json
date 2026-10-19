@@ -1,0 +1,19 @@
+{
+  "format": "dsh-model-palette",
+  "version": 1,
+  "providers": {
+    "custom": {
+      "api": "openai-responses",
+      "baseURL": "https://example.invalid/v1",
+      "apiKeyEnv": "FIXTURE_API_KEY",
+      "models": [{ "id": "restored-model", "contextWindow": 65536, "maxTokens": 4096 }]
+    },
+    "imported": {
+      "api": "openai-completions",
+      "baseURL": "https://example.invalid/v1",
+      "models": [{ "id": "imported-model" }]
+    }
+  },
+  "requestRetries": { "custom": { "enabled": true, "maxRetries": 3, "models": {} } },
+  "freeSync": {}
+}

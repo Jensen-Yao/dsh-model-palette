@@ -1,14 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFreeSyncRuntime, mergeFreeSyncModels } from '../src/openrouter-free-sync.js'
+import { createSettingsBackend } from '../src/compat/settings-backend.js'
+
+const catalog = { data: [{ id: 'vendor/model:free', architecture: { input_modalities: ['text'], output_modalities: ['text'] }, context_length: 8192 }] }
+beforeEach(() => vi.stubGlobal('fetch', vi.fn(async () => Response.json(catalog))))
+afterEach(() => vi.unstubAllGlobals())
 
 function settingsStub(value) {
+  const revisions = new Map()
   return {
     get(ns) {
       if (ns === 'dsh-model-palette') return value.plugin
       if (ns === 'llm-pi-ai') return value.llm
       return undefined
     },
-    async mutate(ns, ops) {
+    snapshot(ns) { return { value: this.get(ns), revision: revisions.get(ns) ?? 0 } },
+    describe() { return ['dsh-model-palette', 'llm-pi-ai'].map(ns => ({ ns, ...this.snapshot(ns) })) },
+    async mutate(ns, ops, expectedRevision) {
+      if (expectedRevision !== undefined && expectedRevision !== (revisions.get(ns) ?? 0)) throw new Error('settings revision conflict')
       const target = ns === 'dsh-model-palette' ? value.plugin : ns === 'llm-pi-ai' ? value.llm : undefined
       if (target === undefined) throw new Error(`unknown namespace ${ns}`)
       for (const op of ops) {
@@ -23,6 +32,7 @@ function settingsStub(value) {
           }
         }
       }
+      revisions.set(ns, (revisions.get(ns) ?? 0) + 1)
       return structuredClone(target)
     },
   }
@@ -85,7 +95,8 @@ describe('free sync runtime', () => {
       llm: { providers: { 'openrouter-free': { api: 'openai-completions', baseURL: 'https://openrouter.ai/api/v1', models: [{ id: 'stale:free', name: 'Stale' }] } } },
     }
     const ctx = ctxStub(value)
-    const runtime = createFreeSyncRuntime(ctx, settingsStub(value))
+    const native = { ...settingsStub(value), register() {} }
+    const runtime = createFreeSyncRuntime(ctx, createSettingsBackend({ settings: native }))
     const summary = await runtime.syncProvider('openrouter-free')
     expect(summary.total).toBeGreaterThan(0)
     expect(value.llm.providers['openrouter-free'].models.length).toBe(summary.total)
@@ -120,5 +131,101 @@ describe('free sync runtime', () => {
     expect(runtime.isDue(settings, 'b')).toBe(false)
     expect(runtime.dueProviders(settings)).toEqual(['a', 'b'])
     void runtime.dispose()
+  })
+
+  function enabledValue() {
+    return {
+      plugin: { freeSync: { providers: { free: { enabled: true, intervalHours: 6 } }, state: {} } },
+      llm: { providers: { free: { baseURL: 'https://openrouter.ai/api/v1', models: [{ id: 'vendor/model:free', contextWindow: 100 }] } } },
+    }
+  }
+
+  it('coalesces concurrent syncs and preserves edits made while fetching', async () => {
+    const value = enabledValue()
+    let finish
+    fetch.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
+    const first = runtime.syncProvider('free')
+    const second = runtime.syncProvider('free')
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+    value.llm.providers.free.models[0].contextWindow = 777
+    finish(Response.json(catalog))
+    await expect(first).resolves.toMatchObject({ provider: 'free', total: 1 })
+    await second
+    expect(value.llm.providers.free.models[0].contextWindow).toBe(777)
+    await runtime.dispose()
+  })
+
+  it('rejects a competing provider edit queued after the final profile read', async () => {
+    const value = enabledValue()
+    const settings = settingsStub(value)
+    const mutate = settings.mutate.bind(settings)
+    let compete = true
+    settings.mutate = async (ns, ops, revision) => {
+      if (ns === 'llm-pi-ai' && compete) {
+        compete = false
+        await mutate(ns, [{ op: 'set', path: ['providers', 'free', 'models'], value: [{ id: 'manual', contextWindow: 42 }] }])
+      }
+      return mutate(ns, ops, revision)
+    }
+    const runtime = createFreeSyncRuntime(ctxStub(value), settings)
+    await expect(runtime.syncProvider('free')).rejects.toThrow('revision conflict')
+    expect(value.llm.providers.free.models).toEqual([{ id: 'manual', contextWindow: 42 }])
+    await runtime.dispose()
+  })
+
+  it('keeps models when the upstream catalog is empty or the provider changes', async () => {
+    const value = enabledValue()
+    const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
+    fetch.mockResolvedValueOnce(Response.json({ data: [] }))
+    await expect(runtime.syncProvider('free')).rejects.toThrow('keeping the configured list')
+    expect(value.llm.providers.free.models).toHaveLength(1)
+    fetch.mockImplementationOnce(async () => {
+      value.plugin.freeSync.providers.free.enabled = false
+      return Response.json(catalog)
+    })
+    await expect(runtime.syncProvider('free')).rejects.toThrow('changed during free sync')
+    expect(value.llm.providers.free.models[0].contextWindow).toBe(100)
+    await runtime.dispose()
+  })
+
+  it('aborts pending catalog requests on disposal without writing models or state', async () => {
+    const value = enabledValue()
+    const settings = settingsStub(value)
+    const mutate = vi.spyOn(settings, 'mutate')
+    fetch.mockImplementation((_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    }))
+    const runtime = createFreeSyncRuntime(ctxStub(value), settings)
+    const outcome = runtime.syncProvider('free').catch(error => error)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+    await runtime.dispose()
+    expect(await outcome).toBeInstanceOf(Error)
+    expect(mutate).not.toHaveBeenCalled()
+    await expect(runtime.syncProvider('free')).rejects.toThrow('disposed')
+  })
+
+  it('contains scheduled read failures and honors startup-only intervals', async () => {
+    const warn = vi.fn()
+    const runtime = createFreeSyncRuntime({ logger: { warn } }, { get: async () => { throw new Error('unavailable') } })
+    await expect(runtime.syncDueProviders('startup')).resolves.toBeUndefined()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('settings failed'))
+    expect(runtime.isDue({ freeSync: { providers: { free: { enabled: true, intervalHours: 0 } }, state: {} } }, 'free')).toBe(true)
+    expect(runtime.isDue({ freeSync: { providers: { free: { enabled: true, intervalHours: 0 } }, state: { free: { lastSyncAt: '2020-01-01' } } } }, 'free')).toBe(false)
+    await runtime.dispose()
+  })
+
+  it('runs a zero-hour schedule at startup and manually, but not on interval ticks', async () => {
+    const value = enabledValue()
+    value.plugin.freeSync.providers.free.intervalHours = 0
+    value.plugin.freeSync.state.free = { lastSyncAt: '2020-01-01' }
+    const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
+    await runtime.syncDueProviders('interval')
+    expect(fetch).not.toHaveBeenCalled()
+    await runtime.syncDueProviders('startup')
+    expect(fetch).toHaveBeenCalledOnce()
+    await runtime.syncProvider('free')
+    expect(fetch).toHaveBeenCalledTimes(2)
+    await runtime.dispose()
   })
 })

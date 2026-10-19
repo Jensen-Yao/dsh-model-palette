@@ -152,8 +152,9 @@ export async function probeProviderModelProtocols(input: {
 export async function resolveProviderModels(input: {
   provider: string
   models: string[]
-}): Promise<ResolvedProviderModel[]> {
+}, signal?: AbortSignal): Promise<ResolvedProviderModel[]> {
   const response = await fetch(`${CONFIG_API_BASE}/models/resolve`, {
+    signal,
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
