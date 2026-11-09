@@ -4,6 +4,7 @@ import { registerGatewayRecovery } from './gateway-recovery.js'
 import { registerBaiRelay, registerProviderRelays } from './bai-relay.js'
 import { registerRequestRetrySettings, RequestRetrySectionSchema, FreeSyncSectionSchema, DEFAULT_REQUEST_RETRY_SETTINGS } from './request-retry-settings.js'
 import { registerOpenRouterFreeSync } from './openrouter-free-sync.js'
+import { FreeModelsConfigSchema, registerFreeModels } from './free-model.ts'
 import { createSettingsBackend } from './compat/settings-backend.js'
 import z from '@deepseek-ai/schemastery'
 
@@ -29,6 +30,7 @@ export const Config = z.object({
   baiRelay: z.any().required(false),
   providerRelays: z.any().required(false),
   gatewayRecovery: z.any().required(false),
+  freeModels: FreeModelsConfigSchema.default({}),
 })
 
 export function apply(ctx, config = {}) {
@@ -44,4 +46,5 @@ export function apply(ctx, config = {}) {
   registerBaiRelay(ctx, config.baiRelay)
   registerProviderRelays(ctx, config.providerRelays)
   registerGatewayRecovery(ctx, config.gatewayRecovery, retrySettings)
+  if (config.freeModels?.enabled !== false) registerFreeModels(ctx, config.freeModels)
 }

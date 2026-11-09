@@ -19,7 +19,7 @@ describe('plugin lifecycle', () => {
       on: () => () => {},
       webServer: { register(route) { routes.add(route.path); return () => routes.delete(route.path) } },
     }
-    apply(ctx, { openrouterMedia: { enabled: false } })
+    apply(ctx, { openrouterMedia: { enabled: false }, freeModels: { enabled: false } })
     expect(routes).toContain('/model-palette/api/config')
     expect(routes).toContain('/model-palette/api/free-sync')
     expect(vi.getTimerCount()).toBe(2)
@@ -30,6 +30,7 @@ describe('plugin lifecycle', () => {
   })
 
   it('keeps retry and free-sync sections visible to SettingsForms', () => {
+    expect(Config({}).freeModels).toMatchObject({ enabled: true, probeOnStartup: true, probeIntervalMinutes: 60, probeConcurrency: 2, gateway: { enabled: true, port: 4180, credentialRef: '' } })
     const schema = Config
     expect(schema.dict.requestRetries.meta.volatile).toBe(true)
     expect(schema.dict.freeSync.meta.volatile).toBe(true)

@@ -1,0 +1,7 @@
+# Keyless free-model lane
+
+The free lane registers one native DSH provider, `dsh-free-models`, and merges two keyless sources: Kilo rows explicitly marked `isFree`, and OpenCode ids explicitly identified as free. Kilo speaks its OpenAI-compatible endpoint directly. OpenCode requests use a canonical public session, per-session project shape, trace headers, and the public bearer credential. Catalog refreshes are runtime-local and never mutate user provider settings.
+
+Availability is evaluated with bounded minimal requests and normal-turn failures. Only a 400/404/422 routing refusal or an explicit missing-model diagnostic removes a model; quota, transport, and server failures remain unknown so temporary egress trouble cannot erase the catalog. The adapter re-announces its provider route when membership changes.
+
+The loopback gateway serves OpenAI `/v1/models` and `/v1/chat/completions` with streaming and JSON responses. It accepts loopback requests by default and can require a DSH credential-backed bearer token. Stream framing is selected from body bytes: SSE is detected even when Content-Type says JSON, the sniffed prefix remains in the parser state, and a complete JSON response is folded into one event. Verification covers catalog filtering, both upstream request shapes, stream sniffing, block/tool conversion, explicit versus transient availability, gateway behavior, config defaults, and lifecycle disposal.
