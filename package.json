@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.18.0",
-  "description": "Named model shortcuts, previous-model switching, tolerant search, provider configuration and portable backups for DeepSeek Harness, with selective retries, relays and OpenRouter media tools.",
+  "version": "0.19.0",
+  "description": "Named model shortcuts, provider configuration, keyless free models, and a loopback OpenAI-compatible gateway for DeepSeek Harness, with portable backups, retries, relays and OpenRouter media tools.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -29,7 +29,10 @@
     "request-retry",
     "openrouter",
     "image-generation",
-    "video-generation"
+    "video-generation",
+    "free-models",
+    "openai-compatible",
+    "local-gateway"
   ],
   "license": "MIT",
   "repository": {

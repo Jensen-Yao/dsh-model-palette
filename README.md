@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.18.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.18.0)
+Current release: [v0.19.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.0)
 
 The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 487 entries.
 
@@ -32,6 +32,26 @@ Open **Quick profiles** to name the current provider/model/reasoning combination
 The **↶** composer button or **Alt+Shift+M** switches back to the previous model in this session, including its prior reasoning effort. Changing only the reasoning level does not replace previous-model history. Failed selection preserves the active model; locked seats and in-flight selections reject repeated shortcut actions.
 
 Search accepts compact spellings such as `gpt5`, full-width characters, `is:free is:reasoning`, Chinese `免费 推理`, and `@provider` terms. Precise matches rank before favorites while searching. **Reset filters** clears all filters and sorting. Closing a dirty configuration editor or leaving it through the sidebar now asks before discarding its draft; active settings writes must finish first.
+
+### Keyless free models and local gateway
+
+The native **dsh-free-models** provider combines the keyless Kilo free pool with OpenCode's explicit free ids. Kilo contributes only rows its own catalog marks `isFree`; OpenCode keeps its public-pool session wire. Availability probes use small real requests but remove a model only after an explicit 400/404/422 routing refusal — a 429, timeout, or 5xx leaves it selectable. Free pools can log prompts upstream, so do not send secrets through them.
+
+A loopback OpenAI-compatible gateway also listens on `http://127.0.0.1:4180/v1` by default and serves `/models` plus streaming/non-streaming `/chat/completions`. It binds only to loopback; set `freeModels.gateway.credentialRef` to require a bearer token from a configured DSH credential. Response framing is detected from body bytes, so an SSE stream mislabelled as JSON remains readable.
+
+```yaml
+freeModels:
+  enabled: true
+  baseURL: https://ai-gateway.kilo.ai/api/v1
+  opencodeBaseURL: https://opencode.ai
+  probeOnStartup: true
+  probeIntervalMinutes: 60
+  probeConcurrency: 2
+  gateway:
+    enabled: true
+    port: 4180
+    credentialRef: ''
+```
 
 ### Configuration backup and batch import
 

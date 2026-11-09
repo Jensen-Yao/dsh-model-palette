@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.0 - 2026-11-09
+
+- Add the keyless Kilo and OpenCode free-model lanes as a native `dsh-free-models` provider. Kilo rows must be marked free by its catalog; OpenCode keeps its explicit free ids and public-pool wire.
+- Serve `/v1/models` and `/v1/chat/completions` on a loopback-only OpenAI-compatible gateway, with optional bearer credential enforcement and both streaming and JSON responses.
+- Probe free models with bounded requests, retain unknown/transient failures, and remove a model only after an explicit routing refusal. Runtime failures update the same membership immediately.
+- Detect SSE from response body bytes even when a gateway labels the stream as JSON, preserve those first bytes in the parser, and fold a complete JSON response into one stream event.
+
 ## 0.18.0 - 2026-11-09
 
 - Add named browser-local model/reasoning profiles with composer buttons, Alt+Shift+1/2/3, reorder, rename, current-selection updates and delete/undo. Preserve unavailable profiles and report storage failures.
@@ -63,7 +70,6 @@
 - Expand the model preset registry to 469 vendor-authoritative entries (registry v4) by also harvesting the Together, Fireworks, Groq, NVIDIA, Hugging Face, Cerebras, Baseten, OpenCode, Bedrock, Azure, and Vertex catalogs.
 - Polish config UI styling: card hover states, smoother free-model and import pickers.
 - Move the add-provider template gallery into a dedicated search dialog so the provider config card stays uncluttered, and add the Radius route to the catalog.
-
 
 ## 0.11.0 - 2026-09-19
 

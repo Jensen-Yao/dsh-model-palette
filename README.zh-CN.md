@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.18.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.18.0)。
+当前版本：[v0.19.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.0)。
 
 插件同时桥接 DSH 0.1 原生设置和 DSH 0.2 基于 profile 的 SettingsForms。0.17 新增供应商 JSON 备份、批量导入预览、模型类型筛选、排序与分批显示。内置模型预置现为 487 项。
 
@@ -32,6 +32,26 @@
 输入区的 **↶** 按钮或 **Alt+Shift+M** 可切回当前会话的上一个模型，并恢复当时的推理档位。只调整推理档位不会挤掉上一个模型。切换失败时保留当前模型，锁定和正在切换期间不会重复提交快捷操作。
 
 搜索可直接输入 `gpt5`、全角字符、`免费 推理`、`is:free is:reasoning` 或 `@供应商`；搜索时更精确的匹配排在收藏前面。「重置筛选」会一并清除搜索词、供应商、收藏/最近、类型与排序。关闭未保存的配置页或从侧栏离开时，会先确认是否放弃草稿；配置正在写入时需要等待完成。
+
+### 免登录免费模型与本地网关
+
+原生 **dsh-free-models** 供应商合并 Kilo 免费池与 OpenCode 明确免费的模型。Kilo 只收录其目录自己标记 `isFree` 的行；OpenCode 使用公共池会话 wire。可用性探测使用最小真实请求，但只有明确的 400/404/422 路由拒绝才会移除模型；429、超时或 5xx 都保持可选。免费池上游可能记录提示词，不要通过它发送敏感内容。
+
+本机 OpenAI 兼容网关默认监听 `http://127.0.0.1:4180/v1`，提供 `/models` 以及流式/非流式 `/chat/completions`。它只绑定回环地址；设置 `freeModels.gateway.credentialRef` 后还要求请求携带对应 DSH 凭据的 Bearer token。网关按响应体字节识别 SSE，即使上游把流标成 JSON 也能继续解析。
+
+```yaml
+freeModels:
+  enabled: true
+  baseURL: https://ai-gateway.kilo.ai/api/v1
+  opencodeBaseURL: https://opencode.ai
+  probeOnStartup: true
+  probeIntervalMinutes: 60
+  probeConcurrency: 2
+  gateway:
+    enabled: true
+    port: 4180
+    credentialRef: ''
+```
 
 ### 配置备份与批量导入
 
