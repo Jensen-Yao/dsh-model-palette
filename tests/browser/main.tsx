@@ -11,6 +11,7 @@ import '../../src/client/style.css'
 const providers = {
   custom: { displayName: '自定义供应商', api: 'openai-responses', baseURL: 'https://example.invalid/v1', apiKeyEnv: 'FIXTURE_API_KEY', models: [{ id: 'custom-model', contextWindow: 131072, maxTokens: 8192 }] },
   'openrouter-free': { api: 'openai-completions', baseURL: 'https://openrouter.ai/api/v1', models: [{ id: 'vendor/reasoner:free' }] },
+  'custom-chat': { displayName: 'Custom Chat', api: 'openai-completions', baseURL: 'https://example.invalid/v1', apiKeyEnv: 'FIXTURE_API_KEY', models: [{ id: 'legacy-model' }] },
 }
 const descriptors: SettingsNamespaceView[] = [
   { ns: 'fixture-models', schema: z.object({ providers: z.dict(z.any()) }).toJSON(), revision: 1, value: { providers }, user: { providers }, applies: 'live', secrets: [] },
@@ -22,6 +23,7 @@ let snapshot: DirectorySnapshot = {
   groups: [
     { id: 'custom', name: '自定义供应商', models: [{ id: 'custom-model', name: 'Custom Model', reasoning: { defaultEffort: 'high', efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }] } }, ...Array.from({ length: 180 }, (_, i) => ({ id: `model-${i}`, name: `Model ${String(i).padStart(3, '0')}` }))] },
     { id: 'openrouter-free', name: 'OpenRouter 免费', models: [{ id: 'vendor/reasoner:free', name: 'Free Reasoner', reasoning: { efforts: [{ id: 'high', name: 'High' }] } }] },
+    { id: 'custom-chat', name: 'Custom Chat', models: [{ id: 'legacy-model', name: 'Legacy Model' }] },
   ],
 }
 const listeners = new Set<() => void>()

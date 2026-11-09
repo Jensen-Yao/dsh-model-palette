@@ -18,12 +18,12 @@ describe('media config defaults', () => {
   it('keeps every field overridable', () => {
     const config = resolveConfig({
       credentialRef: 'MY_OPENROUTER_KEY',
-      outputDir: 'D:/media',
+      outputDir: resolve(tmpdir(), 'media'),
       allowPaidImages: true,
       preferredImageModels: ['google/gemini-3-pro-image'],
     })
     expect(config.credentialRef).toBe('MY_OPENROUTER_KEY')
-    expect(config.outputDir).toBe(resolve('D:/media'))
+    expect(config.outputDir).toBe(resolve(tmpdir(), 'media'))
     expect(config.allowPaidImages).toBe(true)
     expect(config.preferredImageModels).toEqual(['google/gemini-3-pro-image'])
   })

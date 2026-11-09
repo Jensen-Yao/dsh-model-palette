@@ -94,7 +94,7 @@ Free sync retains configured models when OpenRouter returns an empty compatible 
 
 ### ⚙️ Provider & Model Configuration
 Add, edit, or remove provider profiles directly from the UI:
-- **Visual provider catalog**: configured routes render as a searchable card grid with brand icons, model counts, and protocol badges
+- **Visual provider catalog**: configured routes render as a searchable, endpoint-grouped card grid with brand icons, model counts, friendly protocol chips, and needs-key/free-sync filters
 - **Template gallery**: custom (OpenAI Compatible / Responses / Anthropic), OAuth subscription, and API-key templates that prefill endpoint, protocol, and credential reference on click
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - New OpenAI-compatible provider drafts default to `openai-responses`
@@ -295,7 +295,7 @@ After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/
 
 Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 
-1. **Select or create a provider** — choose from the dropdown or click "Add provider"
+1. **Select or create a provider** — browse endpoint-grouped routes, filter missing keys or free sync, or click "Add provider"
 2. **Duplicate a provider when useful** — start from a working route without reusing its credential reference
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)

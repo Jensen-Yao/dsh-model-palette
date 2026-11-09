@@ -26,6 +26,8 @@ import {
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
   providerMeta,
+  providerProtocolLabel,
+  providerRouteGroups as groupProviderRoutes,
   type ProviderTemplate,
 } from './provider-catalog.ts'
 import {
@@ -351,6 +353,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
   const [liveCatalogModels, setLiveCatalogModels] = useState<Record<string, Record<string, unknown>[]>>({})
   const [busy, setBusy] = useState<'load' | 'save' | 'delete' | 'probe' | 'openrouter-free' | 'protocol-probe' | 'protocol-scan' | 'protocol-split' | 'api-key-validation' | 'api-key-batch' | 'reveal' | 'presets' | 'free-sync' | 'transfer' | null>('load')
   const [providerQuery, setProviderQuery] = useState('')
+  const [providerFilter, setProviderFilter] = useState<'all' | 'needs-key' | 'free-sync'>('all')
   const [templateQuery, setTemplateQuery] = useState('')
   const [freeSyncDraft, setFreeSyncDraft] = useState<FreeSyncDraft | null>(null)
   const [freeSyncInfo, setFreeSyncInfo] = useState<Record<string, unknown> | undefined>(undefined)
@@ -407,6 +410,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
       icon: meta.icon,
       modelCount: count,
       protocol: stringField(profile, 'api'),
+      baseURL: stringField(profile, 'baseURL'),
       freeSync: cloneFreeSyncDraft(freeSyncProviders(retryNamespace?.value)[id] ?? undefined) && freeSyncProviders(retryNamespace?.value)[id]?.enabled === true,
       active: id === providerId,
       keyDot: ref === '' ? 'none' : credentialStatus[ref] ?? 'unknown',
@@ -414,9 +418,15 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
   }), [credentialStatus, liveCatalogModels, profiles, providerIds, providerId, retryNamespace])
   const filteredProviderCards = useMemo(() => {
     const needle = providerQuery.trim().toLocaleLowerCase()
-    if (needle === '') return configuredProviderCards
-    return configuredProviderCards.filter(card => `${card.displayName} ${card.id} ${card.protocol}`.toLocaleLowerCase().includes(needle))
-  }, [configuredProviderCards, providerQuery])
+    return configuredProviderCards.filter(card => {
+      const matchesFilter = providerFilter === 'all'
+        || providerFilter === 'needs-key' && card.keyDot === 'missing'
+        || providerFilter === 'free-sync' && card.freeSync
+      const searchText = `${card.displayName} ${card.id} ${card.protocol} ${providerProtocolLabel(card.protocol)} ${card.baseURL}`.toLocaleLowerCase()
+      return matchesFilter && (needle === '' || searchText.includes(needle))
+    })
+  }, [configuredProviderCards, providerFilter, providerQuery])
+  const groupedProviderCards = useMemo(() => groupProviderRoutes(filteredProviderCards), [filteredProviderCards])
   const configuredModelIds = useMemo(() => new Set([
     ...models.flatMap(model => typeof model.id === 'string' ? [model.id] : []),
     ...(isRecord(draft.modelOverrides) ? Object.keys(draft.modelOverrides) : []),
@@ -1718,26 +1728,54 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
               />
               <span>{t('config.providerCount', { count: providerIds.length })}</span>
             </div>
-            <div className="dmp-config-provider-cards">
-              {filteredProviderCards.map(card => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className={`dmp-config-provider-card${card.active ? ' is-active' : ''}`}
-                  disabled={busy !== null}
-                  onClick={() => selectProvider(card.id)}
-                  title={`${card.displayName} · ${card.id}`}
-                >
-                  <span className="dmp-config-provider-card-icon" style={tileStyle(card.icon)}><ProviderIcon id={card.icon} size={22} colored /></span>
-                  <span className="dmp-config-provider-card-main">
-                    <strong>{card.displayName}</strong>
-                    <small>{t('config.providerCardMeta', { count: card.modelCount, protocol: card.protocol || '—' })}</small>
-                  </span>
-                  {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
-                  <i className={`dmp-key-dot is-${card.keyDot}`} title={t(card.keyDot === 'configured' ? 'config.keyDotConfigured' : card.keyDot === 'missing' ? 'config.keyDotMissing' : 'config.keyDotNone')} aria-hidden="true" />
-                </button>
+            <div className="dmp-config-provider-filters" role="group" aria-label={t('config.providerFilterLabel')}>
+              {([
+                ['all', t('config.providerFilterAll'), providerIds.length],
+                ['needs-key', t('config.providerFilterNeedsKey'), configuredProviderCards.filter(card => card.keyDot === 'missing').length],
+                ['free-sync', t('config.providerFilterFreeSync'), configuredProviderCards.filter(card => card.freeSync).length],
+              ] as const).map(([filter, label, count]) => (
+                <button key={filter} type="button" className={providerFilter === filter ? 'is-active' : ''} onClick={() => setProviderFilter(filter)}>{label}<small>{count}</small></button>
               ))}
-              {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+            </div>
+            <div className="dmp-config-provider-groups">
+            {groupedProviderCards.map(group => (
+              <section key={group.key} className="dmp-config-provider-route-group">
+                {group.routes.length > 1 && (
+                  <header>
+                    <div>
+                      <strong>{group.title}</strong>
+                      <small>{t('config.providerGroupMeta', { routes: group.routes.length, count: group.modelCount })}</small>
+                    </div>
+                    <span className="dmp-config-provider-protocols" aria-label={t('config.protocol')}>
+                      {group.protocols.map(protocol => <em key={protocol}>{providerProtocolLabel(protocol)}</em>)}
+                    </span>
+                  </header>
+                )}
+                <div className="dmp-config-provider-cards">
+                  {group.routes.map(card => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={`dmp-config-provider-card${card.active ? ' is-active' : ''}`}
+                      disabled={busy !== null}
+                      onClick={() => selectProvider(card.id)}
+                      title={`${card.displayName} · ${card.id}`}
+                    >
+                      <span className="dmp-config-provider-card-icon" style={tileStyle(card.icon)}><ProviderIcon id={card.icon} size={22} colored /></span>
+                      <span className="dmp-config-provider-card-main">
+                        <strong>{group.routes.length > 1 ? card.id : card.displayName}</strong>
+                        <small>{group.routes.length > 1
+                          ? t('config.providerRouteMeta', { count: card.modelCount, protocol: providerProtocolLabel(card.protocol || '') })
+                          : t('config.providerCardMeta', { count: card.modelCount, protocol: providerProtocolLabel(card.protocol || '—') })}</small>
+                      </span>
+                      {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
+                      <i className={`dmp-key-dot is-${card.keyDot}`} title={t(card.keyDot === 'configured' ? 'config.keyDotConfigured' : card.keyDot === 'missing' ? 'config.keyDotMissing' : 'config.keyDotNone')} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+            {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
               <button
                 type="button"
                 className="dmp-config-provider-card is-add"
@@ -1770,7 +1808,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
           <label className="dmp-media-field">
             <span>{t('config.protocol')}</span>
             <select value={protocol} disabled={readOnly} onChange={event => updateProfileString('api', event.currentTarget.value)}>
-              {PROTOCOLS.map(value => <option key={value} value={value}>{value}</option>)}
+              {PROTOCOLS.map(value => <option key={value} value={value}>{providerProtocolLabel(value)}</option>)}
             </select>
           </label>
           <div className="dmp-config-protocol-note">{t('config.protocolNote')}</div>

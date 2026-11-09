@@ -6,6 +6,7 @@
 - Add a previous-model button and Alt+Shift+M that retain the previous reasoning effort. Share selection preparation, locking and duplicate-request protection across palette rows, effort controls and shortcuts.
 - Match compact and full-width model spellings, free/reasoning terms and @provider queries; rank precise search matches first and add a complete filter reset.
 - Guard dirty provider drafts when closing the palette or navigating through its sidebar, and retain the editor when moving between configuration and templates.
+- Group configured providers by endpoint, show protocol branches as compact route chips, use friendly protocol names, and add needs-key/free-sync filters.
 
 ## 0.17.0 - 2026-10-19 (unreleased)
 

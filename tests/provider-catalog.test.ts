@@ -7,6 +7,8 @@ import {
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
   providerMeta,
+  providerProtocolLabel,
+  providerRouteGroups,
   templatesByCategory,
 } from '../src/client/provider-catalog.ts'
 
@@ -63,6 +65,34 @@ describe('provider catalog', () => {
     expect(providerMeta('something-with-glm', {}).icon).toBe('zai')
   })
 })
+
+describe('configured provider route groups', () => {
+  it('keeps protocol branches from one endpoint beneath a single heading', () => {
+    const groups = providerRouteGroups([
+      { id: 'gateway', displayName: 'Gateway Responses', baseURL: 'https://api.example.com/v1', protocol: 'openai-responses', modelCount: 4 },
+      { id: 'gateway-chat', displayName: 'Gateway Chat', baseURL: 'https://api.example.com/v1', protocol: 'openai-completions', modelCount: 3 },
+      { id: 'other', displayName: 'Other', baseURL: 'https://other.example/v1', protocol: 'openai-completions', modelCount: 2 },
+    ])
+    expect(groups.map(group => ({ title: group.title, routes: group.routes.length, modelCount: group.modelCount, protocols: group.protocols }))).toEqual([
+      { title: 'api.example.com', routes: 2, modelCount: 7, protocols: ['openai-responses', 'openai-completions'] },
+      { title: 'other.example', routes: 1, modelCount: 2, protocols: ['openai-completions'] },
+    ])
+  })
+
+  it('does not collapse routes without a shared endpoint', () => {
+    expect(providerRouteGroups([
+      { id: 'one', displayName: 'One', protocol: 'openai-responses', modelCount: 1 },
+      { id: 'two', displayName: 'Two', protocol: 'openai-completions', modelCount: 2 },
+    ]).map(group => group.routes.map(route => route.id))).toEqual([['one'], ['two']])
+  })
+
+  it('uses short protocol labels in provider headings', () => {
+    expect(providerProtocolLabel('openai-responses')).toBe('Responses')
+    expect(providerProtocolLabel('openai-completions')).toBe('Chat')
+    expect(providerProtocolLabel('anthropic-messages')).toBe('Messages')
+  })
+})
+
 describe('provider brand colors', () => {
   it('assigns a brand accent to every major icon and leaves protocol glyphs theme-colored', () => {
     for (const icon of ['openai', 'anthropic', 'deepseek', 'openrouter', 'google', 'nvidia', 'xiaomi', 'zai']) {

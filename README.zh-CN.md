@@ -94,7 +94,7 @@
 
 ### ⚙️ 供应商与模型配置
 直接在界面中新增、编辑或删除供应商：
-- **可视化供应商目录**：已配置线路以带品牌图标、模型数与协议徽标的卡片网格展示，支持搜索过滤
+- **可视化供应商目录**：已配置线路先按端点归组，协议拆分线路合并在同一组下，卡片带品牌图标、模型数、友好协议徽标，并可筛选待配密钥或免费同步
 - **模板快速新建**：自定义（OpenAI Compatible / Responses / Anthropic）、OAuth 订阅、API 密钥三类模板，点击即预填端点、协议与凭据引用
 - 配置 **供应商 ID**、**显示名称**、**Base URL** 与 **协议类型**（`openai-completions`、`openai-responses`、`anthropic-messages`）
 - 新建 OpenAI 兼容供应商时默认优先使用 `openai-responses`

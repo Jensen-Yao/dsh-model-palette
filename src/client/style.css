@@ -294,7 +294,20 @@
 .dmp-config-provider-browser-bar input { flex: 1; min-width: 0; height: 32px; box-sizing: border-box; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); padding: 0 10px; font: inherit; font-size: 12px; }
 .dmp-config-provider-browser-bar input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -1px; }
 .dmp-config-provider-browser-bar span { flex: none; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
-.dmp-config-provider-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-height: 240px; overflow-y: auto; }
+.dmp-config-provider-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dmp-config-provider-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.dmp-config-provider-filters button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); cursor: pointer; font: inherit; font-size: 10.5px; }
+.dmp-config-provider-filters button:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); }
+.dmp-config-provider-filters button.is-active { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); color: var(--dsw-alias-brand-primary); font-weight: 650; }
+.dmp-config-provider-filters small { color: inherit; opacity: .75; }
+.dmp-config-provider-groups { display: flex; flex-direction: column; gap: 8px; max-height: 264px; overflow-y: auto; padding-right: 2px; }
+.dmp-config-provider-route-group { display: flex; flex-direction: column; gap: 6px; }
+.dmp-config-provider-route-group + .dmp-config-provider-route-group { padding-top: 7px; border-top: 1px solid var(--dsw-alias-border-inverted); }
+.dmp-config-provider-route-group > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
+.dmp-config-provider-route-group > header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+.dmp-config-provider-route-group > header small { display: block; color: var(--dsw-alias-label-tertiary); font-size: 10px; }
+.dmp-config-provider-protocols { display: inline-flex; flex: none; gap: 4px; }
+.dmp-config-provider-protocols em { padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 34%, transparent); border-radius: 999px; color: var(--dsw-alias-brand-primary); font-size: 9px; font-style: normal; font-weight: 650; }
 .dmp-config-provider-card { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 9px 11px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 11px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); cursor: pointer; text-align: left; font: inherit; }
 .dmp-config-provider-card:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-interactive-bg-hover); }
 .dmp-config-provider-card.is-active { border-color: var(--dsw-alias-brand-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 22%, transparent); }

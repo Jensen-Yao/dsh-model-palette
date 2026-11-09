@@ -173,6 +173,52 @@ export function providerMeta(providerId: string, profile?: { readonly baseURL?: 
   return { icon: 'generic' }
 }
 
+/** A configured route reduced to the fields used by the provider browser. */
+export interface ProviderRouteCard {
+  id: string
+  displayName: string
+  baseURL?: unknown
+  protocol?: unknown
+  modelCount: number
+}
+
+/** One endpoint family; protocol-split routes stay together beneath its heading. */
+export interface ProviderRouteGroup<T extends ProviderRouteCard> {
+  key: string
+  title: string
+  routes: T[]
+  modelCount: number
+  protocols: string[]
+}
+
+/**
+ * Group configured routes by endpoint hostname so Responses/Chat protocol branches remain one visual family.
+ * Routes without a shared endpoint stay singleton groups and never collapse unrelated catalog providers.
+ * @param routes Configured provider rows in their displayed order.
+ * @returns Ordered endpoint families with aggregate model counts and distinct protocols.
+ */
+export function providerRouteGroups<T extends ProviderRouteCard>(routes: readonly T[]): ProviderRouteGroup<T>[] {
+  const groups = new Map<string, ProviderRouteGroup<T>>()
+  for (const route of routes) {
+    const host = hostOf(route.baseURL)
+    const key = host === '' ? 'route:' + route.id : 'endpoint:' + host
+    const group = groups.get(key) ?? { key, title: host === '' ? route.displayName : host, routes: [], modelCount: 0, protocols: [] }
+    group.routes.push(route)
+    group.modelCount += route.modelCount
+    if (typeof route.protocol === 'string' && route.protocol !== '' && !group.protocols.includes(route.protocol)) group.protocols.push(route.protocol)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}
+
+/** Return the short protocol label shown in provider headings. */
+export function providerProtocolLabel(protocol: string): 'Responses' | 'Chat' | 'Messages' | string {
+  if (protocol === 'openai-responses') return 'Responses'
+  if (protocol === 'openai-completions') return 'Chat'
+  if (protocol === 'anthropic-messages') return 'Messages'
+  return protocol
+}
+
 function hostOf(value: unknown): string {
   if (typeof value !== 'string' || value.trim() === '') return ''
   try {
