@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0 - 2026-10-19 (unreleased)
+## 0.18.0 - 2026-11-09
 
 - Add named browser-local model/reasoning profiles with composer buttons, Alt+Shift+1/2/3, reorder, rename, current-selection updates and delete/undo. Preserve unavailable profiles and report storage failures.
 - Add a previous-model button and Alt+Shift+M that retain the previous reasoning effort. Share selection preparation, locking and duplicate-request protection across palette rows, effort controls and shortcuts.
@@ -8,7 +8,7 @@
 - Guard dirty provider drafts when closing the palette or navigating through its sidebar, and retain the editor when moving between configuration and templates.
 - Group configured providers by endpoint, show protocol branches as compact route chips, use friendly protocol names, and add needs-key/free-sync filters.
 
-## 0.17.0 - 2026-10-19 (unreleased)
+## 0.17.0 - 2026-11-09
 
 - Complete the DSH 0.1 settings bridge and use resolved entry ids for DSH 0.2 reads, discovery and revision-checked edits; reject ambiguous namespace matches.
 - Add selected-provider JSON backups and batch import previews with skip, field-merge and copy modes. Omit credentials, request headers, credential-bearing URLs and sync diagnostics; report partially saved imports explicitly.
