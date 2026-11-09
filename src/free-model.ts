@@ -301,6 +301,7 @@ export class FreeModelAdapter {
   constructor(private runtime: FreeModelRuntime) {}
 
   providerInfo(provider: string) { return { id: provider, name: 'Free Models' } }
+  providerRetryPolicy(_provider: string) { return undefined }
 
   async listModels() { return this.runtime.availableEntries().map(entry => ({ provider: FREE_MODEL_PROVIDER_ID, id: entry.id, name: entry.name, inputModalities: entry.input })) }
 

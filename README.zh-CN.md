@@ -21,7 +21,7 @@
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.19.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.0)。
+当前版本：[v0.19.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.1)。
 
 插件同时桥接 DSH 0.1 原生设置和 DSH 0.2 基于 profile 的 SettingsForms。0.17 新增供应商 JSON 备份、批量导入预览、模型类型筛选、排序与分批显示。内置模型预置现为 487 项。
 

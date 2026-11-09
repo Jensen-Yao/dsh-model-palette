@@ -150,6 +150,8 @@ describe('free-model registration', () => {
       effect(factory: () => () => Promise<void>) { effects.push(factory()) },
       llm: {
         registerAdapter(_providers: string[], next: FreeModelAdapter) {
+          expect(next.providerInfo(FREE_MODEL_PROVIDER_ID)).toEqual({ id: FREE_MODEL_PROVIDER_ID, name: 'Free Models' })
+          expect(next.providerRetryPolicy(FREE_MODEL_PROVIDER_ID)).toBeUndefined()
           adapter = next
           const dispose = vi.fn(() => { disposeAdapter() }) as unknown as { (): void; replace: () => void }
           dispose.replace = () => {}
