@@ -21,9 +21,29 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.12.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.12.0)
+Current release: [v0.18.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.18.0)
 
-`v0.11.0` targets `@deepseek-ai/dsh@0.1.6-alpha.2`: the configuration panel gains a visual provider card catalog with template-based creation, OpenRouter free routes can auto-sync the live `:free` catalog on startup and on an interval, and the preset registry expands to 281 vendor-authoritative entries.
+The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 487 entries.
+
+### Quick profiles and previous-model switching
+
+Open **Quick profiles** to name the current provider/model/reasoning combination, such as Coding, Quick questions or Deep thinking. Save up to twelve profiles; the first three appear beside the composer and use **Alt+Shift+1/2/3**. Rename, update from the current selection, reorder or delete with undo. Saving an existing name updates its combination. Profiles stay in this browser origin, contain no credentials, and synchronize across tabs and composer seats. Missing models retain their profiles and show why selection is unavailable.
+
+The **↶** composer button or **Alt+Shift+M** switches back to the previous model in this session, including its prior reasoning effort. Changing only the reasoning level does not replace previous-model history. Failed selection preserves the active model; locked seats and in-flight selections reject repeated shortcut actions.
+
+Search accepts compact spellings such as `gpt5`, full-width characters, `is:free is:reasoning`, Chinese `免费 推理`, and `@provider` terms. Precise matches rank before favorites while searching. **Reset filters** clears all filters and sorting. Closing a dirty configuration editor or leaving it through the sidebar now asks before discarding its draft; active settings writes must finish first.
+
+### Configuration backup and batch import
+
+Open **Model config → Configuration backup & batch import**. Choose saved providers and export their model parameters, retry rules and free-sync schedules as JSON. Unsaved drafts, API keys, request headers and sync diagnostics are excluded; credential references remain names. URLs containing user information, query parameters or fragments are omitted and listed for review. Configure credentials separately on the destination host.
+
+Choose a JSON file up to 2 MiB to preview an import, select the providers, and choose **Skip existing** (default), **Merge incoming fields**, or **Create copies**. Merge preserves unmentioned provider fields and replaces incoming model lists; copies retain the source credential reference. Only **Apply import** writes settings. Revisions protect concurrent changes. Provider settings and palette rules are separate writes: if the second write fails, the panel reports the saved provider settings and asks you to reload and review the rules.
+
+### Model filtering and synchronization
+
+The palette combines provider, search, favorites and recent filters with **Reasoning** or explicit **`:free` routes**. Sort by frequent use, model name or provider name. Results render 80 rows at a time; **Show more** and arrow-key navigation reveal later results. Capacity badges resolve the displayed models through DSH rather than relying on fields absent from the native model directory. Modal focus stays inside the palette and returns to its trigger on close; IME composition does not select models.
+
+Free sync retains configured models when OpenRouter returns an empty compatible catalog, rechecks route settings after fetching, and aborts catalog requests during plugin disposal. `intervalHours: 0` disables interval synchronization while retaining startup and manual synchronization. Unique renamed SettingsForms entries are recognized by their editable fields; ambiguous entries fail with a list of candidate ids.
 
 ## ✨ Features
 
@@ -74,7 +94,7 @@ Current release: [v0.12.0](https://github.com/Jensen-Yao/dsh-model-palette/relea
 
 ### ⚙️ Provider & Model Configuration
 Add, edit, or remove provider profiles directly from the UI:
-- **Visual provider catalog**: configured routes render as a searchable card grid with brand icons, model counts, and protocol badges
+- **Visual provider catalog**: configured routes render as a searchable, endpoint-grouped card grid with brand icons, model counts, friendly protocol chips, and needs-key/free-sync filters
 - **Template gallery**: custom (OpenAI Compatible / Responses / Anthropic), OAuth subscription, and API-key templates that prefill endpoint, protocol, and credential reference on click
 - Configure **provider ID**, **display name**, **base URL**, and **protocol** (`openai-completions`, `openai-responses`, `anthropic-messages`)
 - New OpenAI-compatible provider drafts default to `openai-responses`
@@ -99,7 +119,7 @@ Add, edit, or remove provider profiles directly from the UI:
 <td width="50%">
 
 ### 📦 Model Presets
-- **469 bundled presets** (v4): vendor-authoritative data harvested from the DSH 0.1.6 built-in pi-ai catalog, covering OpenAI, Anthropic, Google, DeepSeek, Moonshot, Z.AI, MiniMax, Qwen, xAI, Xiaomi, and OpenRouter exclusives
+- **487 bundled presets** (v5): vendor-authoritative data covering the built-in pi-ai catalog plus Doubao, Hunyuan, Cohere, Perplexity and Agnes entries
 - **Online refresh** from GitHub — always up-to-date
 - **Auto-fill** missing parameters for exact model matches
 - **Searchable selection**: presets render through an input + datalist filter instead of a 281-option dropdown
@@ -275,7 +295,7 @@ After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/
 
 Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 
-1. **Select or create a provider** — choose from the dropdown or click "Add provider"
+1. **Select or create a provider** — browse endpoint-grouped routes, filter missing keys or free sync, or click "Add provider"
 2. **Duplicate a provider when useful** — start from a working route without reusing its credential reference
 3. **Configure the endpoint** — set base URL, protocol, and credential reference
 4. **Manage API keys** — enter a new key or load the stored one (loopback only)
@@ -333,8 +353,11 @@ pnpm check
 # Build only
 pnpm build
 
-# Run tests
+# Run tests (keyless, with a deterministic OpenRouter catalog)
 pnpm test
+
+# Open http://127.0.0.1:4178/tests/browser/index.html for a keyless browser smoke
+pnpm preview:smoke
 ```
 
 Prebuilt `lib/` files are committed to the repository so GitHub-based installs do not need build scripts.
@@ -385,7 +408,7 @@ dsh-model-palette/
 ## 📋 Requirements
 
 - **Node.js** >= 22.19
-- **DeepSeek Harness** `@deepseek-ai/dsh >= 0.1.2-alpha.3`
+- **DeepSeek Harness** 0.1.6-alpha.2 or the supported 0.2 alpha series (see package peer dependencies); Cordis has its own version
 - **pnpm** >= 11.21 (for development)
 
 ## 📄 License

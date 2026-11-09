@@ -31,7 +31,11 @@ export function currentChoice(choices: ModelChoice[], current: CurrentSelection 
 }
 
 function normalize(value: string | undefined): string {
-  return value?.trim().toLocaleLowerCase() ?? ''
+  return value?.normalize('NFKC').trim().toLocaleLowerCase() ?? ''
+}
+
+function compact(value: string): string {
+  return value.replace(/[^\p{L}\p{N}]/gu, '')
 }
 
 function scoreField(field: string, token: string, weight: number): number {
@@ -40,6 +44,9 @@ function scoreField(field: string, token: string, weight: number): number {
   const boundary = field.split(/[^a-z0-9]+/u).some((part) => part.startsWith(token))
   if (boundary) return 500 + weight
   if (field.includes(token)) return 250 + weight
+  const compactToken = compact(token)
+  const compactField = compact(field)
+  if (compactToken.length > 1 && compactField.includes(compactToken)) return 150 + weight
   return -1
 }
 
@@ -55,6 +62,19 @@ export function searchScore(choice: ModelChoice, query: string): number | null {
   ] as const
   let score = 0
   for (const token of tokens) {
+    if (token === '免费' || token === '免费模型' || token === 'is:free') {
+      if (!choice.model.id.toLocaleLowerCase().endsWith(':free')) return null
+      continue
+    }
+    if (token === '推理' || token === '推理模型' || token === 'is:reasoning') {
+      if ((choice.model.reasoning?.efforts.length ?? 0) === 0) return null
+      continue
+    }
+    if (token.startsWith('@')) {
+      const provider = compact(token.slice(1))
+      if (!provider || ![choice.provider.id, choice.provider.name].some(field => compact(normalize(field)).includes(provider))) return null
+      continue
+    }
     let tokenScore = -1
     for (const [field, weight] of fields) tokenScore = Math.max(tokenScore, scoreField(field, token, weight))
     if (tokenScore < 0) return null
@@ -70,6 +90,8 @@ export interface RankOptions {
   recents: readonly string[]
   current: CurrentSelection | null
   quickFilter?: 'all' | 'favorites' | 'recents'
+  capability?: 'all' | 'reasoning' | 'free'
+  sort?: 'recommended' | 'name' | 'provider'
 }
 
 export function rankChoices(choices: ModelChoice[], options: RankOptions): ModelChoice[] {
@@ -78,6 +100,9 @@ export function rankChoices(choices: ModelChoice[], options: RankOptions): Model
   const quickFilter = options.quickFilter ?? 'all'
   const currentKey = options.current === null ? null : choiceKey(options.current.provider, options.current.model)
   return choices
+    .filter(choice => options.capability === undefined || options.capability === 'all'
+      || options.capability === 'reasoning' && (choice.model.reasoning?.efforts.length ?? 0) > 0
+      || options.capability === 'free' && choice.model.id.toLocaleLowerCase().endsWith(':free'))
     .filter((choice) => options.providerId === null || choice.provider.id === options.providerId)
     .filter((choice) => quickFilter === 'all'
       || quickFilter === 'favorites' && favoriteRank.has(choice.key)
@@ -85,6 +110,9 @@ export function rankChoices(choices: ModelChoice[], options: RankOptions): Model
     .map((choice) => ({ choice, score: searchScore(choice, options.query) }))
     .filter((entry): entry is { choice: ModelChoice; score: number } => entry.score !== null)
     .sort((left, right) => {
+      if (options.sort === 'name') return left.choice.model.name.localeCompare(right.choice.model.name) || left.choice.provider.name.localeCompare(right.choice.provider.name) || left.choice.catalogIndex - right.choice.catalogIndex
+      if (options.sort === 'provider') return left.choice.provider.name.localeCompare(right.choice.provider.name) || left.choice.model.name.localeCompare(right.choice.model.name) || left.choice.catalogIndex - right.choice.catalogIndex
+      if (options.query.trim() !== '' && left.score !== right.score) return right.score - left.score
       if (left.choice.key === currentKey) return -1
       if (right.choice.key === currentKey) return 1
       const leftFavorite = favoriteRank.get(left.choice.key)

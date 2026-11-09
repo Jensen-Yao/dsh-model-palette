@@ -12,25 +12,28 @@ const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models'
 /** Register startup free-model synchronization for OpenRouter free-only provider routes. */
 export function registerOpenRouterFreeSync(ctx, settings) {
   const runtime = createFreeSyncRuntime(ctx, settings)
-  const startupTimer = setTimeout(() => { void runtime.syncDueProviders('startup') }, STARTUP_DELAY_MS)
-  startupTimer.unref?.()
-  const tickTimer = setInterval(() => { void runtime.syncDueProviders('interval') }, TICK_INTERVAL_MS)
-  tickTimer.unref?.()
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: SYNC_API_PATH,
     handler: createFreeSyncHandler(runtime),
   }), 'dsh-model-palette: free-sync API')
-  ctx.effect(() => async () => {
-    clearTimeout(startupTimer)
-    clearInterval(tickTimer)
-    await runtime.dispose()
+  ctx.effect(() => {
+    const startupTimer = setTimeout(() => { void runtime.syncDueProviders('startup') }, STARTUP_DELAY_MS)
+    startupTimer.unref?.()
+    const tickTimer = setInterval(() => { void runtime.syncDueProviders('interval') }, TICK_INTERVAL_MS)
+    tickTimer.unref?.()
+    return async () => {
+      clearTimeout(startupTimer)
+      clearInterval(tickTimer)
+      await runtime.dispose()
+    }
   }, 'dsh-model-palette: free-sync timers')
 }
 
 /** Create the free-sync runtime so provider synchronization stays unit-testable. */
 export function createFreeSyncRuntime(ctx, settingsApi) {
   const inFlight = new Map()
+  const controller = new AbortController()
   let stopped = false
 
   async function pluginSettings() {
@@ -51,13 +54,21 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
     if (state === undefined || typeof state.lastSyncAt !== 'string') return true
     const last = Date.parse(state.lastSyncAt)
     if (!Number.isFinite(last)) return true
+    if (rule.intervalHours === 0) return false
     return Date.now() - last >= rule.intervalHours * 3_600_000
   }
 
   async function syncDueProviders(trigger) {
     if (stopped) return
-    const settings = await pluginSettings()
-    const due = dueProviders(settings).filter(provider => isDue(settings, provider))
+    let settings
+    try {
+      settings = await pluginSettings()
+    } catch (error) {
+      if (!stopped) ctx.logger?.warn?.(`dsh-model-palette: ${trigger} free-sync settings failed: ${errorMessage(error)}`)
+      return
+    }
+    const due = dueProviders(settings).filter(provider =>
+      trigger === 'startup' && resolveFreeSyncRule(settings, provider)?.intervalHours === 0 || isDue(settings, provider))
     for (const provider of due) {
       if (stopped) return
       try {
@@ -78,25 +89,34 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
         if (resolveFreeSyncRule(settings, providerId) === undefined) {
           throw new Error(`free sync is not enabled for provider "${providerId}"`)
         }
-        const profile = await providerProfile(settingsApi, providerId)
+        const { profile } = await providerSnapshot(settingsApi, providerId)
         if (profile === undefined) throw new Error(`provider "${providerId}" is not configured`)
         if (!isOpenRouterRoute(profile)) throw new Error(`provider "${providerId}" does not point at openrouter.ai`)
-        const live = await fetchLiveFreeModels()
-        const previous = Array.isArray(profile.models)
-          ? profile.models.filter(isRecord)
+        const live = await fetchLiveFreeModels(controller.signal)
+        if (stopped) throw new Error('free sync is disposed')
+        const currentSettings = await pluginSettings()
+        const { profile: currentProfile, revision } = await providerSnapshot(settingsApi, providerId)
+        if (stopped) throw new Error('free sync is disposed')
+        if (resolveFreeSyncRule(currentSettings, providerId) === undefined || currentProfile === undefined || !isOpenRouterRoute(currentProfile)) {
+          throw new Error(`provider "${providerId}" changed during free sync; retry after reviewing its settings`)
+        }
+        const previous = Array.isArray(currentProfile.models)
+          ? currentProfile.models.filter(isRecord)
           : []
-        const merged = mergeFreeSyncModels(previous, live, stringField(profile, 'api') || 'openai-completions')
+        if (live.length === 0) throw new Error('OpenRouter returned no compatible free models; keeping the configured list')
+        const merged = mergeFreeSyncModels(previous, live, stringField(currentProfile, 'api') || 'openai-completions')
         await settingsApi.mutate(LLM_SETTINGS_NAMESPACE, [{
           op: 'set',
           path: ['providers', providerId, 'models'],
           value: merged.models,
-        }])
+        }], revision)
         const state = {
           lastSyncAt: new Date().toISOString(),
           total: merged.models.length,
           added: merged.added,
           removed: merged.removed,
         }
+        if (stopped) throw new Error('free sync is disposed')
         await settingsApi.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
           op: 'set',
           path: ['freeSync', 'state', providerId],
@@ -105,6 +125,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
         ctx.logger?.info?.(`dsh-model-palette: free-sync "${providerId}" now serves ${state.total} free models (+${state.added}/-${state.removed})`)
         return { provider: providerId, ...state }
       } catch (error) {
+        if (stopped) throw error
         const message = errorMessage(error)
         try {
           await settingsApi.mutate(REQUEST_RETRY_SETTINGS_NAMESPACE, [{
@@ -126,6 +147,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
 
   async function dispose() {
     stopped = true
+    controller.abort()
     await Promise.allSettled([...inFlight.values()])
   }
 
@@ -214,11 +236,11 @@ function createFreeSyncHandler(runtime) {
   }
 }
 
-async function providerProfile(settingsApi, providerId) {
-  const section = await settingsApi.get(LLM_SETTINGS_NAMESPACE)
-  const providers = isRecord(section?.providers) ? section.providers : undefined
+async function providerSnapshot(settingsApi, providerId) {
+  const section = await settingsApi.snapshot(LLM_SETTINGS_NAMESPACE)
+  const providers = isRecord(section?.value?.providers) ? section.value.providers : undefined
   const profile = isRecord(providers?.[providerId]) ? providers[providerId] : undefined
-  return profile
+  return { profile, revision: section?.revision }
 }
 
 function isOpenRouterRoute(profile) {
@@ -231,10 +253,10 @@ function isOpenRouterRoute(profile) {
   }
 }
 
-async function fetchLiveFreeModels() {
+async function fetchLiveFreeModels(signal) {
   const response = await fetch(OPENROUTER_MODELS_URL, {
     headers: { 'accept': 'application/json', 'user-agent': 'DSH-Model-Palette/0.11' },
-    signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(CATALOG_TIMEOUT_MS)]),
   })
   if (!response.ok) throw new Error(`OpenRouter catalog returned HTTP ${response.status}`)
   return parseOpenRouterFreeModels(await response.json())

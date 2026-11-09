@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.18.0 - 2026-11-09
+
+- Add named browser-local model/reasoning profiles with composer buttons, Alt+Shift+1/2/3, reorder, rename, current-selection updates and delete/undo. Preserve unavailable profiles and report storage failures.
+- Add a previous-model button and Alt+Shift+M that retain the previous reasoning effort. Share selection preparation, locking and duplicate-request protection across palette rows, effort controls and shortcuts.
+- Match compact and full-width model spellings, free/reasoning terms and @provider queries; rank precise search matches first and add a complete filter reset.
+- Guard dirty provider drafts when closing the palette or navigating through its sidebar, and retain the editor when moving between configuration and templates.
+- Group configured providers by endpoint, show protocol branches as compact route chips, use friendly protocol names, and add needs-key/free-sync filters.
+
+## 0.17.0 - 2026-11-09
+
+- Complete the DSH 0.1 settings bridge and use resolved entry ids for DSH 0.2 reads, discovery and revision-checked edits; reject ambiguous namespace matches.
+- Add selected-provider JSON backups and batch import previews with skip, field-merge and copy modes. Omit credentials, request headers, credential-bearing URLs and sync diagnostics; report partially saved imports explicitly.
+- Add reasoning/free-route filters, name/provider sorting, 80-row progressive results and live capacity lookup for displayed models. Trap modal focus, restore it on close and ignore IME composition keys.
+- Abort pending free-model catalog requests during disposal, preserve edits made during retrieval, reject empty catalogs, contain scheduled read failures and honor zero-hour startup/manual-only schedules.
+- Remove unconditional synchronous debug-file writes and the unowned delayed diagnostic probe. Make the free-sync tests keyless and deterministic, and add a local browser smoke fixture.
+- Align the development Cordis runtime with DSH 0.2.1-alpha.1 and explicitly admit supported alpha tuples in peer ranges.
+
 ## 0.15.1 - 2026-09-20
 
 - OpenRouter media tools are now zero-config and enabled by default: they reuse the OPENROUTER_API_KEY already stored in DSH credentials (the same key chat routes use) and write outputs to ~/.dsh/media-output, so the media panel stops erroring with unregistered endpoints on fresh installs. `enabled: false` opts out and every field stays overridable via plugin config.

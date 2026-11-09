@@ -11,6 +11,14 @@ function namespace(profile: Record<string, unknown>, revision = 3) {
 }
 
 describe('selection compatibility preflight', () => {
+  it('writes the resolved renamed profile entry with the described revision', async () => {
+    const view = { ...namespace({ api: 'openai-responses', models: [{ id: 'custom-model' }] }), ns: 'renamed-models', schema: { dict: { providers: {} } } }
+    const mutate = vi.fn(async () => ({ result: { ok: true, value: view } }))
+    await ensureSelectionReasoning({ settings: {
+      describe: vi.fn(async () => ({ result: { ok: true, value: { namespaces: [view] } } })), mutate,
+    } } as never, 'bankofai', 'custom-model')
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ ns: 'renamed-models', expectedRevision: 3 }))
+  })
   it('limits automatic checks to known replay-required DeepSeek dialects', () => {
     expect(mayNeedReasoningCompatibility('bankofai', 'deepseek-v4-flash', 'V4 Flash')).toBe(true)
     expect(mayNeedReasoningCompatibility('deepseek', 'deepseek-chat', 'DeepSeek Chat')).toBe(false)
