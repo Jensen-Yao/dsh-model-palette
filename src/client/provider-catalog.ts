@@ -219,6 +219,14 @@ export function providerProtocolLabel(protocol: string): 'Responses' | 'Chat' | 
   return protocol
 }
 
+/** Return the wire path appended to a versioned API base URL. */
+export function providerProtocolEndpoint(protocol: string): '/chat/completions' | '/responses' | '/messages' | string {
+  if (protocol === 'openai-completions') return '/chat/completions'
+  if (protocol === 'openai-responses') return '/responses'
+  if (protocol === 'anthropic-messages') return '/messages'
+  return protocol
+}
+
 function hostOf(value: unknown): string {
   if (typeof value !== 'string' || value.trim() === '') return ''
   try {

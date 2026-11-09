@@ -26,6 +26,7 @@ import {
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
   providerMeta,
+  providerProtocolEndpoint,
   providerProtocolLabel,
   providerRouteGroups as groupProviderRoutes,
   type ProviderTemplate,
@@ -384,6 +385,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
     [showAllModels, visibleModels],
   )
   const protocol = stringField(draft, 'api')
+  const openAIProtocolProbeSupported = protocol === 'openai-completions' || protocol === 'openai-responses'
   const protocolTestModel = models.find(model => model.id === protocolTestModelId)
     ?? models.find(model => typeof model.id === 'string' && model.id.trim() !== '')
   const protocolTestModelValue = typeof protocolTestModel?.id === 'string' ? protocolTestModel.id : ''
@@ -1808,10 +1810,11 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
           <label className="dmp-media-field">
             <span>{t('config.protocol')}</span>
             <select value={protocol} disabled={readOnly} onChange={event => updateProfileString('api', event.currentTarget.value)}>
-              {PROTOCOLS.map(value => <option key={value} value={value}>{providerProtocolLabel(value)}</option>)}
+              {PROTOCOLS.map(value => <option key={value} value={value}>{providerProtocolLabel(value)} · {providerProtocolEndpoint(value)}</option>)}
             </select>
           </label>
           <div className="dmp-config-protocol-note">{t('config.protocolNote')}</div>
+          {protocol === 'anthropic-messages' && <div className="dmp-config-protocol-note">{t('config.anthropicProtocolNote')}</div>}
           <label className="dmp-media-field">
             <span>{t('config.providerDefaultInput')}</span>
             <select value={inputMode(draft, 'defaultInput')} disabled={readOnly} onChange={event => setDraft(current => setInputMode(current, event.currentTarget.value as ReturnType<typeof inputMode>, 'defaultInput'))}>
@@ -1858,8 +1861,8 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
             <button type="button" disabled={busy !== null} onClick={() => void readModelList()}>{t('config.modelListRead')}</button>
             {openRouterProfile && <button type="button" disabled={busy !== null} onClick={() => void scanOpenRouterFreeModels()}>{busy === 'openrouter-free' ? t('config.openRouterFreeScanning') : t('config.openRouterFreeScan')}</button>}
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
-            <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
-            <button type="button" disabled={busy !== null || models.length === 0 || !hasApiKey} onClick={() => void probeAllModelProtocols()}>{busy === 'protocol-scan' ? t('config.protocolScanning') : t('config.protocolScan')}</button>
+            <button type="button" disabled={busy !== null || protocolTestModel === undefined || !openAIProtocolProbeSupported} title={openAIProtocolProbeSupported ? undefined : t('config.protocolComparisonUnsupported')} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
+            <button type="button" disabled={busy !== null || models.length === 0 || !hasApiKey || !openAIProtocolProbeSupported} title={openAIProtocolProbeSupported ? undefined : t('config.protocolComparisonUnsupported')} onClick={() => void probeAllModelProtocols()}>{busy === 'protocol-scan' ? t('config.protocolScanning') : t('config.protocolScan')}</button>
             <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>

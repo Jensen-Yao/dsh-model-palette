@@ -7,6 +7,7 @@ import {
   SUBSCRIPTION_TEMPLATES,
   filterTemplates,
   providerMeta,
+  providerProtocolEndpoint,
   providerProtocolLabel,
   providerRouteGroups,
   templatesByCategory,
@@ -90,6 +91,9 @@ describe('configured provider route groups', () => {
     expect(providerProtocolLabel('openai-responses')).toBe('Responses')
     expect(providerProtocolLabel('openai-completions')).toBe('Chat')
     expect(providerProtocolLabel('anthropic-messages')).toBe('Messages')
+    expect(providerProtocolEndpoint('openai-completions')).toBe('/chat/completions')
+    expect(providerProtocolEndpoint('openai-responses')).toBe('/responses')
+    expect(providerProtocolEndpoint('anthropic-messages')).toBe('/messages')
   })
 })
 
