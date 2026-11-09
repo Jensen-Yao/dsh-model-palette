@@ -21,7 +21,7 @@
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.19.0](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.0)
+Current release: [v0.19.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.1)
 
 The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 487 entries.
 

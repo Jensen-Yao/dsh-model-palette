@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.1 - 2026-11-09
+
+- Implement the DSH adapter `providerRetryPolicy` hook and cover it through registration. Version 0.19.0 failed plugin activation on the installed DSH runtime because this method was missing.
+
 ## 0.19.0 - 2026-11-09
 
 - Add the keyless Kilo and OpenCode free-model lanes as a native `dsh-free-models` provider. Kilo rows must be marked free by its catalog; OpenCode keeps its explicit free ids and public-pool wire.
