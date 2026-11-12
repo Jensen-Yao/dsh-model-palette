@@ -146,6 +146,87 @@ export async function generatePollinationsImage(input: {
   })
 }
 
+export interface AgnesMediaModels {
+  provider: 'agnes'
+  free: true
+  credential_ready: boolean
+  images: Array<{ id: string; free: true; supported_sizes?: string[]; supported_ratios?: string[] }>
+  videos: Array<{ id: string; free: true; supported_sizes?: string[]; supported_durations?: number[]; supported_aspect_ratios?: string[] }>
+}
+
+export interface AgnesImageResult {
+  provider: 'agnes'
+  model: string
+  free_endpoint: boolean
+  manual_paid_override: boolean
+  files: Array<{ path: string; media_type: string; bytes: number }>
+}
+
+export interface AgnesVideoSubmitResult {
+  provider: 'agnes'
+  id: string
+  status?: string
+  model: string
+  free_endpoint: boolean
+  manual_paid_override: boolean
+}
+
+export interface AgnesVideoDownloadResult {
+  provider: 'agnes'
+  video_id: string
+  path: string
+  bytes: number
+  media_type?: string
+}
+
+/** List the free Agnes flash media models (local key required). */
+export async function listAgnesMediaModels(): Promise<AgnesMediaModels> {
+  return mediaApiRequest<AgnesMediaModels>('/agnes/models', {})
+}
+
+/** Generate a free Agnes flash image and save it locally. */
+export async function generateAgnesImage(input: {
+  model?: string
+  prompt: string
+  size?: string
+  ratio?: string
+  outputName?: string
+}): Promise<AgnesImageResult> {
+  return mediaApiRequest<AgnesImageResult>('/agnes/images/generate', {
+    prompt: input.prompt,
+    ...(input.model === undefined || input.model === '' ? {} : { model: input.model }),
+    ...(input.size === undefined || input.size === '' ? {} : { size: input.size }),
+    ...(input.ratio === undefined || input.ratio === '' ? {} : { ratio: input.ratio }),
+    ...(input.outputName === undefined || input.outputName.trim() === '' ? {} : { output_name: input.outputName.trim() }),
+  })
+}
+
+/** Submit a free Agnes flash 720P video task (async). */
+export async function generateAgnesVideo(input: {
+  prompt: string
+  seconds?: number
+  aspect_ratio?: string
+}): Promise<AgnesVideoSubmitResult> {
+  return mediaApiRequest<AgnesVideoSubmitResult>('/agnes/videos/generate', {
+    prompt: input.prompt,
+    ...(input.seconds === undefined ? {} : { seconds: input.seconds }),
+    ...(input.aspect_ratio === undefined || input.aspect_ratio === '' ? {} : { aspect_ratio: input.aspect_ratio }),
+  })
+}
+
+/** Poll an Agnes video task. */
+export async function getAgnesVideoStatus(videoId: string): Promise<Record<string, unknown>> {
+  return mediaApiRequest<Record<string, unknown>>('/agnes/videos/status', { video_id: videoId })
+}
+
+/** Download a completed Agnes video. */
+export async function downloadAgnesVideo(videoId: string, outputName?: string): Promise<AgnesVideoDownloadResult> {
+  return mediaApiRequest<AgnesVideoDownloadResult>('/agnes/videos/download', {
+    video_id: videoId,
+    ...(outputName === undefined || outputName.trim() === '' ? {} : { output_name: outputName.trim() }),
+  })
+}
+
 export async function mediaApiRequest<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',

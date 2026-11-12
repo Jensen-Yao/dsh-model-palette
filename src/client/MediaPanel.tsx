@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  downloadAgnesVideo,
   downloadVideo,
+  generateAgnesImage,
+  generateAgnesVideo,
   generateImage,
   generatePollinationsImage,
   generateVideo,
+  getAgnesVideoStatus,
   getVideoStatus,
+  listAgnesMediaModels,
   listMediaModels,
   listPollinationsModels,
   mediaModelNeedsConfirmation,
   pickDefaultMediaModel,
+  type AgnesMediaModels,
   type MediaCatalog,
   type MediaModel,
   type PollinationsModel,
@@ -18,7 +24,7 @@ interface MediaPanelProps {
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
-type PendingAction = 'catalog' | 'image' | 'video' | 'status' | 'download' | 'pollinations-models' | 'pollinations-image'
+type PendingAction = 'catalog' | 'image' | 'video' | 'status' | 'download' | 'pollinations-models' | 'pollinations-image' | 'agnes-models' | 'agnes-image' | 'agnes-video' | 'agnes-status' | 'agnes-download'
 
 interface Feedback {
   title: string
@@ -46,7 +52,15 @@ export function MediaPanel({ t }: MediaPanelProps) {
   const [imageModel, setImageModel] = useState('')
   const [imageOutputName, setImageOutputName] = useState('')
   const [imageChargeConfirmed, setImageChargeConfirmed] = useState(false)
-  const [imageProvider, setImageProvider] = useState<'openrouter' | 'pollinations'>('openrouter')
+  const [imageProvider, setImageProvider] = useState<'openrouter' | 'pollinations' | 'agnes'>('openrouter')
+  const [videoProvider, setVideoProvider] = useState<'openrouter' | 'agnes'>('openrouter')
+  const [agnesModels, setAgnesModels] = useState<AgnesMediaModels | null>(null)
+  const [agnesImageModel, setAgnesImageModel] = useState('')
+  const [agnesImageSize, setAgnesImageSize] = useState('1K')
+  const [agnesImageRatio, setAgnesImageRatio] = useState('1:1')
+  const [agnesVideoSeconds, setAgnesVideoSeconds] = useState('5')
+  const [agnesVideoRatio, setAgnesVideoRatio] = useState('16:9')
+  const [agnesJobId, setAgnesJobId] = useState('')
   const [pollinationsModels, setPollinationsModels] = useState<PollinationsModel[] | null>(null)
   const [pollinationsModel, setPollinationsModel] = useState('')
   const [pollinationsWidth, setPollinationsWidth] = useState('1024')
@@ -103,6 +117,23 @@ export function MediaPanel({ t }: MediaPanelProps) {
     if (imageProvider === 'pollinations' && pollinationsModels === null) void loadPollinationsModels()
   }, [imageProvider, pollinationsModels, loadPollinationsModels])
 
+  const loadAgnesModels = useCallback(async () => {
+    setPending('agnes-models')
+    try {
+      const value = await listAgnesMediaModels()
+      setAgnesModels(value)
+      setAgnesImageModel((current) => (value.images.some((row) => row.id === current) ? current : (value.images[0]?.id ?? '')))
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setPending(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if ((imageProvider === 'agnes' || videoProvider === 'agnes') && agnesModels === null) void loadAgnesModels()
+  }, [imageProvider, videoProvider, agnesModels, loadAgnesModels])
+
   const run = async (action: Exclude<PendingAction, 'catalog'>, operation: () => Promise<Feedback>) => {
     if (pending !== null) return
     setPending(action)
@@ -131,6 +162,40 @@ export function MediaPanel({ t }: MediaPanelProps) {
       ...(imageOutputName.trim() === '' ? {} : { outputName: imageOutputName.trim() }),
     })
     return { title: t('media.imageDone'), detail: result.files.map((file) => file.path).join('\n') }
+  })
+
+  const submitAgnesImage = () => run('agnes-image', async () => {
+    if (imagePrompt.trim() === '') throw new Error(t('media.promptRequired'))
+    const result = await generateAgnesImage({
+      prompt: imagePrompt.trim(),
+      ...(agnesImageModel === '' ? {} : { model: agnesImageModel }),
+      size: agnesImageSize,
+      ratio: agnesImageRatio,
+      ...(imageOutputName.trim() === '' ? {} : { outputName: imageOutputName.trim() }),
+    })
+    return { title: t('media.imageDone'), detail: result.files.map((file) => file.path).join('\n') }
+  })
+
+  const submitAgnesVideo = () => run('agnes-video', async () => {
+    if (videoPrompt.trim() === '') throw new Error(t('media.promptRequired'))
+    const seconds = Number(agnesVideoSeconds)
+    if (!Number.isInteger(seconds) || seconds < 4 || seconds > 12) throw new Error(t('media.agnesSecondsInvalid'))
+    const result = await generateAgnesVideo({ prompt: videoPrompt.trim(), seconds, aspect_ratio: agnesVideoRatio })
+    setJobId(result.id)
+    setAgnesJobId(result.id)
+    return { title: t('media.videoSubmitted'), detail: `${result.id}${result.status === undefined ? '' : ` · ${result.status}`}` }
+  })
+
+  const checkAgnesStatus = () => run('agnes-status', async () => {
+    if (agnesJobId.trim() === '' && jobId.trim() === '') throw new Error(t('media.jobRequired'))
+    const result = await getAgnesVideoStatus((agnesJobId.trim() !== '' ? agnesJobId : jobId).trim())
+    return { title: t('media.statusDone'), detail: JSON.stringify(result, null, 2) }
+  })
+
+  const downloadAgnes = () => run('agnes-download', async () => {
+    if (agnesJobId.trim() === '' && jobId.trim() === '') throw new Error(t('media.jobRequired'))
+    const result = await downloadAgnesVideo((agnesJobId.trim() !== '' ? agnesJobId : jobId).trim(), videoOutputName.trim() === '' ? undefined : videoOutputName.trim())
+    return { title: t('media.downloadDone'), detail: result.path }
   })
 
   const submitImage = () => run('image', async () => {
@@ -217,7 +282,7 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <div><h3>{t('media.imageTitle')}</h3><p>{t('media.imageDescription')}</p></div>
           </div>
           <div className="dmp-media-provider-row" role="radiogroup" aria-label={t('media.imageProvider')}>
-            {(['openrouter', 'pollinations'] as const).map((provider) => (
+            {(['openrouter', 'pollinations', 'agnes'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -226,10 +291,34 @@ export function MediaPanel({ t }: MediaPanelProps) {
                 className={imageProvider === provider ? 'is-active' : ''}
                 disabled={busy}
                 onClick={() => setImageProvider(provider)}
-              >{t(provider === 'openrouter' ? 'media.providerOpenRouter' : 'media.providerPollinations')}</button>
+              >{t(provider === 'openrouter' ? 'media.providerOpenRouter' : provider === 'pollinations' ? 'media.providerPollinations' : 'media.providerAgnes')}</button>
             ))}
           </div>
-          {imageProvider === 'pollinations' ? (
+          {imageProvider === 'agnes' ? (
+            <>
+              {agnesModels !== null && !agnesModels.credential_ready && <p className="dmp-media-hint" role="alert">{t('media.agnesKeyMissing')}</p>}
+              <label className="dmp-media-field">
+                <span>{t('media.model')}</span>
+                <select value={agnesImageModel} onChange={(event) => setAgnesImageModel(event.currentTarget.value)} disabled={busy}>
+                  {(agnesModels?.images ?? []).map((row) => <option key={row.id} value={row.id}>{row.id}</option>)}
+                </select>
+              </label>
+              <div className="dmp-media-dimensions">
+                <label className="dmp-media-field">
+                  <span>{t('media.size')}</span>
+                  <select value={agnesImageSize} onChange={(event) => setAgnesImageSize(event.currentTarget.value)} disabled={busy}>
+                    {(agnesModels?.images[0]?.supported_sizes ?? ['1K', '2K', '3K', '4K']).map((size) => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </label>
+                <label className="dmp-media-field">
+                  <span>{t('media.ratio')}</span>
+                  <select value={agnesImageRatio} onChange={(event) => setAgnesImageRatio(event.currentTarget.value)} disabled={busy}>
+                    {(agnesModels?.images[0]?.supported_ratios ?? ['1:1']).map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
+                  </select>
+                </label>
+              </div>
+            </>
+          ) : imageProvider === 'pollinations' ? (
             <>
               <label className="dmp-media-field">
                 <span>{t('media.model')}</span>
@@ -271,7 +360,11 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span>{t('media.outputOptional')}</span>
             <input value={imageOutputName} onChange={(event) => setImageOutputName(event.currentTarget.value)} placeholder="my-image" />
           </label>
-          {imageProvider === 'pollinations' ? (
+          {imageProvider === 'agnes' ? (
+            <button className="dmp-media-primary" type="button" disabled={busy} onClick={() => void submitAgnesImage()}>
+              {pending === 'agnes-image' ? t('media.running') : t('media.generateImage')}
+            </button>
+          ) : imageProvider === 'pollinations' ? (
             <button className="dmp-media-primary" type="button" disabled={busy} onClick={() => void submitPollinationsImage()}>
               {pending === 'pollinations-image' ? t('media.running') : t('media.generateImage')}
             </button>
@@ -287,6 +380,43 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span className="dmp-media-icon" aria-hidden="true">▷</span>
             <div><h3>{t('media.videoTitle')}</h3><p>{t('media.videoDescription')}</p></div>
           </div>
+          <div className="dmp-media-provider-row" role="radiogroup" aria-label={t('media.videoProvider')}>
+            {(['openrouter', 'agnes'] as const).map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                role="radio"
+                aria-checked={videoProvider === provider}
+                className={videoProvider === provider ? 'is-active' : ''}
+                disabled={busy}
+                onClick={() => setVideoProvider(provider)}
+              >{t(provider === 'openrouter' ? 'media.providerOpenRouter' : 'media.providerAgnes')}</button>
+            ))}
+          </div>
+          {videoProvider === 'agnes' ? (
+            <>
+              {agnesModels !== null && !agnesModels.credential_ready && <p className="dmp-media-hint" role="alert">{t('media.agnesKeyMissing')}</p>}
+              <label className="dmp-media-field">
+                <span>{t('media.model')}</span>
+                <select value={agnesModels?.videos[0]?.id ?? 'agnes-video-2.5-flash'} disabled>
+                  <option value={agnesModels?.videos[0]?.id ?? 'agnes-video-2.5-flash'}>{agnesModels?.videos[0]?.id ?? 'agnes-video-2.5-flash'} · 720P</option>
+                </select>
+              </label>
+              <div className="dmp-media-dimensions">
+                <label className="dmp-media-field">
+                  <span>{t('media.seconds')}</span>
+                  <input type="number" min="4" max="12" step="1" value={agnesVideoSeconds} onChange={(event) => setAgnesVideoSeconds(event.currentTarget.value)} disabled={busy} />
+                </label>
+                <label className="dmp-media-field">
+                  <span>{t('media.ratio')}</span>
+                  <select value={agnesVideoRatio} onChange={(event) => setAgnesVideoRatio(event.currentTarget.value)} disabled={busy}>
+                    {(agnesModels?.videos[0]?.supported_aspect_ratios ?? ['16:9']).map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
+                  </select>
+                </label>
+              </div>
+            </>
+          ) : (
+          <>
           <label className="dmp-media-field">
             <span>{t('media.model')}</span>
             <select value={videoModel} onChange={(event) => { setVideoModel(event.currentTarget.value); setVideoChargeConfirmed(false) }} disabled={busy || videos.length === 0}>
@@ -307,9 +437,17 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span>{t('media.durationOptional')}</span>
             <input type="number" min="1" max="60" step="1" value={videoDuration} onChange={(event) => setVideoDuration(event.currentTarget.value)} placeholder="5" />
           </label>
+          </>
+          )}
+          {videoProvider === 'agnes' ? (
+            <button className="dmp-media-primary" type="button" disabled={busy} onClick={() => void submitAgnesVideo()}>
+              {pending === 'agnes-video' ? t('media.running') : t('media.generateVideo')}
+            </button>
+          ) : (
           <button className="dmp-media-primary" type="button" disabled={busy || !videoCanSubmit} onClick={() => void submitVideo()}>
             {pending === 'video' ? t('media.running') : t('media.generateVideo')}
           </button>
+          )}
         </section>
       </div>
 
@@ -330,6 +468,8 @@ export function MediaPanel({ t }: MediaPanelProps) {
           <div className="dmp-media-actions dmp-media-job-actions">
             <button type="button" disabled={busy} onClick={() => void checkStatus()}>{pending === 'status' ? t('media.running') : t('media.checkStatus')}</button>
             <button className="dmp-media-primary" type="button" disabled={busy} onClick={() => void download()}>{pending === 'download' ? t('media.running') : t('media.downloadVideo')}</button>
+            <button type="button" disabled={busy} onClick={() => void checkAgnesStatus()}>{pending === 'agnes-status' ? t('media.running') : t('media.agnesCheckStatus')}</button>
+            <button type="button" disabled={busy} onClick={() => void downloadAgnes()}>{pending === 'agnes-download' ? t('media.running') : t('media.agnesDownloadVideo')}</button>
           </div>
         </div>
       </section>

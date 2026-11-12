@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { hasManualPaidAcknowledgement } from './media-protocol.ts'
 import { createPollinationsMedia } from './pollinations-media.js'
+import { createAgnesMedia } from './agnes-media.js'
 
 const API_BASE = 'https://openrouter.ai/api/v1'
 const MEDIA_API_PATH = '/model-palette/api/media'
@@ -42,6 +43,11 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
   for (const tool of pollinations.tools) {
     ctx.effect(() => ctx.tools.register(tool), `dsh-model-palette: ${tool.name} tool`)
   }
+  // Keyed Agnes lane through the local credential; same registration shape.
+  const agnes = createAgnesMedia(ctx, rawConfig)
+  for (const tool of agnes.tools) {
+    ctx.effect(() => ctx.tools.register(tool), `dsh-model-palette: ${tool.name} tool`)
+  }
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: MEDIA_API_PATH,
@@ -51,7 +57,7 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
       video: (args, signal) => executeVideo(ctx, config, args, { signal }, true),
       status: (args, signal) => tools.status.execute(args, { signal }),
       download: (args, signal) => tools.download.execute(args, { signal }),
-      ...Object.fromEntries([...pollinations.routes].map(([suffix, action]) => [suffix, action])),
+      ...Object.fromEntries([...pollinations.routes, ...agnes.routes].map(([suffix, action]) => [suffix, action])),
     }),
   }), 'dsh-model-palette: direct media API')
 }
