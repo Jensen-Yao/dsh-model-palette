@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 - 2026-11-13
+
+- Keep the keyless free lane current: every probe interval now re-reads the Kilo and OpenCode catalogs, and provider rows with free models (plus the free lane itself) get an inline refresh button served by `POST /model-palette/api/free-models/refresh` with an added/removed summary.
+- Enrich free-model capabilities from the public models.dev catalog (cached 12h, force-refresh on demand) instead of relying on hardcoded family regexes, filling context windows, output limits, reasoning ladders, and display names the upstream listings omit; OpenRouter free imports and auto-sync now prefill reasoning efforts for catalog-declared reasoning models.
+- Make the free lane discoverable: it is pinned below the current provider in the rail and results with a localized name, a gift icon, and a FREE pill; the free capability filter and `免费` search now cover the keyless lane, not only `:free` suffix routes.
+- Replace the reasoning-effort range slider with a diagram-style segmented control (per-stop intensity glyphs, animated thumb, radio semantics, arrow-key support) in both the composer seat and the palette footer.
+- The provider rail is wider by default and drag-resizable (double-click resets; width persists), and long model lists group by provider with sticky collapsible headers instead of a duplicated chip strip.
+
 ## 0.19.1 - 2026-11-09
 
 - Implement the DSH adapter `providerRetryPolicy` hook and cover it through registration. Version 0.19.0 failed plugin activation on the installed DSH runtime because this method was missing.

@@ -37,6 +37,8 @@
 
 原生 **dsh-free-models** 供应商合并 Kilo 免费池与 OpenCode 明确免费的模型。Kilo 只收录其目录自己标记 `isFree` 的行；OpenCode 使用公共池会话 wire。可用性探测使用最小真实请求，但只有明确的 400/404/422 路由拒绝才会移除模型；429、超时或 5xx 都保持可选。免费池上游可能记录提示词，不要通过它发送敏感内容。
 
+目录随每个探测间隔自动重读，供应商侧栏行内提供更新按钮（`POST /model-palette/api/free-models/refresh`）并汇报新增/移除数量。上下文窗口、输出上限、推理档位与显示名会从公共 models.dev 目录补全（缓存 12 小时，更新按钮强制重读），新上架的免费模型带着完整能力参数出现而不是过时的猜测。面板中该线路固定排在当前供应商之下，带本地化名称与 FREE 徽标；免费过滤器和 `免费`/`is:free` 搜索同时覆盖免登录线路与 `:free` 路由。
+
 本机 OpenAI 兼容网关默认监听 `http://127.0.0.1:4180/v1`，提供 `/models` 以及流式/非流式 `/chat/completions`。它只绑定回环地址；设置 `freeModels.gateway.credentialRef` 后还要求请求携带对应 DSH 凭据的 Bearer token。网关按响应体字节识别 SSE，即使上游把流标成 JSON 也能继续解析。
 
 ```yaml

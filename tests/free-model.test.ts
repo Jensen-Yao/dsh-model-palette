@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Readable } from 'node:stream'
 import {
   FREE_MODEL_PROVIDER_ID,
   parseOpenCodeCatalog,
@@ -6,8 +7,10 @@ import {
   FreeModelRuntime,
   chatPayloadsToChunks,
   registerFreeModels,
+  registerFreeModelsRefreshApi,
   mapChatUsage,
   parseFreeModelCatalog,
+  parseModelsDevCatalog,
   sniffBodyShape,
   streamChatPayloads,
 } from '../src/free-model.js'
@@ -170,5 +173,105 @@ describe('free-model registration', () => {
     expect((await (adapter as FreeModelAdapter).listModels()).map(row => row.id)).toContain('vendor/available-free')
     for (const dispose of effects.reverse()) await dispose()
     expect(disposeAdapter).toHaveBeenCalledOnce()
+  })
+})
+
+describe('free-model refresh API', () => {
+  it('serves a manual catalog refresh with an added/removed summary', async () => {
+    let call = 0
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      call += 1
+      const opencode = String(input).includes('opencode.example')
+      if (opencode) return Response.json({ data: [] })
+      return Response.json(call === 1
+        ? { data: [{ id: 'vendor/available-free', name: 'Vendor: Available (free)', isFree: true, supported_parameters: ['reasoning'] }] }
+        : { data: [{ id: 'vendor/new-free', name: 'Vendor: New (free)', isFree: true }] })
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://kilo.example', fetchImpl, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined
+    const ctx = {
+      webServer: {
+        register(registration: { handler: (req: unknown, res: unknown) => Promise<void> }) {
+          handler = registration.handler
+          return () => {}
+        },
+      },
+    }
+    const dispose = registerFreeModelsRefreshApi(ctx, runtime)
+    expect(handler).toBeDefined()
+    const req = Readable.from(['{}'])
+    Object.assign(req, {
+      method: 'POST',
+      url: '/model-palette/api/free-models/refresh',
+      headers: { 'sec-fetch-site': 'same-origin' },
+    })
+    let status = 0
+    let text = ''
+    const res = {
+      writeHead(nextStatus: number) { status = nextStatus },
+      end(chunk = '') { text += String(chunk) },
+    }
+    await handler?.(req, res)
+    expect(status).toBe(200)
+    const body = JSON.parse(text) as { ok: boolean; value: { total: number; added: number; removed: number } }
+    expect(body.ok).toBe(true)
+    expect(body.value).toMatchObject({ total: 1, available: 1, added: 1, removed: 1 })
+    await dispose()
+  })
+})
+
+describe('models.dev capability enrichment', () => {
+  const modelsDev = {
+    other: { models: { 'big-pickle': { name: 'Other Big Pickle', limit: { context: 999, output: 999 } } } },
+    opencode: { models: {
+      'big-pickle': { name: 'Big Pickle', limit: { context: 200000, output: 32000 }, reasoning: true },
+      'deepseek-v4.1-flash': { name: 'DeepSeek V4.1 Flash', limit: { context: 1000000, output: 384000 }, reasoning: true },
+      'plain-model': { name: 'Plain', limit: { context: 64000, output: 8000 }, reasoning: false },
+    } },
+    kilo: { models: { 'kilo-auto/free': { name: 'Auto Free', limit: { context: 512000, output: 64000 }, reasoning: true } } },
+  }
+
+  it('indexes models.dev with opencode/kilo namespaces winning over other aggregators', () => {
+    const facts = parseModelsDevCatalog(modelsDev)
+    expect(facts.get('big-pickle')).toMatchObject({ contextWindow: 200000, maxOutput: 32000, reasoning: true, name: 'Big Pickle' })
+    expect(facts.get('kilo-auto-free')).toMatchObject({ contextWindow: 512000 })
+    expect(facts.get('kilo-auto')).toMatchObject({ contextWindow: 512000 })
+    expect(facts.size).toBeGreaterThan(3)
+  })
+
+  it('fills context, output, reasoning ladder, and display names for opencode rows', async () => {
+    const runtime = new FreeModelRuntime('https://ignored', (async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return Response.json(modelsDev)
+      if (url.includes('opencode.example')) {
+        return Response.json({ data: [
+          { id: 'big-pickle', name: 'big-pickle' },
+          { id: 'longcat-2.5-free' },
+        ] })
+      }
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    const entries = runtime.availableEntries()
+    const pickle = entries.find(entry => entry.id === 'big-pickle')
+    expect(pickle).toMatchObject({ contextWindow: 200000, maxOutput: 32000, name: 'Big Pickle', canDisableReasoning: true })
+    expect(pickle?.efforts).toEqual(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+    // unknown ids keep the heuristic fallbacks
+    expect(entries.find(entry => entry.id === 'longcat-2.5-free')).toMatchObject({ contextWindow: 131_072, efforts: [] })
+  })
+
+  it('keeps heuristic entries when the capability catalog is unreachable', async () => {
+    const runtime = new FreeModelRuntime('https://ignored', (async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return new Response('nope', { status: 503 })
+      if (url.includes('opencode.example')) return Response.json({ data: [{ id: 'big-pickle', name: 'Big Pickle' }] })
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    expect(runtime.availableEntries()[0]).toMatchObject({ contextWindow: 131_072, efforts: [] })
   })
 })

@@ -53,6 +53,7 @@ import {
   mergeDiscoveredModelsWithPresets,
   modelRecords,
   nextProviderCopyId,
+  prefillFreeReasoningEfforts,
   providerProfiles,
   repairProviderCompatibility,
   reasoningEffortsValue,
@@ -919,7 +920,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
       ? model
       : applyReasoningDispatchDefaults(providerId || 'provider', draft, model))
     setModels(prepared)
-    return presetResult.applied
+    return { models: prepared, presets: presetResult.applied }
   }
 
   const probe = async () => {
@@ -1064,12 +1065,18 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
   const importOpenRouterFreeModels = () => {
     if (openRouterFreeCatalog === null || openRouterFreeSelection.length === 0) return
     const result = importSelectedOpenRouterFreeModels(models, openRouterFreeCatalog.models, openRouterFreeSelection)
-    const presets = applyCandidateMetadata(result.models)
+    const candidate = applyCandidateMetadata(result.models)
+    // After presets, free models whose upstream catalog declares reasoning
+    // support still get their reasoning-effort form prefilled.
+    const reasoningIds = new Set(openRouterFreeCatalog.models.filter(model => model.reasoning === true).map(model => model.id))
+    const prefill = prefillFreeReasoningEfforts(candidate.models, reasoningIds)
+    setModels(prefill.models)
     setFeedback(t('config.openRouterFreeImported', {
       selected: openRouterFreeSelection.length,
       added: result.added,
       enriched: result.enriched,
-      presets,
+      presets: candidate.presets,
+      prefilled: prefill.prefilled,
     }))
     setOpenRouterFreeSelection([])
   }
@@ -1890,7 +1897,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, on
                 <label key={model.id}>
                   <input type="checkbox" checked={openRouterFreeSelection.includes(model.id)} onChange={() => toggleOpenRouterFreeModel(model.id)} />
                   <span className="dmp-config-free-picker-model">
-                    <strong>{model.name ?? model.id}</strong>
+                    <strong>{model.name ?? model.id}{model.reasoning === true && <i className="dmp-config-free-reasoning" title={t('config.openRouterFreeReasoning')}>R</i>}</strong>
                     <small>{model.id}</small>
                   </span>
                   <span className="dmp-config-free-picker-meta">

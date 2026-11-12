@@ -1,5 +1,13 @@
 import type { CatalogGroup, CurrentSelection, ModelChoice, Selection } from './types.ts'
 
+/** Provider id of the keyless Kilo/OpenCode free lane registered by the plugin's host side. */
+export const FREE_LANE_PROVIDER_ID = 'dsh-free-models'
+
+/** Whether a choice is free of charge: the keyless lane, or an OpenRouter-style `:free` route. */
+export function isFreeChoice(providerId: string, modelId: string): boolean {
+  return providerId === FREE_LANE_PROVIDER_ID || modelId.toLocaleLowerCase().endsWith(':free')
+}
+
 export function choiceKey(providerId: string, modelId: string): string {
   return `${providerId}\u0000${modelId}`
 }
@@ -63,7 +71,7 @@ export function searchScore(choice: ModelChoice, query: string): number | null {
   let score = 0
   for (const token of tokens) {
     if (token === '免费' || token === '免费模型' || token === 'is:free') {
-      if (!choice.model.id.toLocaleLowerCase().endsWith(':free')) return null
+      if (!isFreeChoice(choice.provider.id, choice.model.id)) return null
       continue
     }
     if (token === '推理' || token === '推理模型' || token === 'is:reasoning') {
@@ -102,7 +110,7 @@ export function rankChoices(choices: ModelChoice[], options: RankOptions): Model
   return choices
     .filter(choice => options.capability === undefined || options.capability === 'all'
       || options.capability === 'reasoning' && (choice.model.reasoning?.efforts.length ?? 0) > 0
-      || options.capability === 'free' && choice.model.id.toLocaleLowerCase().endsWith(':free'))
+      || options.capability === 'free' && isFreeChoice(choice.provider.id, choice.model.id))
     .filter((choice) => options.providerId === null || choice.provider.id === options.providerId)
     .filter((choice) => quickFilter === 'all'
       || quickFilter === 'favorites' && favoriteRank.has(choice.key)
@@ -137,6 +145,39 @@ export function rankChoices(choices: ModelChoice[], options: RankOptions): Model
 
 export function pushRecent(recents: readonly string[], key: string, limit = 12): string[] {
   return [key, ...recents.filter((entry) => entry !== key)].slice(0, limit)
+}
+
+export interface ProviderChoiceGroup {
+  provider: CatalogGroup
+  choices: ModelChoice[]
+}
+
+/**
+ * Group ranked choices by provider for scan-friendly browsing of large
+ * catalogs. Order mirrors the provider rail: current provider first, then the
+ * keyless free lane, then alphabetical; choices keep their ranked order
+ * inside each group.
+ */
+export function groupChoicesByProvider(choices: readonly ModelChoice[], currentProvider?: string | null): ProviderChoiceGroup[] {
+  const groups = new Map<string, ProviderChoiceGroup>()
+  for (const choice of choices) {
+    const existing = groups.get(choice.provider.id)
+    if (existing === undefined) groups.set(choice.provider.id, { provider: choice.provider, choices: [choice] })
+    else existing.choices.push(choice)
+  }
+  return [...groups.values()].sort((left, right) => {
+    const rank = (id: string) => id === currentProvider ? 0 : id === FREE_LANE_PROVIDER_ID ? 1 : 2
+    const leftRank = rank(left.provider.id)
+    const rightRank = rank(right.provider.id)
+    if (leftRank !== rightRank) return leftRank - rightRank
+    return left.provider.name.localeCompare(right.provider.name)
+  })
+}
+
+/** Whether a provider panel offers free models that a catalog update can refresh. */
+export function providerHasFreeModels(providerId: string, modelIds: readonly string[]): boolean {
+  if (providerId === 'dsh-free-models') return true
+  return modelIds.some(id => id.toLocaleLowerCase().endsWith(':free'))
 }
 
 export function toggleFavorite(favorites: readonly string[], key: string): string[] {

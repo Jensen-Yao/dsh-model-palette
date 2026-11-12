@@ -124,12 +124,14 @@ export function parseOpenRouterFreeModels(value) {
     const topProvider = entry.top_provider !== null && typeof entry.top_provider === 'object' ? entry.top_provider : {}
     const contextWindow = positiveInteger(entry.context_length)
     const maxTokens = positiveInteger(topProvider.max_completion_tokens)
+    const supported = stringArray(entry.supported_parameters)
     models.push({
       id,
       ...(typeof entry.name === 'string' && entry.name.trim() !== '' ? { name: entry.name.trim() } : {}),
       ...(contextWindow === undefined ? {} : { contextWindow }),
       ...(maxTokens === undefined ? {} : { maxTokens }),
       input,
+      ...(supported.includes('reasoning') ? { reasoning: true } : {}),
       free: true,
     })
     seen.add(id)

@@ -49,6 +49,23 @@ describe('model configuration credential API', () => {
     }])
   })
 
+  it('flags free models whose catalog declares reasoning support', () => {
+    const rows = parseOpenRouterFreeModels({ data: [
+      {
+        id: 'vendor/thinker:free', name: 'Thinker (free)', context_length: 131072,
+        architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+        supported_parameters: ['tools', 'reasoning'],
+      },
+      {
+        id: 'vendor/plain:free', name: 'Plain (free)', context_length: 131072,
+        architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+        supported_parameters: ['tools'],
+      },
+    ] })
+    expect(rows[0]).toMatchObject({ id: 'vendor/thinker:free', reasoning: true })
+    expect(rows[1].reasoning).toBeUndefined()
+  })
+
   it('returns the live OpenRouter free catalog without requiring a credential', async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = vi.fn(async (url, init) => {

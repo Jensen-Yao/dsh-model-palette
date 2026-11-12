@@ -12,6 +12,7 @@ import z from '@deepseek-ai/schemastery'
 export const FREE_MODEL_PROVIDER_ID = 'dsh-free-models'
 export const DEFAULT_FREE_MODEL_BASE = 'https://ai-gateway.kilo.ai/api/v1'
 export const DEFAULT_OPENCODE_BASE = 'https://opencode.ai'
+export const FREE_MODELS_API_PATH = '/model-palette/api/free-models'
 /** Host-config surface for the keyless lane and loopback OpenAI gateway. */
 export const FreeModelsConfigSchema = z.object({
   enabled: z.boolean().default(true),
@@ -29,7 +30,12 @@ export const FreeModelsConfigSchema = z.object({
 const CATALOG_TIMEOUT_MS = 20_000
 const TURN_TIMEOUT_MS = 300_000
 const PROBE_TIMEOUT_MS = 45_000
-const USER_AGENT = 'dsh-model-palette/0.19'
+/** Public capability catalog (same source the opencode ecosystem uses) backing context/reasoning enrichment. */
+const MODELS_DEV_URL = 'https://models.dev/api.json'
+const MODELS_DEV_TIMEOUT_MS = 20_000
+const MODELS_DEV_TTL_MS = 12 * 60 * 60_000
+const OPENCODE_EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+const USER_AGENT = 'dsh-model-palette/0.20'
 const ATTRIBUTION_HEADERS = Object.freeze({ 'http-referer': 'https://kilo.ai/', 'x-title': 'DSH Model Palette' })
 const OPENCODE_ALWAYS_FREE = new Set(['big-pickle', 'space-bunny-free'])
 const OPENCODE_NON_CHAT = new Set(['union-alpha', 'muse-spark-1.2-contributor-free', 'muse-spark-1.3-contributor-free'])
@@ -68,6 +74,15 @@ export interface FreeModelEntry {
   efforts: string[]
   canDisableReasoning: boolean
   channel: 'kilo' | 'opencode'
+}
+
+/** Catalog refresh outcome for the palette's update button. */
+export interface FreeModelRefreshSummary {
+  total: number
+  available: number
+  added: number
+  removed: number
+  checkedAt: string
 }
 
 /** Validate and project the Kilo listing's free rows. */
@@ -129,6 +144,76 @@ export function parseOpenCodeCatalog(value: unknown): FreeModelEntry[] {
     seen.add(id)
   }
   return entries
+}
+
+/** Capability facts pulled from the public models.dev catalog. */
+export interface ModelsDevFacts {
+  contextWindow?: number
+  maxOutput?: number
+  reasoning?: boolean
+  name?: string
+}
+
+/**
+ * Index the models.dev document by normalized model id. Aliases cover the
+ * `-free` suffix variants the OpenCode lane uses, and entries from the
+ * opencode/kilo namespaces win over same-id rows from other aggregators.
+ */
+export function parseModelsDevCatalog(value: unknown): Map<string, ModelsDevFacts> {
+  const index = new Map<string, ModelsDevFacts>()
+  if (!isRecord(value)) return index
+  const register = (id: unknown, model: unknown, strong: boolean) => {
+    if (typeof id !== 'string' || id.trim() === '' || !isRecord(model)) return
+    const record: ModelsDevFacts = {}
+    const limit = isRecord(model.limit) ? model.limit : {}
+    const context = positiveInteger(limit.context)
+    const output = positiveInteger(limit.output)
+    if (context !== undefined) record.contextWindow = context
+    if (output !== undefined) record.maxOutput = output
+    if (model.reasoning === true || model.reasoning === false) record.reasoning = model.reasoning
+    if (typeof model.name === 'string' && model.name.trim() !== '') record.name = model.name.trim()
+    if (Object.keys(record).length === 0) return
+    const normalized = normalizeModelsDevId(id)
+    const withoutFree = normalized.replace(/-free$/u, '')
+    for (const key of new Set([normalized, withoutFree])) {
+      if (strong || !index.has(key)) index.set(key, record)
+    }
+  }
+  const preferred = ['opencode', 'kilo', 'kilo-ai', 'kiloai']
+  for (const [providerId, provider] of Object.entries(value)) {
+    if (preferred.includes(providerId.toLocaleLowerCase())) continue
+    if (!isRecord(provider)) continue
+    for (const [id, model] of Object.entries(isRecord(provider.models) ? provider.models : {})) register(id, model, false)
+  }
+  for (const providerId of preferred) {
+    const provider = (value as Record<string, unknown>)[providerId]
+    if (!isRecord(provider)) continue
+    for (const [id, model] of Object.entries(isRecord(provider.models) ? provider.models : {})) register(id, model, true)
+  }
+  return index
+}
+
+function normalizeModelsDevId(id: string): string {
+  return id.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/gu, '-')
+}
+
+/** Fill context, output, reasoning, and display name facts the upstream listings omit. */
+export function enrichFreeModelEntries(entries: readonly FreeModelEntry[], facts: ReadonlyMap<string, ModelsDevFacts>): FreeModelEntry[] {
+  return entries.map(entry => {
+    const record = facts.get(normalizeModelsDevId(entry.id))
+      ?? facts.get(normalizeModelsDevId(entry.id.replace(/[-_.]?free$/iu, '')))
+      ?? facts.get(normalizeModelsDevId(entry.id.split('/').at(-1) ?? entry.id))
+    if (record === undefined) return entry
+    const next: FreeModelEntry = { ...entry }
+    if (record.contextWindow !== undefined) next.contextWindow = record.contextWindow
+    if (record.maxOutput !== undefined) next.maxOutput = record.maxOutput
+    if (record.reasoning === true && next.efforts.length === 0) {
+      next.efforts = [...OPENCODE_EFFORT_LADDER]
+      next.canDisableReasoning = true
+    }
+    if (record.name !== undefined && (next.name === next.id || next.name === '')) next.name = record.name
+    return next
+  })
 }
 
 /** Classify whether an upstream answer proves this exact model cannot route. */
@@ -407,6 +492,7 @@ export class FreeModelRuntime {
   private unavailable = new Set<string>()
   private verdicts = new Map<string, { state: string; detail?: string; checkedAt: string }>()
   private handle: { replace: (providers: string[]) => void } | undefined
+  private capabilityCache: { facts: Map<string, ModelsDevFacts>; fetchedAt: number } | undefined
   readonly fetchImpl: typeof fetch
 
   constructor(baseURL: string, fetchImpl: typeof fetch = fetch, opencodeBaseURL: string = DEFAULT_OPENCODE_BASE) { this.baseURL = baseURL; this.opencodeBaseURL = opencodeBaseURL; this.fetchImpl = fetchImpl }
@@ -419,9 +505,9 @@ export class FreeModelRuntime {
 
   snapshot() { return { models: this.availableEntries().map(entry => ({ ...entry })), verdicts: Object.fromEntries(this.verdicts) } }
 
-  async refresh(signal?: AbortSignal) {
+  async refresh(signal?: AbortSignal, options: { force?: boolean } = {}): Promise<FreeModelRefreshSummary> {
     const deadline = signal ?? AbortSignal.timeout(CATALOG_TIMEOUT_MS)
-    const [kilo, opencode] = await Promise.allSettled([
+    const [kilo, opencode, capabilities] = await Promise.allSettled([
       this.fetchImpl(`${this.baseURL.replace(/\/+$/u, '')}/models`, {
         headers: { accept: 'application/json', 'user-agent': USER_AGENT, ...ATTRIBUTION_HEADERS }, signal: deadline, redirect: 'error',
       }).then(async response => {
@@ -434,14 +520,38 @@ export class FreeModelRuntime {
         if (!response.ok) throw new Error(`OpenCode catalog returned HTTP ${response.status}`)
         return parseOpenCodeCatalog(await response.json())
       }),
+      this.loadCapabilityFacts(options.force === true, signal),
     ])
     if (kilo.status === 'rejected' && opencode.status === 'rejected') throw kilo.reason
     const merged = new Map<string, FreeModelEntry>()
     for (const entry of [...(kilo.status === 'fulfilled' ? kilo.value : []), ...(opencode.status === 'fulfilled' ? opencode.value : [])]) merged.set(entry.id, entry)
-    this.entries = [...merged.values()]
+    const facts = capabilities.status === 'fulfilled' ? capabilities.value : undefined
+    const previous = new Set(this.entries.map(entry => entry.id))
+    this.entries = facts === undefined ? [...merged.values()] : enrichFreeModelEntries([...merged.values()], facts)
     for (const id of [...this.unavailable]) if (!this.entries.some(entry => entry.id === id)) this.unavailable.delete(id)
     this.announce()
-    return this.entries
+    const ids = new Set(this.entries.map(entry => entry.id))
+    return {
+      total: this.entries.length,
+      available: this.availableEntries().length,
+      added: [...ids].filter(id => !previous.has(id)).length,
+      removed: [...previous].filter(id => !ids.has(id)).length,
+      checkedAt: new Date().toISOString(),
+    }
+  }
+
+  /** Cached models.dev capability index; refreshes at most twice a day unless forced. */
+  private async loadCapabilityFacts(force: boolean, signal?: AbortSignal): Promise<Map<string, ModelsDevFacts>> {
+    if (!force && this.capabilityCache !== undefined && Date.now() - this.capabilityCache.fetchedAt < MODELS_DEV_TTL_MS) {
+      return this.capabilityCache.facts
+    }
+    const response = await this.fetchImpl(MODELS_DEV_URL, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT }, signal: signal ?? AbortSignal.timeout(MODELS_DEV_TIMEOUT_MS), redirect: 'error',
+    })
+    if (!response.ok) throw new Error(`models.dev returned HTTP ${response.status}`)
+    const facts = parseModelsDevCatalog(await response.json())
+    this.capabilityCache = { facts, fetchedAt: Date.now() }
+    return facts
   }
 
   async probeAll(concurrency = 2, signal?: AbortSignal) {
@@ -517,18 +627,77 @@ export function registerFreeModels(ctx: Record<string, any>, config: Record<stri
     }
     const interval = Number(config.probeIntervalMinutes ?? 60)
     if (!stopped && Number.isInteger(interval) && interval > 0) {
-      timer = setInterval(() => { void runtime.probeAll(Number(config.probeConcurrency ?? 2), controller.signal).catch(() => {}) }, interval * 60_000)
+      // Each tick re-reads the upstream catalogs first so newly published free
+      // models appear without a restart, then re-probes availability.
+      timer = setInterval(() => {
+        void runtime.refresh(controller.signal)
+          .catch(error => ctx.logger?.warn?.(`dsh-model-palette: scheduled free-model catalog refresh failed: ${String((error as Error)?.message ?? error)}`))
+          .then(() => runtime.probeAll(Number(config.probeConcurrency ?? 2), controller.signal).catch(() => {}))
+      }, interval * 60_000)
       timer.unref?.()
     }
   }
   void bootstrap()
-  ctx.effect(() => async () => {
-    stopped = true
-    controller.abort()
-    if (timer !== undefined) clearInterval(timer)
-    await gateway.dispose()
-    handle()
+  ctx.effect(() => {
+    const disposeApi = registerFreeModelsRefreshApi(ctx, runtime)
+    return async () => {
+      stopped = true
+      controller.abort()
+      if (timer !== undefined) clearInterval(timer)
+      await disposeApi()
+      await gateway.dispose()
+      handle()
+    }
   }, 'dsh-model-palette: free models')
+}
+
+/** Serve POST /model-palette/api/free-models/refresh so the palette can pull catalog updates on demand. */
+export function registerFreeModelsRefreshApi(ctx: Record<string, any>, runtime: FreeModelRuntime): () => Promise<void> {
+  const registered = ctx.webServer?.register?.({
+    kind: 'prefix',
+    path: FREE_MODELS_API_PATH,
+    handler: async (req: any, res: any) => {
+      try {
+        if (req.method !== 'POST') {
+          writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
+          return
+        }
+        const site = req.headers?.['sec-fetch-site']
+        if (site !== undefined && site !== 'same-origin' && site !== 'same-site' && site !== 'none') {
+          writeJson(res, 403, { ok: false, error: { message: 'cross-site request rejected' } })
+          return
+        }
+        let pathname = FREE_MODELS_API_PATH
+        try { pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname } catch { /* keep prefix */ }
+        if (pathname !== `${FREE_MODELS_API_PATH}/refresh`) {
+          writeJson(res, 404, { ok: false, error: { message: 'unknown free-models action' } })
+          return
+        }
+        let body: { force?: unknown } = {}
+        try {
+          const text = await new Promise<string>((resolve, reject) => {
+            let buffer = ''
+            req.on('data', (chunk: Buffer) => { buffer += chunk.toString(); if (buffer.length > 65_536) reject(new Error('request body is too large')) })
+            req.on('end', () => resolve(buffer))
+            req.on('error', reject)
+          })
+          if (text.trim() !== '') body = JSON.parse(text) as { force?: unknown }
+        } catch (error) {
+          writeJson(res, 400, { ok: false, error: { message: `invalid request body: ${String((error as Error)?.message ?? error)}` } })
+          return
+        }
+        writeJson(res, 200, { ok: true, value: await runtime.refresh(undefined, { force: body?.force === true }) })
+      } catch (error) {
+        writeJson(res, 502, { ok: false, error: { message: `free-model catalog refresh failed: ${String((error as Error)?.message ?? error)}` } })
+      }
+    },
+  })
+  return async () => { registered?.() }
+}
+
+function writeJson(res: any, status: number, value: unknown) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
+  res.end(JSON.stringify(value))
 }
 
 function sleep(ms: number, signal: AbortSignal) { return new Promise<void>((resolve, reject) => { if (signal.aborted) return reject(new Error('aborted')); const timer = setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve() }, ms); timer.unref?.(); function onAbort() { clearTimeout(timer); reject(new Error('aborted')) } signal.addEventListener('abort', onAbort, { once: true }) }) }

@@ -86,6 +86,19 @@ describe('mergeFreeSyncModels', () => {
     expect(result.models[0].compat).toEqual({ supportsDeveloperRole: true })
     expect(result.models[0].input).toEqual(['text', 'image'])
   })
+
+  it('prefills reasoning efforts for catalog-declared reasoning free models without overwriting manual values', () => {
+    const previous = [{ id: 'a/manual:free', name: 'Manual', reasoningEfforts: { low: 'low' } }]
+    const live = [
+      { id: 'a/manual:free', name: 'Manual (free)', input: ['text'], reasoning: true },
+      { id: 'b/thinker:free', name: 'Thinker (free)', input: ['text'], reasoning: true },
+      { id: 'c/plain:free', name: 'Plain (free)', input: ['text'] },
+    ]
+    const result = mergeFreeSyncModels(previous, live, 'openai-completions')
+    expect(result.models[0].reasoningEfforts).toEqual({ low: 'low' })
+    expect(result.models[1].reasoningEfforts).toEqual({ off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high' })
+    expect(result.models[2].reasoningEfforts).toBeUndefined()
+  })
 })
 
 describe('free sync runtime', () => {
@@ -112,6 +125,21 @@ describe('free sync runtime', () => {
     const runtime = createFreeSyncRuntime(ctxStub(value), settingsStub(value))
     await expect(runtime.syncProvider('evil')).rejects.toThrow('openrouter.ai')
     expect(value.plugin.freeSync.state.evil.error).toContain('openrouter.ai')
+    await runtime.dispose()
+  })
+
+  it('syncs manually without an enabled free-sync rule but still guards the route', async () => {
+    const value = {
+      plugin: { freeSync: { providers: {}, state: {} } },
+      llm: { providers: { 'openrouter-free': { api: 'openai-completions', baseURL: 'https://openrouter.ai/api/v1', models: [{ id: 'stale:free', name: 'Stale' }] } } },
+    }
+    const ctx = ctxStub(value)
+    const native = { ...settingsStub(value), register() {} }
+    const runtime = createFreeSyncRuntime(ctx, createSettingsBackend({ settings: native }))
+    await expect(runtime.syncProvider('openrouter-free')).rejects.toThrow('not enabled')
+    const summary = await runtime.syncProvider('openrouter-free', { manual: true })
+    expect(summary.total).toBeGreaterThan(0)
+    expect(value.llm.providers['openrouter-free'].models.length).toBe(summary.total)
     await runtime.dispose()
   })
 

@@ -37,6 +37,8 @@ Search accepts compact spellings such as `gpt5`, full-width characters, `is:free
 
 The native **dsh-free-models** provider combines the keyless Kilo free pool with OpenCode's explicit free ids. Kilo contributes only rows its own catalog marks `isFree`; OpenCode keeps its public-pool session wire. Availability probes use small real requests but remove a model only after an explicit 400/404/422 routing refusal — a 429, timeout, or 5xx leaves it selectable. Free pools can log prompts upstream, so do not send secrets through them.
 
+Catalogs re-read on every probe interval, and the provider's rail row has an inline refresh button (`POST /model-palette/api/free-models/refresh`) reporting added/removed counts. Context windows, output limits, reasoning ladders, and display names are enriched from the public models.dev catalog (cached 12 hours; the refresh button forces a re-read), so newly published free models arrive with capabilities instead of stale guesses. In the palette the lane is pinned right below the current provider with a localized name and a FREE pill, and the free filter plus `免费`/`is:free` search cover the keyless lane as well as `:free` routes.
+
 A loopback OpenAI-compatible gateway also listens on `http://127.0.0.1:4180/v1` by default and serves `/models` plus streaming/non-streaming `/chat/completions`. It binds only to loopback; set `freeModels.gateway.credentialRef` to require a bearer token from a configured DSH credential. Response framing is detected from body bytes, so an SSE stream mislabelled as JSON remains readable.
 
 ```yaml

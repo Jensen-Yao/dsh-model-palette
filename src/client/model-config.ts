@@ -61,6 +61,30 @@ export const UNIVERSAL_REASONING_EFFORTS: ReasoningEfforts = {
   max: 'max',
 }
 
+/** Reasoning levels OpenRouter documents for its unified reasoning parameter; used to prefill free-model forms. */
+export const FREE_REASONING_EFFORTS: ReasoningEfforts = {
+  off: null,
+  minimal: 'minimal',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+}
+
+/** Prefill reasoning efforts for free models whose upstream catalog reports reasoning support. */
+export function prefillFreeReasoningEfforts(
+  models: readonly Record<string, unknown>[],
+  reasoningIds: ReadonlySet<string>,
+): { models: Record<string, unknown>[]; prefilled: number } {
+  let prefilled = 0
+  const next = models.map(model => {
+    const id = typeof model.id === 'string' ? model.id : ''
+    if (!reasoningIds.has(id) || model.reasoningEfforts !== undefined) return model
+    prefilled += 1
+    return { ...structuredClone(model), reasoningEfforts: structuredClone(FREE_REASONING_EFFORTS) }
+  })
+  return { models: next, prefilled }
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

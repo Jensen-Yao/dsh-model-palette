@@ -126,6 +126,7 @@ interface BrandRule {
 }
 
 const BRAND_RULES: BrandRule[] = [
+  { icon: 'free', brandName: '', patterns: [/^dsh-free-models$/iu] },
   { icon: 'openrouter', brandName: 'OpenRouter', patterns: [/openrouter/iu] },
   { icon: 'deepseek', brandName: 'DeepSeek', patterns: [/deepseek/iu] },
   { icon: 'anthropic', brandName: 'Anthropic', patterns: [/anthropic|claude/iu] },
