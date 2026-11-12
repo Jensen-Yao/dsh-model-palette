@@ -147,6 +147,26 @@ describe('loopback OpenAI-compatible gateway', () => {
   })
 })
 
+describe('DSH adapter contract', () => {
+  it('exposes prepareCall and image request hooks the runtime calls directly', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return new Response('nope', { status: 503 })
+      if (url.includes('opencode.example')) return Response.json({ data: [{ id: 'deepseek-v4.1-flash-free' }] })
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://ignored', fetchImpl, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    const adapter = new FreeModelAdapter(runtime)
+    const prepared = await adapter.prepareCall(FREE_MODEL_PROVIDER_ID, 'deepseek-v4.1-flash-free')
+    expect(prepared.model).toMatchObject({ provider: FREE_MODEL_PROVIDER_ID, id: 'deepseek-v4.1-flash-free', reasoning: { defaultEffort: 'max' } })
+    expect(typeof prepared.stream).toBe('function')
+    expect(adapter.imageRequestPricing(FREE_MODEL_PROVIDER_ID, 'x')).toBeUndefined()
+    expect(adapter.imageRequestTarget(FREE_MODEL_PROVIDER_ID, 'x', { width: 10 })).toEqual({ width: 10 })
+  })
+})
+
 describe('free-model registration', () => {
   it('registers the provider, refreshes catalogs, and drains its effect', async () => {
     const effects: Array<() => Promise<void>> = []

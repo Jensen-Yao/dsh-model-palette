@@ -405,9 +405,24 @@ export class FreeModelAdapter {
   providerInfo(provider: string) { return { id: provider, name: 'Free Models' } }
   providerRetryPolicy(_provider: string) { return undefined }
 
+  /**
+   * Bind model metadata and dispatch to one adapter generation, matching the
+   * DSH runtime's base-adapter contract (newer runtimes call this directly).
+   */
+  async prepareCall(provider: string, model: string, signal?: AbortSignal) {
+    return {
+      model: await this.resolveModel(provider, model, signal),
+      stream: (options: Record<string, any>) => this.stream(options),
+    }
+  }
+
+  imageRequestPricing(_provider: string, _model: string) { return undefined }
+
+  imageRequestTarget(_provider: string, _model: string, image: unknown) { return image }
+
   async listModels() { return this.runtime.availableEntries().map(entry => ({ provider: FREE_MODEL_PROVIDER_ID, id: entry.id, name: entry.name, inputModalities: entry.input })) }
 
-  async resolveModel(_provider: string, model: string) {
+  async resolveModel(_provider: string, model: string, _signal?: AbortSignal) {
     const entry = this.runtime.entry(model)
     if (entry === undefined) throw new Error(`free model "${model}" is not loaded`)
     const efforts = entry.efforts.map(id => ({ id, name: id.charAt(0).toLocaleUpperCase() + id.slice(1) }))
