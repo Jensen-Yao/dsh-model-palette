@@ -110,9 +110,10 @@ describe('free-model runtime', () => {
     await runtime.refresh()
     await runtime.probeAll(2)
     expect(runtime.availableEntries().map(entry => entry.id)).toEqual(['vendor/available-free'])
-    // an explicit refusal now deletes the model from the catalog itself, not just hides it
+    // an explicit refusal hides the model (unsupported) and waits for the user's delete confirmation
     expect(runtime.snapshot().models.map(entry => entry.id)).toEqual(['vendor/available-free'])
-    expect(runtime.snapshot().verdicts['vendor/refused-free']).toMatchObject({ state: 'removed' })
+    expect(runtime.snapshot().verdicts['vendor/refused-free']).toMatchObject({ state: 'unsupported' })
+    expect(runtime.unsupportedIds()).toEqual(['vendor/refused-free'])
     expect(replaced.at(-1)).toEqual([FREE_MODEL_PROVIDER_ID])
   })
 })
@@ -217,9 +218,11 @@ describe('free-model refresh API', () => {
     }
     await handler?.(req, res)
     expect(status).toBe(200)
-    const body = JSON.parse(text) as { ok: boolean; value: { total: number; added: number; removed: number } }
+    const body = JSON.parse(text) as { ok: boolean; value: { total: number; available: number; added: number; removed: number; missing?: string[] } }
     expect(body.ok).toBe(true)
-    expect(body.value).toMatchObject({ total: 1, available: 1, added: 1, removed: 1 })
+    // the previously configured id stays listed as missing until the user confirms deletion
+    expect(body.value).toMatchObject({ total: 2, available: 2, added: 1, removed: 0 })
+    expect(body.value.missing).toEqual(['vendor/available-free'])
     await dispose()
   })
 })
@@ -303,5 +306,64 @@ describe('free-model snapshot API', () => {
     expect(body.ok).toBe(true)
     expect(body.value.provider).toBe(FREE_MODEL_PROVIDER_ID)
     expect(body.value.models.map(model => model.id)).toContain('big-pickle')
+  })
+})
+
+describe('upstream query filters and delete confirmation', () => {
+  const dayAgo = (days: number) => Math.floor((Date.now() - days * 86400_000) / 1000)
+  const oldFree = { id: 'vendor/old-free', name: 'Old (free)', isFree: true, created: dayAgo(800) }
+  const plainFree = { id: 'vendor/plain-free', name: 'Plain (free)', isFree: true, created: dayAgo(10) }
+  const thinkerFree = { id: 'vendor/thinker-free', name: 'Thinker (free)', isFree: true, created: dayAgo(5), supported_parameters: ['reasoning'] }
+
+  function laneRuntime(listings: unknown[]) {
+    let call = -1
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return Response.json({ opencode: { models: {} } })
+      if (url.includes('opencode.example')) return Response.json({ data: [] })
+      call += 1
+      return Response.json(listings[Math.min(call, listings.length - 1)])
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://kilo.example', fetchImpl, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    return runtime
+  }
+
+  it('retains previously configured ids the fresh listing dropped, and prunes only on confirmation', async () => {
+    const runtime = laneRuntime([{ data: [oldFree, plainFree, thinkerFree] }, { data: [plainFree, thinkerFree] }])
+    await runtime.refresh()
+    expect(runtime.snapshot().models.map(entry => entry.id)).toContain('vendor/old-free')
+    const summary = await runtime.refresh(undefined, { force: true })
+    expect(summary.missing).toEqual(['vendor/old-free'])
+    // retained until the user confirms deletion
+    expect(runtime.snapshot().models.map(entry => entry.id)).toContain('vendor/old-free')
+    expect(runtime.prune(['vendor/old-free'])).toEqual(['vendor/old-free'])
+    expect(runtime.snapshot().models.map(entry => entry.id)).not.toContain('vendor/old-free')
+  })
+
+  it('pre-query filters keep stale (>1 year) and no-reasoning models from joining', async () => {
+    const runtime = laneRuntime([{ data: [oldFree, plainFree, thinkerFree] }])
+    const summary = await runtime.refresh(undefined, { force: true, excludeStale: true, excludeNonReasoning: true })
+    expect(summary.filteredStale).toBe(1)
+    expect(summary.filteredNonReasoning).toBe(1)
+    expect(runtime.snapshot().models.map(entry => entry.id)).toEqual(['vendor/thinker-free'])
+  })
+
+  it('serves prune through the refresh API after the user confirms', async () => {
+    const runtime = laneRuntime([{ data: [oldFree, plainFree] }])
+    await runtime.refresh()
+    let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined
+    const ctx = { webServer: { register: (registration: { handler: (req: unknown, res: unknown) => Promise<void> }) => { handler = registration.handler; return () => {} } } }
+    registerFreeModelsRefreshApi(ctx, runtime)
+    const req = Readable.from([JSON.stringify({ ids: ['vendor/old-free'] })])
+    Object.assign(req, { method: 'POST', url: '/model-palette/api/free-models/prune', headers: { 'sec-fetch-site': 'same-origin' } })
+    let status = 0
+    let textOut = ''
+    const res = { writeHead(nextStatus: number) { status = nextStatus }, end(chunk = '') { textOut += String(chunk) } }
+    await handler?.(req, res)
+    expect(status).toBe(200)
+    const body = JSON.parse(textOut) as { ok: boolean; value: { pruned: string[]; total: number } }
+    expect(body.value.pruned).toEqual(['vendor/old-free'])
+    expect(runtime.snapshot().models.map(entry => entry.id)).toEqual(['vendor/plain-free'])
   })
 })

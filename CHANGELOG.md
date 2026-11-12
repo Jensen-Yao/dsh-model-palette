@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.22.0 - 2026-11-13
+
+- Two-step upstream model queries for the keyless lane: the update button first asks which categories to filter (stale models published over a year ago, models without reasoning support) so they never join the query result, then — after the query — asks whether to delete previously configured models upstream no longer carries (listing-missing or explicitly refused). Nothing is ever deleted silently; the new `POST /model-palette/api/free-models/prune` endpoint applies confirmed deletions.
+- Release dates flow from the Kilo `created` field and models.dev `released` facts to drive the one-year staleness rule.
+- The composer-seat effort popover now flips above the chip when opening below would cross the viewport edge (post-mount height correction included).
+- Preset registry v6 (487 → 790 entries): merged the live OpenRouter catalog (context windows, output limits, input modalities, reasoning ladders for 366 models) with zero alias conflicts and every manual entry preserved; batch/tool `:variant` ids are skipped and same-family ids merge into the curated entry.
+
+## 0.22.0 - 2026-11-13
+
+- Two-step upstream queries for the keyless lane: clicking Update first asks
+  which categories to filter (stale = published over a year ago, or models
+  without reasoning support) so they never join the result, then — after the
+  query — asks whether to delete previously configured models the fresh
+  upstream listing no longer carries (or explicitly refuses). Nothing is ever
+  deleted silently; a new `POST /free-models/prune` applies the confirmation.
+- Free-lane entries now carry upstream publish dates (OpenRouter `created`,
+  models.dev `released`) driving the one-year staleness rule.
+- Preset registry v6: rebuilt against the live OpenRouter catalog — 945
+  entries (+458 new models, gaps filled in 4 curated rows) with context,
+  output, modality, and reasoning ladders from `supported_parameters`.
+
 ## 0.21.3 - 2026-11-13
 
 - Delete keyless-lane models the upstream provably lacks: an explicit

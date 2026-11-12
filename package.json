@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-palette",
-  "version": "0.21.3",
+  "version": "0.22.0",
   "description": "Named model shortcuts, provider configuration, keyless free models, and a loopback OpenAI-compatible gateway for DeepSeek Harness, with portable backups, retries, relays and OpenRouter media tools.",
   "type": "module",
   "main": "lib/index.js",

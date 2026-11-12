@@ -73,6 +73,10 @@ export type FreeModelRefreshSummary = {
   added: number
   removed: number
   checkedAt: string
+  missing?: string[]
+  unsupported?: string[]
+  filteredStale?: number
+  filteredNonReasoning?: number
 }
 
 export type OpenRouterFreeModelCatalog = {
@@ -304,12 +308,31 @@ export async function fetchFreeModelSnapshot(signal?: AbortSignal): Promise<Free
   return payload.value
 }
 
+/** Delete confirmed-absent or confirmed-unsupported keyless models after the user agrees. */
+export async function pruneFreeModelCatalog(ids: readonly string[]): Promise<{ pruned: string[]; total: number }> {
+  const response = await fetch('/model-palette/api/free-models/prune', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids: [...ids] }),
+  })
+  let payload: ConfigApiSuccess<{ pruned: string[]; total: number }> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<{ pruned: string[]; total: number }> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
+}
+
 /** Re-read the keyless free-model catalogs (Kilo + OpenCode) behind the dsh-free-models provider. */
-export async function refreshFreeModelCatalog(options: { force?: boolean } = {}): Promise<FreeModelRefreshSummary> {
+export async function refreshFreeModelCatalog(options: { force?: boolean; probe?: boolean } = {}): Promise<FreeModelRefreshSummary> {
   const response = await fetch('/model-palette/api/free-models/refresh', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ force: options.force === true }),
+    body: JSON.stringify({ force: options.force === true, probe: options.probe === true }),
   })
   let payload: ConfigApiSuccess<FreeModelRefreshSummary> | ConfigApiFailure
   try {

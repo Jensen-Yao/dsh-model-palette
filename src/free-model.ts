@@ -34,6 +34,8 @@ const PROBE_TIMEOUT_MS = 45_000
 const MODELS_DEV_URL = 'https://models.dev/api.json'
 const MODELS_DEV_TIMEOUT_MS = 20_000
 const MODELS_DEV_TTL_MS = 12 * 60 * 60_000
+/** A model counts as stale once published before this cutoff (one year). */
+const STALE_AFTER_MS = 365 * 24 * 60 * 60_000
 const OPENCODE_EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 const USER_AGENT = 'dsh-model-palette/0.20'
 const ATTRIBUTION_HEADERS = Object.freeze({ 'http-referer': 'https://kilo.ai/', 'x-title': 'DSH Model Palette' })
@@ -74,6 +76,8 @@ export interface FreeModelEntry {
   efforts: string[]
   canDisableReasoning: boolean
   channel: 'kilo' | 'opencode'
+  /** Upstream publish date (ISO or YYYY-MM) when known; drives the one-year staleness rule. */
+  released?: string
 }
 
 /** Catalog refresh outcome for the palette's update button. */
@@ -83,6 +87,14 @@ export interface FreeModelRefreshSummary {
   added: number
   removed: number
   checkedAt: string
+  /** Previously configured ids the fresh upstream listing no longer carries; kept until the user confirms deletion. */
+  missing?: string[]
+  /** Ids whose routing was explicitly refused upstream; hidden but deletable on confirmation. */
+  unsupported?: string[]
+  /** How many fresh rows the pre-query stale filter (>1 year old) excluded from joining. */
+  filteredStale?: number
+  /** How many fresh rows the pre-query no-reasoning filter excluded from joining. */
+  filteredNonReasoning?: number
 }
 
 /** Validate and project the Kilo listing's free rows. */
@@ -100,6 +112,7 @@ export function parseFreeModelCatalog(value: unknown): FreeModelEntry[] {
       : ['text'] as Array<'text' | 'image'>
     const top = isRecord(row.top_provider) ? row.top_provider : {}
     const reasoning = supported.includes('reasoning')
+    const created = positiveInteger(row.created)
     entries.push({
       id,
       name: displayName(row, id),
@@ -109,6 +122,7 @@ export function parseFreeModelCatalog(value: unknown): FreeModelEntry[] {
       efforts: reasoning ? reasoningEfforts(id) : [],
       canDisableReasoning: reasoning && !/^stepfun\//iu.test(id) && !/^liquid\//iu.test(id) && id !== 'kilo-auto/free' && id !== 'openrouter/free',
       channel: 'kilo',
+      ...(created === undefined ? {} : { released: new Date(created * 1000).toISOString().slice(0, 10) }),
     })
     seen.add(id)
   }
@@ -152,6 +166,7 @@ export interface ModelsDevFacts {
   maxOutput?: number
   reasoning?: boolean
   name?: string
+  released?: string
 }
 
 /**
@@ -172,6 +187,7 @@ export function parseModelsDevCatalog(value: unknown): Map<string, ModelsDevFact
     if (output !== undefined) record.maxOutput = output
     if (model.reasoning === true || model.reasoning === false) record.reasoning = model.reasoning
     if (typeof model.name === 'string' && model.name.trim() !== '') record.name = model.name.trim()
+    if (typeof model.released === 'string' && model.released.trim() !== '') record.released = model.released.trim()
     if (Object.keys(record).length === 0) return
     const normalized = normalizeModelsDevId(id)
     const withoutFree = normalized.replace(/-free$/u, '')
@@ -212,6 +228,7 @@ export function enrichFreeModelEntries(entries: readonly FreeModelEntry[], facts
       next.canDisableReasoning = true
     }
     if (record.name !== undefined && (next.name === next.id || next.name === '')) next.name = record.name
+    if (record.released !== undefined && next.released === undefined) next.released = record.released
     return next
   })
 }
@@ -505,7 +522,7 @@ export class FreeModelRuntime {
 
   snapshot() { return { models: this.availableEntries().map(entry => ({ ...entry })), verdicts: Object.fromEntries(this.verdicts) } }
 
-  async refresh(signal?: AbortSignal, options: { force?: boolean } = {}): Promise<FreeModelRefreshSummary> {
+  async refresh(signal?: AbortSignal, options: { force?: boolean; excludeStale?: boolean; excludeNonReasoning?: boolean } = {}): Promise<FreeModelRefreshSummary> {
     const deadline = signal ?? AbortSignal.timeout(CATALOG_TIMEOUT_MS)
     const [kilo, opencode, capabilities] = await Promise.allSettled([
       this.fetchImpl(`${this.baseURL.replace(/\/+$/u, '')}/models`, {
@@ -527,17 +544,63 @@ export class FreeModelRuntime {
     for (const entry of [...(kilo.status === 'fulfilled' ? kilo.value : []), ...(opencode.status === 'fulfilled' ? opencode.value : [])]) merged.set(entry.id, entry)
     const facts = capabilities.status === 'fulfilled' ? capabilities.value : undefined
     const previous = new Set(this.entries.map(entry => entry.id))
-    this.entries = facts === undefined ? [...merged.values()] : enrichFreeModelEntries([...merged.values()], facts)
+    const missing = [...previous].filter(id => !merged.has(id))
+    // Pre-query filters decide which fresh rows join the catalog at all: stale
+    // means published over a year ago; no-reasoning means the model exposes no
+    // reasoning efforts even after enrichment.
+    const yearAgo = Date.now() - STALE_AFTER_MS
+    const isYearOld = (entry: FreeModelEntry): boolean => {
+      if (entry.released === undefined) return false
+      const time = Date.parse(entry.released.length === 7 ? `${entry.released}-15` : entry.released)
+      return Number.isFinite(time) && time < yearAgo
+    }
+    let freshAll = facts === undefined ? [...merged.values()] : enrichFreeModelEntries([...merged.values()], facts)
+    let filteredStale = 0
+    let filteredNonReasoning = 0
+    if (options.excludeStale === true) {
+      filteredStale = freshAll.filter(isYearOld).length
+      freshAll = freshAll.filter(entry => !isYearOld(entry))
+    }
+    if (options.excludeNonReasoning === true) {
+      filteredNonReasoning = freshAll.filter(entry => entry.efforts.length === 0).length
+      freshAll = freshAll.filter(entry => entry.efforts.length > 0)
+    }
+    // Previously configured ids that vanished upstream stay listed until the
+    // user explicitly confirms their deletion after the query.
+    const retained = this.entries.filter(entry => missing.includes(entry.id))
+    this.entries = [...freshAll, ...retained]
     for (const id of [...this.unavailable]) if (!this.entries.some(entry => entry.id === id)) this.unavailable.delete(id)
     this.announce()
     const ids = new Set(this.entries.map(entry => entry.id))
     return {
       total: this.entries.length,
       available: this.availableEntries().length,
-      added: [...ids].filter(id => !previous.has(id)).length,
-      removed: [...previous].filter(id => !ids.has(id)).length,
+      added: [...ids].filter(id => !previous.has(id) && !missing.includes(id)).length,
+      removed: 0,
+      missing,
+      unsupported: [...this.unavailable],
+      filteredStale,
+      filteredNonReasoning,
       checkedAt: new Date().toISOString(),
     }
+  }
+
+  /** Delete confirmed-absent or confirmed-unsupported models after the user agrees. */
+  prune(ids: readonly string[]): string[] {
+    const doomed = new Set(ids)
+    const pruned = this.entries.filter(entry => doomed.has(entry.id)).map(entry => entry.id)
+    this.entries = this.entries.filter(entry => !doomed.has(entry.id))
+    for (const id of pruned) {
+      this.unavailable.delete(id)
+      this.verdicts.set(id, { state: 'removed', checkedAt: new Date().toISOString() })
+    }
+    if (pruned.length > 0) this.announce()
+    return pruned
+  }
+
+  /** Ids currently hidden because upstream explicitly refused to route them. */
+  unsupportedIds(): string[] {
+    return [...this.unavailable]
   }
 
   /** Cached models.dev capability index; refreshes at most twice a day unless forced. */
@@ -584,26 +647,25 @@ export class FreeModelRuntime {
       return 'available'
     } catch (error) {
       const unavailable = freeModelUnavailable(error)
-      // An explicit routing refusal proves the model is gone: drop it from the
-      // catalog outright so it cannot reappear after a restart.
-      if (unavailable) this.pruneEntry(id, String((error as Error)?.message ?? error))
-      else this.verdicts.set(id, { state: 'unknown', ...(String((error as Error)?.message ?? error) === '' ? {} : { detail: String((error as Error)?.message ?? error).slice(0, 240) }), checkedAt: new Date().toISOString() })
+      const detail = String((error as Error)?.message ?? error).slice(0, 240)
+      // An explicit refusal hides the model and flags it unsupported; actual
+      // deletion waits for the user's confirmation in the palette.
+      if (unavailable) {
+        this.unavailable.add(id)
+        this.verdicts.set(id, { state: 'unsupported', ...(detail === '' ? {} : { detail }), checkedAt: new Date().toISOString() })
+      } else {
+        this.verdicts.set(id, { state: 'unknown', ...(detail === '' ? {} : { detail }), checkedAt: new Date().toISOString() })
+      }
       return unavailable ? 'unavailable' : 'unknown'
     }
   }
 
   markFailure(id: string, error: unknown) {
     if (!freeModelUnavailable(error)) return false
-    this.pruneEntry(id, String((error as Error)?.message ?? error))
-    return true
-  }
-
-  /** Remove one model from the catalog after an upstream-proved absence. */
-  private pruneEntry(id: string, detail: string) {
-    this.entries = this.entries.filter(entry => entry.id !== id)
-    this.unavailable.delete(id)
-    this.verdicts.set(id, { state: 'removed', ...(detail === '' ? {} : { detail: detail.slice(0, 240) }), checkedAt: new Date().toISOString() })
+    this.unavailable.add(id)
+    this.verdicts.set(id, { state: 'unsupported', detail: String((error as Error)?.message ?? error).slice(0, 240), checkedAt: new Date().toISOString() })
     this.announce()
+    return true
   }
 
   private announce() { this.handle?.replace([FREE_MODEL_PROVIDER_ID]) }
@@ -682,11 +744,7 @@ export function registerFreeModelsRefreshApi(ctx: Record<string, any>, runtime: 
           writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
           return
         }
-        if (pathname !== `${FREE_MODELS_API_PATH}/refresh`) {
-          writeJson(res, 404, { ok: false, error: { message: 'unknown free-models action' } })
-          return
-        }
-        let body: { force?: unknown } = {}
+        let body: { force?: unknown; probe?: unknown; ids?: unknown; excludeStale?: unknown; excludeNonReasoning?: unknown } = {}
         try {
           const text = await new Promise<string>((resolve, reject) => {
             let buffer = ''
@@ -694,12 +752,32 @@ export function registerFreeModelsRefreshApi(ctx: Record<string, any>, runtime: 
             req.on('end', () => resolve(buffer))
             req.on('error', reject)
           })
-          if (text.trim() !== '') body = JSON.parse(text) as { force?: unknown }
+          if (text.trim() !== '') body = JSON.parse(text) as typeof body
         } catch (error) {
           writeJson(res, 400, { ok: false, error: { message: `invalid request body: ${String((error as Error)?.message ?? error)}` } })
           return
         }
-        writeJson(res, 200, { ok: true, value: await runtime.refresh(undefined, { force: body?.force === true }) })
+        if (pathname === `${FREE_MODELS_API_PATH}/prune`) {
+          const ids = Array.isArray(body?.ids) ? body.ids.filter((id): id is string => typeof id === 'string' && id.trim() !== '') : []
+          if (ids.length === 0) {
+            writeJson(res, 400, { ok: false, error: { message: 'ids must be a non-empty string array' } })
+            return
+          }
+          const pruned = runtime.prune(ids)
+          writeJson(res, 200, { ok: true, value: { pruned, total: runtime.snapshot().models.length } })
+          return
+        }
+        if (pathname !== `${FREE_MODELS_API_PATH}/refresh`) {
+          writeJson(res, 404, { ok: false, error: { message: 'unknown free-models action' } })
+          return
+        }
+        const summary = await runtime.refresh(undefined, {
+          force: body?.force === true,
+          excludeStale: body?.excludeStale === true,
+          excludeNonReasoning: body?.excludeNonReasoning === true,
+        })
+        if (body?.probe === true) await runtime.probeAll(4)
+        writeJson(res, 200, { ok: true, value: { ...summary, unsupported: runtime.unsupportedIds() } })
       } catch (error) {
         writeJson(res, 502, { ok: false, error: { message: `free-model catalog refresh failed: ${String((error as Error)?.message ?? error)}` } })
       }
