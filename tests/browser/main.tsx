@@ -83,6 +83,15 @@ window.fetch = async (input, init) => {
   if (String(input).endsWith('/free-models/prune')) {
     return Response.json({ ok: true, value: { pruned: ['gone-lane-model', 'refused-lane-model'], total: 2 } })
   }
+  if (String(input).endsWith('/media/pollinations/models')) {
+    return Response.json({ ok: true, value: { provider: 'pollinations', free: true, models: [{ id: 'sana', free: true }, { id: 'flux', free: true }] } })
+  }
+  if (String(input).endsWith('/media/pollinations/images/generate')) {
+    return Response.json({ ok: true, value: { provider: 'pollinations', model: 'sana', free_endpoint: true, manual_paid_override: false, files: [{ path: 'C:/mock/pollinations-out.jpg', media_type: 'image/jpeg', bytes: 12345 }] } })
+  }
+  if (String(input).endsWith('/media/models')) {
+    return Response.json({ ok: true, value: { images: [], videos: [], paid_images_enabled: false, paid_videos_enabled: false } })
+  }
   if (String(input).endsWith('/models/resolve')) {
     const body = JSON.parse(String(init?.body)) as { models: string[] }
     return Response.json({ ok: true, value: { models: body.models.map(id => ({ id, contextWindow: 131072, maxTokens: 8192, input: ['text', 'image'] })) } })
