@@ -2,20 +2,23 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   downloadVideo,
   generateImage,
+  generatePollinationsImage,
   generateVideo,
   getVideoStatus,
   listMediaModels,
+  listPollinationsModels,
   mediaModelNeedsConfirmation,
   pickDefaultMediaModel,
   type MediaCatalog,
   type MediaModel,
+  type PollinationsModel,
 } from './media-api.ts'
 
 interface MediaPanelProps {
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
-type PendingAction = 'catalog' | 'image' | 'video' | 'status' | 'download'
+type PendingAction = 'catalog' | 'image' | 'video' | 'status' | 'download' | 'pollinations-models' | 'pollinations-image'
 
 interface Feedback {
   title: string
@@ -43,6 +46,12 @@ export function MediaPanel({ t }: MediaPanelProps) {
   const [imageModel, setImageModel] = useState('')
   const [imageOutputName, setImageOutputName] = useState('')
   const [imageChargeConfirmed, setImageChargeConfirmed] = useState(false)
+  const [imageProvider, setImageProvider] = useState<'openrouter' | 'pollinations'>('openrouter')
+  const [pollinationsModels, setPollinationsModels] = useState<PollinationsModel[] | null>(null)
+  const [pollinationsModel, setPollinationsModel] = useState('')
+  const [pollinationsWidth, setPollinationsWidth] = useState('1024')
+  const [pollinationsHeight, setPollinationsHeight] = useState('1024')
+  const [pollinationsUnavailable, setPollinationsUnavailable] = useState<string | null>(null)
   const [videoPrompt, setVideoPrompt] = useState('')
   const [videoModel, setVideoModel] = useState('')
   const [videoDuration, setVideoDuration] = useState('')
@@ -74,6 +83,26 @@ export function MediaPanel({ t }: MediaPanelProps) {
     void loadCatalog()
   }, [loadCatalog])
 
+  const loadPollinationsModels = useCallback(async () => {
+    setPending('pollinations-models')
+    setPollinationsUnavailable(null)
+    try {
+      const models = await listPollinationsModels()
+      setPollinationsModels(models)
+      setPollinationsModel((current) => (models.some((model) => model.id === current) ? current : (models[0]?.id ?? '')))
+    } catch (cause) {
+      setPollinationsModels([])
+      setPollinationsModel('flux')
+      setPollinationsUnavailable(errorMessage(cause))
+    } finally {
+      setPending(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (imageProvider === 'pollinations' && pollinationsModels === null) void loadPollinationsModels()
+  }, [imageProvider, pollinationsModels, loadPollinationsModels])
+
   const run = async (action: Exclude<PendingAction, 'catalog'>, operation: () => Promise<Feedback>) => {
     if (pending !== null) return
     setPending(action)
@@ -87,6 +116,22 @@ export function MediaPanel({ t }: MediaPanelProps) {
       setPending(null)
     }
   }
+
+  const submitPollinationsImage = () => run('pollinations-image', async () => {
+    if (imagePrompt.trim() === '') throw new Error(t('media.promptRequired'))
+    const width = Number(pollinationsWidth)
+    const height = Number(pollinationsHeight)
+    if (!Number.isInteger(width) || width < 64 || width > 2048) throw new Error(t('media.dimensionInvalid'))
+    if (!Number.isInteger(height) || height < 64 || height > 2048) throw new Error(t('media.dimensionInvalid'))
+    const result = await generatePollinationsImage({
+      prompt: imagePrompt.trim(),
+      ...(pollinationsModel === '' ? {} : { model: pollinationsModel }),
+      width,
+      height,
+      ...(imageOutputName.trim() === '' ? {} : { outputName: imageOutputName.trim() }),
+    })
+    return { title: t('media.imageDone'), detail: result.files.map((file) => file.path).join('\n') }
+  })
 
   const submitImage = () => run('image', async () => {
     if (imageModel === '') throw new Error(t('media.modelRequired'))
@@ -171,6 +216,40 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span className="dmp-media-icon" aria-hidden="true">▧</span>
             <div><h3>{t('media.imageTitle')}</h3><p>{t('media.imageDescription')}</p></div>
           </div>
+          <div className="dmp-media-provider-row" role="radiogroup" aria-label={t('media.imageProvider')}>
+            {(['openrouter', 'pollinations'] as const).map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                role="radio"
+                aria-checked={imageProvider === provider}
+                className={imageProvider === provider ? 'is-active' : ''}
+                disabled={busy}
+                onClick={() => setImageProvider(provider)}
+              >{t(provider === 'openrouter' ? 'media.providerOpenRouter' : 'media.providerPollinations')}</button>
+            ))}
+          </div>
+          {imageProvider === 'pollinations' ? (
+            <>
+              <label className="dmp-media-field">
+                <span>{t('media.model')}</span>
+                <select value={pollinationsModel} onChange={(event) => setPollinationsModel(event.currentTarget.value)} disabled={busy}>
+                  {(pollinationsModels ?? [{ id: 'flux', free: true }]).map((model) => <option key={model.id} value={model.id}>{model.id}</option>)}
+                </select>
+              </label>
+              {pollinationsUnavailable !== null && <p className="dmp-media-hint" role="status">{t('media.pollinationsFallback', { message: pollinationsUnavailable })}</p>}
+              <div className="dmp-media-dimensions">
+                <label className="dmp-media-field">
+                  <span>{t('media.width')}</span>
+                  <input type="number" min="64" max="2048" step="1" value={pollinationsWidth} onChange={(event) => setPollinationsWidth(event.currentTarget.value)} disabled={busy} />
+                </label>
+                <label className="dmp-media-field">
+                  <span>{t('media.height')}</span>
+                  <input type="number" min="64" max="2048" step="1" value={pollinationsHeight} onChange={(event) => setPollinationsHeight(event.currentTarget.value)} disabled={busy} />
+                </label>
+              </div>
+            </>
+          ) : (
           <label className="dmp-media-field">
             <span>{t('media.model')}</span>
             <select value={imageModel} onChange={(event) => { setImageModel(event.currentTarget.value); setImageChargeConfirmed(false) }} disabled={busy || images.length === 0}>
@@ -179,7 +258,8 @@ export function MediaPanel({ t }: MediaPanelProps) {
               {images.map((model) => <option key={model.id} value={model.id}>{modelLabel(model, paidImagesEnabled, t)}</option>)}
             </select>
           </label>
-          {imageNeedsConfirmation && <label className="dmp-media-paid-confirm">
+          )}
+          {imageProvider === 'openrouter' && imageNeedsConfirmation && <label className="dmp-media-paid-confirm">
             <input type="checkbox" checked={imageChargeConfirmed} onChange={(event) => setImageChargeConfirmed(event.currentTarget.checked)} disabled={busy} />
             <span><strong>{t('media.manualPaidTitle')}</strong><small>{t('media.manualPaidDescription')}</small></span>
           </label>}
@@ -191,9 +271,15 @@ export function MediaPanel({ t }: MediaPanelProps) {
             <span>{t('media.outputOptional')}</span>
             <input value={imageOutputName} onChange={(event) => setImageOutputName(event.currentTarget.value)} placeholder="my-image" />
           </label>
+          {imageProvider === 'pollinations' ? (
+            <button className="dmp-media-primary" type="button" disabled={busy} onClick={() => void submitPollinationsImage()}>
+              {pending === 'pollinations-image' ? t('media.running') : t('media.generateImage')}
+            </button>
+          ) : (
           <button className="dmp-media-primary" type="button" disabled={busy || !imageCanSubmit} onClick={() => void submitImage()}>
             {pending === 'image' ? t('media.running') : t('media.generateImage')}
           </button>
+          )}
         </section>
 
         <section className="dmp-media-card">

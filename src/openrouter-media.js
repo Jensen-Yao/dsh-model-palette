@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { hasManualPaidAcknowledgement } from './media-protocol.ts'
+import { createPollinationsMedia } from './pollinations-media.js'
 
 const API_BASE = 'https://openrouter.ai/api/v1'
 const MEDIA_API_PATH = '/model-palette/api/media'
@@ -36,6 +37,11 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
   ctx.effect(() => ctx.tools.register(tools.video), 'dsh-model-palette: OpenRouter video submit tool')
   ctx.effect(() => ctx.tools.register(tools.status), 'dsh-model-palette: OpenRouter video status tool')
   ctx.effect(() => ctx.tools.register(tools.download), 'dsh-model-palette: OpenRouter video download tool')
+  // Keyless Pollinations lane: same registration surface, zero credentials.
+  const pollinations = createPollinationsMedia(ctx, rawConfig)
+  for (const tool of pollinations.tools) {
+    ctx.effect(() => ctx.tools.register(tool), `dsh-model-palette: ${tool.name} tool`)
+  }
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: MEDIA_API_PATH,
@@ -45,6 +51,7 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
       video: (args, signal) => executeVideo(ctx, config, args, { signal }, true),
       status: (args, signal) => tools.status.execute(args, { signal }),
       download: (args, signal) => tools.download.execute(args, { signal }),
+      ...Object.fromEntries([...pollinations.routes].map(([suffix, action]) => [suffix, action])),
     }),
   }), 'dsh-model-palette: direct media API')
 }
@@ -57,6 +64,10 @@ export function createMediaApiHandler(actions) {
     [`${MEDIA_API_PATH}/videos/status`, actions.status],
     [`${MEDIA_API_PATH}/videos/download`, actions.download],
   ])
+  for (const [key, action] of Object.entries(actions)) {
+    if (typeof action !== 'function' || key.includes('/') === false) continue
+    routes.set(`${MEDIA_API_PATH}/${key}`, action)
+  }
   return async (req, res) => {
     if (req.method !== 'POST') {
       writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })

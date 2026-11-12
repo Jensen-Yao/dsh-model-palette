@@ -107,6 +107,45 @@ export async function downloadVideo(jobId: string, outputName?: string): Promise
   })
 }
 
+export interface PollinationsModel {
+  id: string
+  description?: string
+  free: true
+}
+
+export interface PollinationsImageResult {
+  provider: 'pollinations'
+  model: string
+  free_endpoint: boolean
+  manual_paid_override: boolean
+  files: Array<{ path: string; media_type: string; bytes: number }>
+}
+
+/** List keyless Pollinations image models (no credential involved). */
+export async function listPollinationsModels(): Promise<PollinationsModel[]> {
+  const value = await mediaApiRequest<{ models: PollinationsModel[] }>('/pollinations/models', {})
+  return value.models
+}
+
+/** Generate an image through keyless Pollinations and save it locally. */
+export async function generatePollinationsImage(input: {
+  prompt: string
+  model?: string
+  width?: number
+  height?: number
+  seed?: number
+  outputName?: string
+}): Promise<PollinationsImageResult> {
+  return mediaApiRequest<PollinationsImageResult>('/pollinations/images/generate', {
+    prompt: input.prompt,
+    ...(input.model === undefined || input.model === '' ? {} : { model: input.model }),
+    ...(input.width === undefined ? {} : { width: input.width }),
+    ...(input.height === undefined ? {} : { height: input.height }),
+    ...(input.seed === undefined ? {} : { seed: input.seed }),
+    ...(input.outputName === undefined || input.outputName.trim() === '' ? {} : { output_name: input.outputName.trim() }),
+  })
+}
+
 export async function mediaApiRequest<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',

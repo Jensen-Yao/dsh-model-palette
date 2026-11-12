@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.23.0 - 2026-11-13
+
+- Integrate keyless Pollinations image generation into the media panel: an
+  image-provider switch (OpenRouter / Pollinations keyless) with model list
+  from image.pollinations.ai, width/height controls (64-2048), optional seed
+  and output name, saving under ~/.dsh/media-output. No credential is
+  involved; `openrouterMedia.pollinations.{enabled,baseURL,outputDir}` tune or
+  disable the lane. Registered as `pollinations_media_models` /
+  `pollinations_generate_image` tools plus HTTP actions under
+  /model-palette/api/media/pollinations/*, following the same provider shape
+  future media sources can reuse.
+- Live-verified end to end on this machine (real JPEG written) and through the
+  browser fixture (provider switch -> generation -> saved-path feedback).
+
 ## 0.22.1 - 2026-11-13
 
 - Fix free-model calls failing with `registration.adapter.prepareCall is not a

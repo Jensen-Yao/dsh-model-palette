@@ -98,8 +98,10 @@ describe('OpenRouter media registration', () => {
       'openrouter_generate_video',
       'openrouter_video_status',
       'openrouter_download_video',
+      'pollinations_media_models',
+      'pollinations_generate_image',
     ])
-    expect(effectLabels).toHaveLength(6)
+    expect(effectLabels).toHaveLength(8)
     expect(routes).toMatchObject([{ kind: 'prefix', path: '/model-palette/api/media' }])
   })
 
