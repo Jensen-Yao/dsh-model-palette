@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.1 - 2026-11-13
+
+- Craft pass over the palette: capacity badges settle into quiet tabular text that only gains a pill on hover/cursor/current rows (free stays green), row metadata demotes provider names and sets the model id in monospace, and the rail's active item gains a visible 3px brand indicator bar.
+- Balance the footer by presenting the current model as a bordered chip matching the effort control's weight, soften the search focus ring, go borderless on filter selects, and give group headers real breathing room.
+- Fix double highlight on the config tool when the catalog view is open; the reasoning "R" marker now carries a tooltip. Regression-audited all 0.20/0.21 features (drag resizer, collapsible groups, refresh buttons, keyboard navigation, five tool views, 620px narrow layout).
+
 ## 0.21.0 - 2026-11-13
 
 - Guarantee the keyless free lane is visible: the plugin now serves `GET /model-palette/api/free-models/snapshot`, and the palette merges that runtime group into the directory when a DSH build does not surface adapter-registered providers — the lane (and its models) become browsable and selectable regardless, with a dedicated green "Free Models" section in the rail.
