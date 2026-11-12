@@ -584,18 +584,26 @@ export class FreeModelRuntime {
       return 'available'
     } catch (error) {
       const unavailable = freeModelUnavailable(error)
-      if (unavailable) this.unavailable.add(id)
-      this.verdicts.set(id, { state: unavailable ? 'unavailable' : 'unknown', ...(String((error as Error)?.message ?? error) === '' ? {} : { detail: String((error as Error)?.message ?? error).slice(0, 240) }), checkedAt: new Date().toISOString() })
+      // An explicit routing refusal proves the model is gone: drop it from the
+      // catalog outright so it cannot reappear after a restart.
+      if (unavailable) this.pruneEntry(id, String((error as Error)?.message ?? error))
+      else this.verdicts.set(id, { state: 'unknown', ...(String((error as Error)?.message ?? error) === '' ? {} : { detail: String((error as Error)?.message ?? error).slice(0, 240) }), checkedAt: new Date().toISOString() })
       return unavailable ? 'unavailable' : 'unknown'
     }
   }
 
   markFailure(id: string, error: unknown) {
     if (!freeModelUnavailable(error)) return false
-    this.unavailable.add(id)
-    this.verdicts.set(id, { state: 'unavailable', detail: String((error as Error)?.message ?? error).slice(0, 240), checkedAt: new Date().toISOString() })
-    this.announce()
+    this.pruneEntry(id, String((error as Error)?.message ?? error))
     return true
+  }
+
+  /** Remove one model from the catalog after an upstream-proved absence. */
+  private pruneEntry(id: string, detail: string) {
+    this.entries = this.entries.filter(entry => entry.id !== id)
+    this.unavailable.delete(id)
+    this.verdicts.set(id, { state: 'removed', ...(detail === '' ? {} : { detail: detail.slice(0, 240) }), checkedAt: new Date().toISOString() })
+    this.announce()
   }
 
   private announce() { this.handle?.replace([FREE_MODEL_PROVIDER_ID]) }

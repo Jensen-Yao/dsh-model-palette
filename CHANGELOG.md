@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.21.3 - 2026-11-13
+
+- Delete keyless-lane models the upstream provably lacks: an explicit
+  400/404/422 routing refusal now prunes the model from the runtime catalog
+  (verdict `removed`) instead of merely hiding it, so it cannot reappear after
+  a restart while its id lingers in an upstream listing.
+- Replace the search box's odd glyph with a proper inline SVG magnifier.
+- Relieve crowded configuration rows: the provider status row and toolbar wrap
+  instead of squeezing (the probe-model label no longer collapses sideways),
+  action buttons gain padding and an 8px grid.
+
 ## 0.21.2 - 2026-11-13
 
 - Selecting a provider now shows a header bar above its model list with a

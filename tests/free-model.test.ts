@@ -110,7 +110,9 @@ describe('free-model runtime', () => {
     await runtime.refresh()
     await runtime.probeAll(2)
     expect(runtime.availableEntries().map(entry => entry.id)).toEqual(['vendor/available-free'])
-    expect(runtime.snapshot().verdicts['vendor/refused-free']).toMatchObject({ state: 'unavailable' })
+    // an explicit refusal now deletes the model from the catalog itself, not just hides it
+    expect(runtime.snapshot().models.map(entry => entry.id)).toEqual(['vendor/available-free'])
+    expect(runtime.snapshot().verdicts['vendor/refused-free']).toMatchObject({ state: 'removed' })
     expect(replaced.at(-1)).toEqual([FREE_MODEL_PROVIDER_ID])
   })
 })

@@ -706,7 +706,10 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
             </header>
 
             {view === 'models' && <div className="dmp-search-wrap">
-              <span aria-hidden="true">⌕</span>
+              <svg className="dmp-search-icon" viewBox="0 0 15 15" width="15" height="15" aria-hidden="true" focusable="false">
+                <circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <line x1="10.2" y1="10.2" x2="13.6" y2="13.6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+              </svg>
               <input
                 ref={searchRef}
                 value={query}
