@@ -651,17 +651,13 @@ export function registerFreeModels(ctx: Record<string, any>, config: Record<stri
   }, 'dsh-model-palette: free models')
 }
 
-/** Serve POST /model-palette/api/free-models/refresh so the palette can pull catalog updates on demand. */
+/** Serve GET/POST under /model-palette/api/free-models so the palette can read and refresh the keyless lane. */
 export function registerFreeModelsRefreshApi(ctx: Record<string, any>, runtime: FreeModelRuntime): () => Promise<void> {
   const registered = ctx.webServer?.register?.({
     kind: 'prefix',
     path: FREE_MODELS_API_PATH,
     handler: async (req: any, res: any) => {
       try {
-        if (req.method !== 'POST') {
-          writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
-          return
-        }
         const site = req.headers?.['sec-fetch-site']
         if (site !== undefined && site !== 'same-origin' && site !== 'same-site' && site !== 'none') {
           writeJson(res, 403, { ok: false, error: { message: 'cross-site request rejected' } })
@@ -669,6 +665,15 @@ export function registerFreeModelsRefreshApi(ctx: Record<string, any>, runtime: 
         }
         let pathname = FREE_MODELS_API_PATH
         try { pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname } catch { /* keep prefix */ }
+        if (pathname === `${FREE_MODELS_API_PATH}/snapshot` && req.method === 'GET') {
+          const snapshot = runtime.snapshot()
+          writeJson(res, 200, { ok: true, value: { ...snapshot, provider: FREE_MODEL_PROVIDER_ID } })
+          return
+        }
+        if (req.method !== 'POST') {
+          writeJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
+          return
+        }
         if (pathname !== `${FREE_MODELS_API_PATH}/refresh`) {
           writeJson(res, 404, { ok: false, error: { message: 'unknown free-models action' } })
           return

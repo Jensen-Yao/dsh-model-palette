@@ -22,11 +22,6 @@ let snapshot: DirectorySnapshot = {
   current: { provider: 'custom', model: 'custom-model', reasoningEffort: 'high' }, status: 'ready', failures: [], error: null,
   groups: [
     { id: 'custom', name: '自定义供应商', models: [{ id: 'custom-model', name: 'Custom Model', reasoning: { defaultEffort: 'high', efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }] } }, ...Array.from({ length: 180 }, (_, i) => ({ id: `model-${i}`, name: `Model ${String(i).padStart(3, '0')}` }))] },
-    { id: 'dsh-free-models', name: 'Free Models', models: [
-      { id: 'deepseek-v4.1-flash-free', name: 'DeepSeek V4.1 Flash', reasoning: { defaultEffort: 'high', efforts: [{ id: 'off', name: 'Off' }, { id: 'low', name: 'Low' }, { id: 'medium', name: 'Medium' }, { id: 'high', name: 'High' }] } },
-      { id: 'big-pickle', name: 'Big Pickle' },
-      { id: 'kilo-auto/free', name: 'Auto Free' },
-    ] },
     { id: 'openrouter-free', name: 'OpenRouter 免费', models: [{ id: 'vendor/reasoner:free', name: 'Free Reasoner', reasoning: { efforts: [{ id: 'high', name: 'High' }] } }] },
     { id: 'custom-chat', name: 'Custom Chat', models: [{ id: 'legacy-model', name: 'Legacy Model' }] },
   ],
@@ -67,6 +62,20 @@ const api: PaletteApi = {
   },
 }
 window.fetch = async (input, init) => {
+  if (String(input).endsWith('/free-models/snapshot')) {
+    return Response.json({ ok: true, value: {
+      provider: 'dsh-free-models',
+      models: [
+        { id: 'deepseek-v4.1-flash-free', name: 'DeepSeek V4.1 Flash', contextWindow: 1048576, maxOutput: 384000, input: ['text'], efforts: ['off', 'low', 'medium', 'high'], canDisableReasoning: true, channel: 'opencode' },
+        { id: 'big-pickle', name: 'Big Pickle', contextWindow: 200000, maxOutput: 32000, input: ['text'], efforts: [], canDisableReasoning: false, channel: 'opencode' },
+        { id: 'kilo-auto/free', name: 'Auto Free', contextWindow: 256000, maxOutput: 32768, input: ['text', 'image'], efforts: ['low', 'medium', 'high'], canDisableReasoning: false, channel: 'kilo' },
+      ],
+      verdicts: {},
+    } })
+  }
+  if (String(input).endsWith('/free-models/refresh')) {
+    return Response.json({ ok: true, value: { total: 3, available: 3, added: 0, removed: 0, checkedAt: new Date().toISOString() } })
+  }
   if (String(input).endsWith('/models/resolve')) {
     const body = JSON.parse(String(init?.body)) as { models: string[] }
     return Response.json({ ok: true, value: { models: body.models.map(id => ({ id, contextWindow: 131072, maxTokens: 8192, input: ['text', 'image'] })) } })
