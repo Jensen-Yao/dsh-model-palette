@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.1 - 2026-11-13
+
+- Fix free-model calls failing with `registration.adapter.prepareCall is not a
+  function` on current DSH runtimes: the keyless adapter now implements the
+  base-adapter `prepareCall` contract (model metadata bound to one adapter
+  generation plus its stream entry point) and the optional
+  `imageRequestPricing` / `imageRequestTarget` hooks newer runtimes invoke
+  directly. Regression-tested against the adapter contract.
+
 ## 0.22.0 - 2026-11-13
 
 - Two-step upstream model queries for the keyless lane: the update button first asks which categories to filter (stale models published over a year ago, models without reasoning support) so they never join the query result, then — after the query — asks whether to delete previously configured models upstream no longer carries (listing-missing or explicitly refused). Nothing is ever deleted silently; the new `POST /model-palette/api/free-models/prune` endpoint applies confirmed deletions.
