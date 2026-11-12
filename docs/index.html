@@ -3,1322 +3,362 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette 0.19.1 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette 0.19.1：兼容 DSH 0.1 / 0.2 设置，新增免登录免费模型、本地 OpenAI 兼容网关、快捷方案、一键切回、配置备份、批量导入、请求重试与 OpenRouter 工具。" />
+<title>dsh-model-palette 0.21.1 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsh-model-palette 0.21.1：免登录免费模型线路、Codex 式推理档位、可拖拽侧栏、本地 OpenAI 兼容网关、配置备份与 OpenRouter 媒体工具。" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
 <style>
   :root {
-    --bg: #0b1220;
-    --bg-2: #0f1830;
-    --bg-3: #131d38;
-    --card: rgba(255, 255, 255, 0.04);
-    --card-border: rgba(255, 255, 255, 0.09);
-    --border: rgba(255, 255, 255, 0.07);
-    --text: #e8edf7;
-    --text-2: #a7b2c8;
-    --text-3: #6d7a93;
-    --brand-1: #35a7ff;
-    --brand-2: #7b61ff;
-    --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2));
-    --green: #22c58b;
-    --amber: #f5a524;
-    --red: #f25c5c;
+    --paper: #F4F1EA;
+    --paper-2: #FBF9F4;
+    --paper-3: #ECE6D9;
+    --ink: #1F1B16;
+    --ink-2: #4A443A;
+    --ink-3: #5F584A;
+    --ink-4: #77705F;
+    --line: #E0D8C6;
+    --coral: #C96442;
+    --coral-2: #D97757;
+    --coral-soft: rgba(201, 100, 66, 0.10);
+    --sage: #7A8B6F;
+    --sage-soft: rgba(122, 139, 111, 0.12);
+    --gold: #B08C46;
     --radius: 16px;
-    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --shadow-sm: 0 1px 2px rgba(31, 27, 22, 0.05), 0 4px 14px rgba(31, 27, 22, 0.06);
+    --shadow-md: 0 2px 6px rgba(31, 27, 22, 0.06), 0 18px 44px rgba(31, 27, 22, 0.12);
+    --serif: Georgia, "Times New Roman", "Songti SC", "Noto Serif SC", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-  ::selection { background: rgba(123, 97, 255, 0.4); }
-  a { color: var(--brand-1); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  kbd {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 2px 7px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-2);
-    white-space: nowrap;
-  }
-  code {
-    font-family: var(--mono);
-    font-size: 0.9em;
-    padding: 1px 6px;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.07);
-    color: #9fc9ff;
-  }
-  pre {
-    font-family: var(--mono);
-    background: #0a1122;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
-    overflow-x: auto;
-    font-size: 12.5px;
-    line-height: 1.65;
-    color: #c6d2e8;
-  }
-  pre .cm { color: #5d6b85; }
+  body { font-family: var(--sans); background: var(--paper); color: var(--ink); line-height: 1.7; overflow-x: hidden; }
+  ::selection { background: var(--coral-soft); color: var(--coral); }
+  a { color: var(--coral); text-decoration: none; }
+  a:hover { color: #A94F31; }
+  img { max-width: 100%; display: block; }
 
-  /* ---------- Background decorations ---------- */
-  .bg-glow {
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    background:
-      radial-gradient(600px 400px at 12% -5%, rgba(53, 167, 255, 0.14), transparent 60%),
-      radial-gradient(700px 500px at 95% 8%, rgba(123, 97, 255, 0.16), transparent 60%),
-      radial-gradient(900px 700px at 50% 115%, rgba(53, 167, 255, 0.08), transparent 60%);
-  }
-  .bg-grid {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-    background-size: 44px 44px;
-    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 80%);
-    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 80%);
-  }
+  /* scroll progress */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg, var(--coral), var(--gold)); z-index: 99; }
 
-  /* ---------- Nav ---------- */
-  nav {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    padding: 14px 28px;
-    background: rgba(11, 18, 32, 0.72);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--border);
-  }
-  .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
-  .nav-brand img { width: 30px; height: 30px; }
-  .nav-brand span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .nav-links { display: flex; align-items: center; gap: 4px; }
-  .nav-links a {
-    color: var(--text-2);
-    font-size: 13.5px;
-    padding: 7px 12px;
-    border-radius: 8px;
-  }
-  .nav-links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); text-decoration: none; }
-  .nav-cta {
-    background: var(--grad);
-    color: #fff !important;
-    font-weight: 600;
-    padding: 8px 16px;
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(123, 97, 255, 0.35);
-  }
-  .nav-cta:hover { background: linear-gradient(135deg, #4db3ff, #8d76ff); }
+  /* nav */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 90; backdrop-filter: blur(14px); background: rgba(244, 241, 234, 0.82); border-bottom: 1px solid transparent; transition: border-color .3s ease; }
+  nav.scrolled { border-bottom-color: var(--line); }
+  .nav-inner { max-width: 1080px; margin: 0 auto; padding: 14px 28px; display: flex; align-items: center; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 19px; font-weight: 700; color: var(--ink); }
+  .brand:hover { color: var(--ink); }
+  .brand .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--coral); color: #FFF8F2; display: grid; place-items: center; font-size: 17px; font-family: var(--sans); box-shadow: 0 4px 12px rgba(201, 100, 66, 0.35); }
+  .nav-links { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+  .nav-links a { padding: 7px 13px; border-radius: 9px; color: var(--ink-2); font-size: 14px; transition: background .18s ease, color .18s ease; }
+  .nav-links a:hover { background: var(--coral-soft); color: var(--coral); }
+  .nav-version { padding: 3px 10px; border-radius: 999px; background: var(--sage-soft); color: var(--sage); font-size: 12.5px; font-weight: 600; }
+  @media (max-width: 720px) { .nav-links a:not(.nav-cta) { display: none; } }
+  .nav-cta { background: var(--ink); color: var(--paper-2) !important; }
+  .nav-cta:hover { background: var(--coral) !important; color: #fff !important; }
 
-  /* ---------- Hero ---------- */
-  header.hero {
-    text-align: center;
-    padding: 92px 24px 70px;
-    max-width: 920px;
-    margin: 0 auto;
-  }
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 16px;
-    border: 1px solid rgba(53, 167, 255, 0.35);
-    border-radius: 999px;
-    background: rgba(53, 167, 255, 0.08);
-    color: #9fc9ff;
-    font-size: 12.5px;
-    font-weight: 600;
-    margin-bottom: 26px;
-  }
-  .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34, 197, 139, 0.5); animation: pulse 2s infinite; }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(34, 197, 139, 0.5); }
-    70% { box-shadow: 0 0 0 8px rgba(34, 197, 139, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(34, 197, 139, 0); }
-  }
-  .hero-logo {
-    width: 84px; height: 84px;
-    margin-bottom: 22px;
-    filter: drop-shadow(0 12px 34px rgba(91, 120, 255, 0.45));
-    animation: float 5s ease-in-out infinite;
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-  .hero h1 {
-    font-size: clamp(34px, 6vw, 56px);
-    line-height: 1.12;
-    letter-spacing: -0.02em;
-    font-weight: 800;
-    margin-bottom: 18px;
-  }
-  .hero h1 .grad {
-    background: var(--grad);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .hero p.tagline {
-    font-size: clamp(15px, 2.4vw, 19px);
-    color: var(--text-2);
-    max-width: 640px;
-    margin: 0 auto 30px;
-  }
-  .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 14.5px;
-    font-weight: 600;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .btn:hover { transform: translateY(-2px); text-decoration: none; }
-  .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 10px 30px rgba(103, 98, 255, 0.4); }
-  .btn-ghost { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: var(--card-border); }
-  .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
-  .hero-shortcuts { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3); }
+  main { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+  section { padding: 84px 0 30px; }
 
-  /* ---------- Live Demo ---------- */
-  .demo-section {
-    max-width: 860px;
-    margin: 0 auto 90px;
-    padding: 0 24px;
-  }
-  .demo-window {
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    backdrop-filter: blur(10px);
-  }
-  .demo-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 13px 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  .demo-bar .traffic { display: flex; gap: 7px; }
-  .demo-bar .traffic span { width: 11px; height: 11px; border-radius: 50%; }
-  .demo-bar .traffic span:nth-child(1) { background: #ff5f57; }
-  .demo-bar .traffic span:nth-child(2) { background: #febc2e; }
-  .demo-bar .traffic span:nth-child(3) { background: #28c840; }
-  .demo-bar .bar-title { margin-left: 10px; font-size: 12.5px; color: var(--text-3); font-family: var(--mono); }
-  .demo-bar .bar-title b { color: var(--text-2); font-weight: 600; }
-  .demo-hint {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin: 16px 18px 0;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: rgba(53, 167, 255, 0.08);
-    border: 1px solid rgba(53, 167, 255, 0.25);
-    color: var(--text-2);
-    font-size: 13px;
-  }
-  .demo-hint kbd { background: rgba(53, 167, 255, 0.18); border-color: rgba(53, 167, 255, 0.4); color: #9fc9ff; }
+  /* reveal motion */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s cubic-bezier(.2,.6,.2,1), transform .7s cubic-bezier(.2,.6,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  .d1 { transition-delay: .08s; } .d2 { transition-delay: .16s; } .d3 { transition-delay: .24s; } .d4 { transition-delay: .32s; }
 
-  /* Palette mockup */
-  .palette {
-    margin: 16px 18px 18px;
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    background: rgba(10, 17, 33, 0.9);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .palette-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 18px 10px; }
-  .palette-head h2 { font-size: 16px; font-weight: 700; }
-  .palette-head p { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
-  .palette-head .close { color: var(--text-3); font-size: 20px; line-height: 1; cursor: pointer; }
-  .palette-search {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin: 0 18px 12px;
-    padding: 0 12px;
-    border: 1px solid rgba(53, 167, 255, 0.5);
-    border-radius: 11px;
-    background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 0 0 3px rgba(53, 167, 255, 0.12);
-  }
-  .palette-search .mag { color: var(--text-3); font-size: 15px; }
-  .palette-search input {
-    flex: 1;
-    min-width: 0;
-    height: 42px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--text);
-    font: inherit;
-    font-size: 14px;
-  }
-  .palette-search input::placeholder { color: var(--text-3); }
-  .palette-search .clear { border: 0; background: none; color: var(--text-3); cursor: pointer; font-size: 16px; }
-  .palette-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-  .palette-rail { padding: 10px; border-right: 1px solid var(--border); background: rgba(255, 255, 255, 0.015); }
-  .rail-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 9px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-2);
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
-    text-align: left;
-  }
-  .rail-item:hover { background: rgba(255, 255, 255, 0.06); }
-  .rail-item.active { background: rgba(53, 167, 255, 0.13); color: var(--brand-1); font-weight: 600; }
-  .rail-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rail-item small { color: var(--text-3); }
-  .rail-item .r { color: var(--brand-2); font-weight: 700; }
-  .rail-divider { height: 1px; margin: 8px 4px; background: var(--border); }
-  .palette-results { min-height: 300px; max-height: 320px; overflow-y: auto; padding: 8px; }
-  .result {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 8px;
-    border-radius: 10px;
-    cursor: pointer;
-  }
-  .result:hover, .result.active { background: rgba(255, 255, 255, 0.07); }
-  .result.current { background: rgba(53, 167, 255, 0.1); }
-  .result-main { flex: 1; min-width: 0; }
-  .result-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
-  .result-title em {
-    padding: 1px 6px; border-radius: 999px;
-    background: rgba(53, 167, 255, 0.16); color: #9fc9ff;
-    font-size: 9.5px; font-style: normal; font-weight: 500;
-  }
-  .result-title em.warn { background: rgba(245, 165, 36, 0.16); color: var(--amber); }
-  .result-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; font-size: 11px; color: var(--text-3); }
-  .result-meta strong { color: var(--text-2); font-weight: 500; }
-  .result-reason {
-    width: 20px; height: 20px;
-    display: grid; place-items: center;
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text-3); font-size: 9px; font-weight: 700;
-  }
-  .result-star {
-    border: 0; background: none; cursor: pointer;
-    color: var(--text-3); font-size: 15px;
-    padding: 4px;
-  }
-  .result-star.on { color: var(--amber); }
-  .result-empty { display: grid; place-items: center; height: 220px; color: var(--text-3); font-size: 13px; }
-  .palette-foot {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 11px 18px;
-    font-size: 12px;
-    color: var(--text-3);
-  }
-  .palette-foot .now { display: flex; align-items: baseline; gap: 7px; flex: 1; min-width: 0; }
-  .palette-foot .now b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .palette-foot .effort { display: flex; align-items: center; gap: 8px; }
-  .palette-foot .effort select {
-    height: 28px; border: 1px solid var(--border); border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05); color: var(--text); font: inherit; font-size: 11.5px; padding: 0 8px;
-  }
-  .demo-tip { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-3); }
+  /* hero */
+  .hero { padding: 150px 0 40px; text-align: center; position: relative; }
+  .hero::before { content: ''; position: absolute; inset: -80px -200px 40px; background: radial-gradient(420px 300px at 18% 20%, var(--coral-soft), transparent 70%), radial-gradient(380px 280px at 85% 12%, var(--sage-soft), transparent 70%); pointer-events: none; }
+  .hero > * { position: relative; }
+  .kicker { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink-3); font-size: 13px; box-shadow: var(--shadow-sm); }
+  .kicker .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); animation: pulse 2.4s ease infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(122,139,111,.45); } 50% { box-shadow: 0 0 0 6px rgba(122,139,111,0); } }
+  h1 { font-family: var(--serif); font-size: clamp(38px, 6vw, 62px); line-height: 1.16; letter-spacing: -0.5px; margin: 22px 0 14px; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--coral); }
+  .hero p.lede { max-width: 620px; margin: 0 auto; color: var(--ink-3); font-size: 17.5px; }
 
-  /* ---------- Sections ---------- */
-  section.block { max-width: 1080px; margin: 0 auto 88px; padding: 0 24px; }
-  .sec-head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
-  .sec-head .tag {
-    display: inline-block;
-    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--brand-1);
-    margin-bottom: 12px;
-  }
-  .sec-head h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 800; letter-spacing: -0.01em; }
-  .sec-head p { color: var(--text-2); margin-top: 12px; font-size: 15px; }
+  /* install command */
+  .install { margin: 30px auto 0; max-width: 560px; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); }
+  .install code { flex: 1; text-align: left; font-family: var(--mono); font-size: 13.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .install code .c { color: var(--coral); }
+  .copy-btn { flex: none; border: 0; border-radius: 10px; padding: 9px 16px; background: var(--ink); color: var(--paper-2); font: 600 13px var(--sans); cursor: pointer; transition: background .2s ease, transform .15s ease; }
+  .copy-btn:hover { background: var(--coral); transform: translateY(-1px); }
+  .copy-btn.done { background: var(--sage); }
+  .hero-ctas { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 12px; font: 600 14.5px var(--sans); transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+  .btn-primary { background: var(--coral); color: #FFF8F2; box-shadow: 0 6px 18px rgba(201, 100, 66, 0.30); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(201, 100, 66, 0.38); color: #FFF8F2; }
+  .btn-ghost { background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--line); }
+  .btn-ghost:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); color: var(--ink); }
 
-  .grid { display: grid; gap: 18px; }
-  .grid-3 { grid-template-columns: repeat(3, 1fr); }
-  .grid-2 { grid-template-columns: repeat(2, 1fr); }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    padding: 24px;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .card:hover { transform: translateY(-4px); border-color: rgba(53, 167, 255, 0.35); background: rgba(255, 255, 255, 0.06); }
-  .card .ico {
-    width: 42px; height: 42px;
-    display: grid; place-items: center;
-    border-radius: 12px;
-    background: rgba(53, 167, 255, 0.12);
-    font-size: 21px;
-    margin-bottom: 16px;
-  }
-  .card h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; }
-  .card p { color: var(--text-2); font-size: 13.5px; }
-  .card ul { list-style: none; margin-top: 10px; }
-  .card li { color: var(--text-2); font-size: 13px; padding: 4px 0 4px 20px; position: relative; }
-  .card li::before { content: "→"; position: absolute; left: 0; color: var(--brand-1); font-size: 12px; top: 5px; }
-  .compat-panel { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 18px; align-items: stretch; }
-  .compat-panel .card { margin: 0; }
-  .compat-panel pre { height: 100%; margin: 0; }
-  .compat-note { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 10px 12px; border: 1px solid rgba(34, 197, 139, 0.25); border-radius: 10px; background: rgba(34, 197, 139, 0.07); color: var(--text-2); font-size: 12.5px; }
-  .compat-note strong { color: var(--green); }
+  /* animated effort meter chip in hero */
+  .meter-chip { display: inline-flex; align-items: center; gap: 10px; margin-top: 26px; padding: 9px 16px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--line); box-shadow: var(--shadow-sm); color: var(--ink-3); font-size: 13px; }
+  .meter { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; }
+  .meter b { width: 5px; border-radius: 2px; background: var(--ink-4); transform-origin: bottom; animation: grow 2.8s cubic-bezier(.4,0,.2,1) infinite; }
+  .meter b:nth-child(1) { height: 6px; animation-delay: 0s; }
+  .meter b:nth-child(2) { height: 10px; animation-delay: .15s; }
+  .meter b:nth-child(3) { height: 14px; animation-delay: .3s; }
+  .meter b:nth-child(4) { height: 18px; animation-delay: .45s; background: var(--coral); }
+  @keyframes grow { 0%, 15% { transform: scaleY(.35); opacity: .55; } 45%, 75% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.35); opacity: .55; } }
 
-  /* Feature pill row */
-  .pills { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .pill {
-    text-align: center;
-    padding: 22px 14px;
-    border: 1px solid var(--card-border);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.03);
-  }
-  .pill .num { font-size: 28px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .pill .lbl { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+  /* screenshot frames */
+  .shot { border-radius: var(--radius); border: 1px solid var(--line); background: var(--paper-2); padding: 10px; box-shadow: var(--shadow-md); transition: transform .3s cubic-bezier(.2,.6,.2,1), box-shadow .3s ease; }
+  .shot:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(31,27,22,.08), 0 30px 70px rgba(31,27,22,.16); }
+  .shot img { border-radius: 10px; }
+  .shot figcaption { padding: 10px 6px 4px; color: var(--ink-4); font-size: 13px; text-align: center; }
+  .hero-shot { margin: 46px auto 0; max-width: 920px; }
 
-  /* Tabs */
-  .tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 26px; flex-wrap: wrap; }
-  .tab {
-    padding: 9px 18px;
-    border-radius: 999px;
-    border: 1px solid var(--card-border);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--text-2);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
-  .tab.active { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 8px 24px rgba(103, 98, 255, 0.35); }
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; animation: fadeIn 0.3s ease; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  /* section headings */
+  h2 { font-family: var(--serif); font-size: clamp(26px, 3.6vw, 36px); font-weight: 700; letter-spacing: -0.3px; }
+  .sec-head { margin-bottom: 34px; }
+  .sec-head p { color: var(--ink-3); margin-top: 8px; max-width: 560px; }
+  .sec-head .no { color: var(--coral); font-family: var(--mono); font-size: 13px; letter-spacing: 2px; display: block; margin-bottom: 6px; }
 
-  /* Steps */
-  .steps { counter-reset: step; display: grid; gap: 14px; max-width: 720px; margin: 0 auto; }
-  .step {
-    display: flex;
-    gap: 16px;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: 14px;
-    padding: 18px;
-    align-items: flex-start;
-  }
-  .step .n {
-    counter-increment: step;
-    flex: none;
-    width: 34px; height: 34px;
-    display: grid; place-items: center;
-    border-radius: 10px;
-    background: rgba(53, 167, 255, 0.14);
-    color: var(--brand-1);
-    font-weight: 800;
-    font-size: 15px;
-  }
-  .step .n::before { content: counter(step); }
-  .step h4 { font-size: 14.5px; margin-bottom: 4px; }
-  .step p { color: var(--text-2); font-size: 13px; }
+  /* feature cards */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 22px 20px; transition: transform .25s cubic-bezier(.2,.6,.2,1), box-shadow .25s ease, border-color .25s ease; }
+  .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: #D8CDB6; }
+  .card .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; background: var(--coral-soft); color: var(--coral); }
+  .card:nth-child(even) .ico { background: var(--sage-soft); color: var(--sage); }
+  .card h3 { font-family: var(--serif); font-size: 18.5px; margin-bottom: 8px; }
+  .card p { color: var(--ink-3); font-size: 14px; }
+  .card .tag { display: inline-block; margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--coral); background: var(--coral-soft); padding: 2px 9px; border-radius: 6px; }
 
-  /* Key shortcuts grid */
-  .keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 720px; margin: 0 auto; }
-  .key-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    background: var(--card); border: 1px solid var(--card-border);
-    border-radius: 12px; padding: 13px 18px; font-size: 13.5px; color: var(--text-2);
-  }
-  .key-row .action { color: var(--text); font-weight: 600; }
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { text-align: center; padding: 22px 10px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); }
+  .stat b { display: block; font-family: var(--serif); font-size: 34px; color: var(--coral); font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--ink-4); font-size: 13px; }
 
-  /* Code + steps split */
-  .install-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: start; }
-  .install-grid pre { margin-top: 14px; }
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
+  @media (max-width: 820px) { .steps { grid-template-columns: 1fr; } }
+  .step { position: relative; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .step::before { counter-increment: step; content: counter(step); position: absolute; top: -14px; left: 20px; width: 30px; height: 30px; border-radius: 10px; background: var(--ink); color: var(--paper-2); font: 700 14px/30px var(--serif); text-align: center; }
+  .step h3 { font-family: var(--serif); font-size: 17px; margin-bottom: 8px; padding-top: 6px; }
+  .step p { color: var(--ink-3); font-size: 13.5px; margin-bottom: 10px; }
+  .step pre { background: #2A2722; color: #E8E0D0; border-radius: 10px; padding: 12px 14px; font-family: var(--mono); font-size: 12px; overflow-x: auto; line-height: 1.6; }
+  .step pre .c { color: #E8A87E; }
 
-  /* Media mini-card */
-  .media-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .media-card { text-align: center; padding: 28px 18px; }
-  .media-card .big { font-size: 34px; margin-bottom: 12px; }
-  .media-card h3 { margin-bottom: 6px; }
-  .media-card .badge {
-    display: inline-block; margin-top: 12px;
-    padding: 4px 12px; border-radius: 999px;
-    background: rgba(34, 197, 139, 0.14); color: var(--green);
-    font-size: 11px; font-weight: 700;
-  }
+  /* screenshot wall */
+  .wall { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 820px) { .wall { grid-template-columns: 1fr; } }
+  .wall .shot.wide { grid-column: 1 / -1; }
 
-  /* CTA */
-  .cta-band {
-    max-width: 860px; margin: 0 auto 90px; padding: 0 24px;
-    text-align: center;
-    border: 1px solid rgba(123, 97, 255, 0.3);
-    border-radius: 24px;
-    background:
-      radial-gradient(400px 200px at 20% 0%, rgba(53, 167, 255, 0.12), transparent 60%),
-      radial-gradient(400px 220px at 85% 100%, rgba(123, 97, 255, 0.16), transparent 60%),
-      rgba(255, 255, 255, 0.03);
-    padding: 56px 32px;
-  }
-  .cta-band h2 { font-size: clamp(24px, 4vw, 34px); font-weight: 800; margin-bottom: 12px; }
-  .cta-band p { color: var(--text-2); max-width: 480px; margin: 0 auto 26px; }
-  .cta-band .hero-shortcuts { margin-top: 22px; }
+  footer { margin-top: 70px; border-top: 1px solid var(--line); background: var(--paper-3); }
+  .foot { max-width: 1080px; margin: 0 auto; padding: 34px 28px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; color: var(--ink-4); font-size: 13.5px; }
+  .foot .brand { font-size: 16px; }
+  .foot .sep { flex: 1; }
 
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 34px 24px;
-    text-align: center;
-    color: var(--text-3);
-    font-size: 13px;
-  }
-  footer .foot-links { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
-
-  @media (max-width: 900px) {
-    .grid-3, .pills, .media-cards { grid-template-columns: repeat(2, 1fr); }
-    .grid-2, .install-grid, .compat-panel { grid-template-columns: 1fr; }
-    .nav-links { display: none; }
-  }
-  @media (max-width: 620px) {
-    .grid-3, .grid-2, .pills, .media-cards, .keys { grid-template-columns: 1fr; }
-    .palette-body { grid-template-columns: 118px minmax(0, 1fr); }
-    .palette-foot { flex-direction: column; align-items: flex-start; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .meter b, .kicker .dot { animation: none; }
+    .shot:hover, .card:hover, .btn:hover { transform: none; }
   }
 </style>
 </head>
 <body>
-<div class="bg-glow"></div>
-<div class="bg-grid"></div>
+<div id="progress"></div>
 
-<nav>
-  <div class="nav-brand">
-    <img src="icon.svg" alt="logo" />
-    <span>dsh-model-palette</span>
+<nav id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top"><span class="mark">⌘</span>dsh-model-palette</a>
+    <div class="nav-links">
+      <a href="#features">特性</a>
+      <a href="#shots">截图</a>
+      <a href="#start">快速开始</a>
+      <span class="nav-version">v0.21.1</span>
+      <a class="nav-cta" href="https://github.com/Jensen-Yao/dsh-model-palette" target="_blank" rel="noopener">GitHub</a>
+    </div>
   </div>
-  <div class="nav-links">
-    <a href="#demo">在线演示</a>
-    <a href="#features">功能特性</a>
-    <a href="#install">安装</a>
-    <a href="#usage">使用指南</a>
-    <a href="#relay">中继配置</a>
-    <a href="#media">媒体工具</a>
-    <a href="#retry">请求重试</a>
-  </div>
-  <a class="btn nav-cta" href="#install">开始使用</a>
 </nav>
 
-<header class="hero">
-    <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 插件 · 0.19.1</div>
-  <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
-  <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
-  <p class="tagline">
-    为 DeepSeek Harness Web 打造。按 <kbd>Alt+M</kbd>，在任何界面中模糊搜索、筛选、收藏并切换来自所有供应商的模型 —— 还能直接配置线路、管理密钥、生成图像与视频。
-  </p>
-  <div class="hero-actions">
-    <a class="btn btn-primary" href="#demo">🎮 试试在线演示</a>
-    <a class="btn btn-ghost" href="#install">⚡ 快速安装</a>
-  </div>
-  <div class="hero-shortcuts">
-    <span><kbd>Alt</kbd> + <kbd>M</kbd> 唤起面板</span>
-    <span><kbd>↑</kbd> <kbd>↓</kbd> 导航</span>
-    <span><kbd>Enter</kbd> 选择</span>
-    <span><kbd>Esc</kbd> 关闭</span>
-  </div>
-</header>
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <span class="kicker reveal in"><span class="dot"></span>已发布 v0.21.1 · 免登录免费线路 + Codex 式推理档位</span>
+    <h1 class="reveal in d1">模型切换，<em>一气呵成</em></h1>
+    <p class="lede reveal in d2">DeepSeek Harness 的全局模型命令面板：Alt+M 随处呼出，跨供应商模糊搜索、收藏分组、免登录免费模型、推理档位一键调节。</p>
+    <div class="install reveal in d3">
+      <code>dsh plugin add <span class="c">github:Jensen-Yao/dsh-model-palette</span></code>
+      <button class="copy-btn" id="copy" data-cmd="dsh plugin add github:Jensen-Yao/dsh-model-palette">复制</button>
+    </div>
+    <div class="hero-ctas reveal in d3">
+      <a class="btn btn-primary" href="https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1" target="_blank" rel="noopener">下载 v0.21.1 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md" target="_blank" rel="noopener">中文文档</a>
+    </div>
+    <div class="meter-chip reveal in d4">推理档位 <span class="meter"><b></b><b></b><b></b><b></b></span> off → low → medium → high → max</div>
+    <figure class="shot hero-shot reveal d2">
+      <img src="screenshots/palette-models.png" alt="dsh-model-palette 主界面：左侧模型导航，中部按供应商分组的模型列表" width="1440" height="900" />
+      <figcaption>全部模型视图 · 三段式侧栏 · 供应商分组折叠 · 80 行渐进加载</figcaption>
+    </figure>
+  </section>
 
-<!-- Live demo -->
-<section class="demo-section" id="demo">
-  <div class="demo-window">
-    <div class="demo-bar">
-      <div class="traffic"><span></span><span></span><span></span></div>
-      <div class="bar-title">DeepSeek Harness — <b>dsh-model-palette 在线演示</b></div>
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="sec-head reveal">
+      <span class="no">01 — FEATURES</span>
+      <h2>一把面板，装下所有模型事务</h2>
+      <p>从免登录免费线路到本地 OpenAI 网关，模型相关的一切都收进同一个命令面板。</p>
     </div>
-    <div class="demo-hint">
-      <kbd>Alt</kbd>+<kbd>M</kbd>
-      <span>试试下方的搜索框 —— 输入 <code>gpt</code>、<code>claude</code>、<code>deepseek</code> 或任意模型名，点击左侧供应商进行筛选，点击 ★ 收藏。</span>
-    </div>
-    <div class="palette">
-      <div class="palette-head">
-        <div>
-          <h2>模型命令面板</h2>
-          <p><span id="count-label">0</span> 个模型 · Alt+M 随时打开</p>
-        </div>
-        <span class="close" id="demo-close" title="关闭">×</span>
+    <div class="grid">
+      <div class="card reveal">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></div>
+        <h3>免登录免费模型线路</h3>
+        <p>Kilo + OpenCode 免密聚合，无需任何 API Key。侧栏专属绿色区块 + FREE 徽标，能力参数由 models.dev 自动补全。</p>
+        <span class="tag">dsh-free-models</span>
       </div>
-      <div class="palette-search">
-        <span class="mag">⌕</span>
-        <input id="demo-search" type="text" placeholder="搜索模型、模型 ID、供应商或供应商 ID…" autocomplete="off" />
-        <button class="clear" id="demo-clear" title="清空">×</button>
+      <div class="card reveal d1">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="14" width="3.4" height="6" rx="1"/><rect x="8.2" y="10" width="3.4" height="10" rx="1"/><rect x="13.4" y="6" width="3.4" height="14" rx="1"/><rect x="18.6" y="2" width="3.4" height="18" rx="1" opacity=".35"/></svg></div>
+        <h3>Codex 式推理档位</h3>
+        <p>递增信号条形梯直观表达推理强度，选中档品牌色高亮，方向键逐档移动，档位随模型声明自动出现。</p>
+        <span class="tag">off → max</span>
       </div>
-      <div class="palette-body">
-        <nav class="palette-rail" id="demo-rail"></nav>
-        <div class="palette-results" id="demo-results"></div>
+      <div class="card reveal d2">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 4v16M15 4v16M9 12h6"/></svg></div>
+        <h3>可拖拽三段式侧栏</h3>
+        <p>模型（全部/免费/收藏/最近）→ 我的供应商 → 底部工具行。宽度 180–440px 拖拽调节并持久化，双击复位。</p>
+        <span class="tag">resizable rail</span>
       </div>
-      <div class="palette-foot">
-        <div class="now">
-          <span>当前</span>
-          <b id="demo-current">deepseek-chat · DeepSeek</b>
-        </div>
-        <div class="effort">
-          <span>推理档位</span>
-          <select id="demo-effort">
-            <option>关闭 · off</option>
-            <option>最小 · minimal</option>
-            <option>低 · low</option>
-            <option selected>中 · medium</option>
-            <option>高 · high</option>
-            <option>超高 · xhigh</option>
-            <option>最大 · max</option>
-          </select>
-        </div>
+      <div class="card reveal">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10a5 5 0 0 0-9.6-1.5A4.5 4.5 0 0 0 6.5 17H18a3.5 3.5 0 0 0 0-7h-1.8"/></svg></div>
+        <h3>本地 OpenAI 兼容网关</h3>
+        <p>127.0.0.1:4180 提供 /v1/models 与 /v1/chat/completions，流式/JSON 双模式，可挂 DSH 凭据做 Bearer 校验。</p>
+        <span class="tag">loopback :4180</span>
       </div>
-    </div>
-    <div class="demo-tip">↑↓ 或点击选择模型 · Esc 关闭 · 该演示为静态模拟，不影响你的真实 DSH 环境</div>
-  </div>
-</section>
-
-<!-- Features -->
-<section class="block" id="features">
-  <div class="sec-head">
-    <div class="tag">Features</div>
-    <h2>开箱即用的强大体验</h2>
-    <p>从快速切换到大屏配置，一个面板覆盖模型管理的全部场景。</p>
-  </div>
-
-  <div class="pills">
-    <div class="pill"><div class="num">1</div><div class="lbl">个全局快捷键 Alt+M</div></div>
-    <div class="pill"><div class="num">1</div><div class="lbl">个模糊搜索入口</div></div>
-    <div class="pill"><div class="num">4</div><div class="lbl">大视图：模型 / 配置 / 中继 / 媒体</div></div>
-    <div class="pill"><div class="num">5</div><div class="lbl">个 OpenRouter 媒体工具</div></div>
-  </div>
-
-  <div style="height:18px"></div>
-
-  <div class="grid grid-3">
-    <div class="card">
-      <div class="ico">🎯</div>
-      <h3>全局命令面板</h3>
-      <ul>
-        <li>任意界面 <kbd>Alt+M</kbd> 唤起</li>
-        <li>文档级对话框，不依赖输入区内部布局</li>
-        <li>名称 / ID / 供应商 / 描述 模糊搜索</li>
-        <li>方向键导航，回车即选</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">🏷️</div>
-      <h3>供应商筛选栏</h3>
-      <ul>
-        <li>侧栏实时显示各供应商模型数</li>
-        <li>点击即筛选，一键回到全部</li>
-        <li>当前供应商自动置顶高亮</li>
-        <li>目录加载失败可见并可重试</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">⭐</div>
-      <h3>收藏 &amp; 最近使用</h3>
-      <ul>
-      <li>星标收藏常用模型</li>
-      <li>最近使用优先排序</li>
-      <li>当前模型始终置顶</li>
-      <li>侧栏快捷筛选收藏与最近模型</li>
-      <li>localStorage 跨会话持久化</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">🧠</div>
-      <h3>推理档位选择器</h3>
-      <ul>
-        <li>所有活动模型均可手工选择七档</li>
-        <li>缺失声明会实时写入 reasoningEfforts</li>
-        <li>逐档编辑供应商 wire value</li>
-        <li>OpenAI / OpenRouter / DeepSeek / Qwen 等线路感知</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">⚙️</div>
-      <h3>供应商与模型配置</h3>
-      <ul>
-      <li>新增 / 编辑 / 删除供应商</li>
-      <li>复制线路与模型参数，快速派生配置</li>
-      <li>协议、Base URL、密钥一站式配置</li>
-      <li>连接测试后自动导入并补齐容量</li>
-      <li>OpenRouter 实时 :free 模型选择导入</li>
-      <li>B.AI 无 VPN 本机中继与内部策略自动切换</li>
-      <li>可扩展固定目标供应商中继</li>
-      <li>API key 实际可用性验证</li>
-      <li>全部 API key 一键巡检并直达编辑</li>
-      <li>真实请求检测 Completions / Responses</li>
-      <li>显式模型、运行时目录与 modelOverrides 全量协议分类</li>
-      <li>解析容量和输入类型后安全切分 Re/CC</li>
-      <li>供应商级请求重试与模型级精确覆盖</li>
-      <li>B.AI / BankOfAI 默认 50 次，其他线路不受影响</li>
-      <li>永久错误不重试，Cloudflare/WAF 403 保留清晰诊断</li>
-      <li>已知 DeepSeek 方言网关回传自动修复</li>
-      <li>未保存提示与重复 ID 防护</li>
-      <li>密钥仅回环可查看，默认掩码</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">📦</div>
-      <h3>在线模型预置</h3>
-      <ul>
-        <li>487 项厂商权威预置（上下文 / 输出 / 输入 / 推理）</li>
-        <li>GitHub 在线刷新，离线自动回退</li>
-        <li>自动补全缺失参数</li>
-        <li>供应商默认和单模型文本/视觉输入</li>
-        <li>绝不猜测未知别名</li>
-      </ul>
-    </div>
-    <div class="card">
-      <div class="ico">↗️</div>
-      <h3>中继配置中心</h3>
-      <ul>
-        <li>侧栏直接查看内置 B.AI 中继</li>
-        <li>只在 B.AI 内部切换 DNS / 加速 / 直连策略</li>
-        <li>按当前 DSH 端口复制回环 Base URL</li>
-        <li>复制 provider 与插件配置模板</li>
-        <li>为其他供应商声明具名固定目标中继</li>
-        <li>回环限定、路径白名单与 TLS 名称校验</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- Selective request retries -->
-<section class="block" id="retry">
-  <div class="sec-head">
-    <div class="tag">Route-aware Retry</div>
-    <h2>只重试你选中的供应商和模型</h2>
-    <p>供应商规则与精确模型覆盖实时生效；未配置线路继续走 DSH 原有恢复策略，不会被全局“连坐”。</p>
-  </div>
-  <div class="compat-panel">
-    <div class="card">
-      <div class="ico">↻</div>
-      <h3>简单但足够精确</h3>
-      <ul>
-        <li>供应商可保持 DSH 原策略或启用插件规则</li>
-        <li>模型可继承、明确禁用或设置独立次数</li>
-        <li><code>b.ai</code>、<code>bailsb</code>、<code>baiwhr</code>、<code>bankofai</code> 等预置 50 次</li>
-        <li>网络、超时、429、5xx、空响应和明确 WAF 403 才会重试</li>
-      </ul>
-    </div>
-    <pre><span class="cm"># ~/.dsh/settings.yaml（也可直接在插件界面配置）</span>
-dsh-model-palette:
-  requestRetries:
-    providers:
-      bankofai:
-        enabled: true
-        maxRetries: 50
-        models:
-          deepseek-v4-flash: 12
-          no-retry-model: 0</pre>
-  </div>
-  <div class="compat-note"><strong>费用可见</strong><span><code>N</code> 表示第一次失败后的重试次数，因此 50 次重试最多产生 51 次请求。401、余额不足、参数错误、模型不存在和上下文超限直接结束。</span></div>
-</section>
-
-<!-- Install -->
-<section class="block" id="install">
-  <div class="sec-head">
-    <div class="tag">Install</div>
-    <h2>60 秒完成安装</h2>
-    <p>一条命令即可将模型面板接入你的 DeepSeek Harness Web。</p>
-  </div>
-  <div class="install-grid">
-    <div>
-      <div class="tabs">
-        <button class="tab active" data-tab="install-zh">中文</button>
-        <button class="tab" data-tab="install-en">English</button>
+      <div class="card reveal d1">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9V3z"/><path d="M12 3v9h9A9 9 0 0 0 12 3z" opacity=".4"/></svg></div>
+        <h3>供应商配置与备份</h3>
+        <p>线路、密钥、容量与兼容参数直接编辑；选中供应商一键导出 JSON，批量导入支持跳过/合并/复制三种策略。</p>
+        <span class="tag">backup &amp; import</span>
       </div>
-      <div class="tab-pane active" id="install-zh">
-        <pre><span class="cm"># 安装插件（web profile）</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
-
-<span class="cm"># 重启 dsh web，然后按 Alt+M</span>
-dsh web</pre>
-      </div>
-      <div class="tab-pane" id="install-en">
-        <pre><span class="cm"># Install the plugin (web profile)</span>
-dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
-
-<span class="cm"># Restart dsh web, then press Alt+M</span>
-dsh web</pre>
+      <div class="card reveal d2">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m7 9 4 4-4 4M13 17h4"/></svg></div>
+        <h3>OpenRouter 媒体工具</h3>
+        <p>图像与视频生成零配置接入，复用 OPENROUTER_API_KEY，产物落盘 ~/.dsh/media-output，免费模型自动同步。</p>
+        <span class="tag">image · video</span>
       </div>
     </div>
-    <div class="card">
-      <h3>环境要求</h3>
-      <ul>
-        <li><strong>Node.js</strong> ≥ 22.19</li>
-        <li><strong>DeepSeek Harness</strong> @deepseek-ai/dsh ≥ 0.1.6-alpha.2</li>
-        <li><strong>pnpm</strong> ≥ 11.21（仅开发）</li>
-        <li>无需构建：仓库已提交预构建 lib/ 产物</li>
-      </ul>
+  </section>
+
+  <!-- STATS -->
+  <section>
+    <div class="stats reveal">
+      <div class="stat"><b data-count="487">0</b><span>内置模型预置</span></div>
+      <div class="stat"><b data-count="25">0</b><span>免登录免费模型</span></div>
+      <div class="stat"><b data-count="170">0</b><span>自动化测试</span></div>
+      <div class="stat"><b data-count="12">0</b><span>个版本迭代</span></div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- Usage -->
-<section class="block" id="usage">
-  <div class="sec-head">
-    <div class="tag">Usage</div>
-    <h2>使用指南</h2>
-    <p>模型、配置、中继与媒体工具，四大视图各司其职。</p>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" data-tab="usage-quick">🎮 快速上手</button>
-    <button class="tab" data-tab="usage-config">⚙️ 模型配置</button>
-    <button class="tab" data-tab="usage-relay">↗️ 中继配置</button>
-    <button class="tab" data-tab="usage-media">🖼️ 媒体工具</button>
-  </div>
-
-  <div class="tab-pane active" id="usage-quick">
-    <div class="keys">
-      <div class="key-row"><span class="action">打开 / 关闭面板</span><span><kbd>Alt</kbd> + <kbd>M</kbd></span></div>
-      <div class="key-row"><span class="action">关闭面板</span><span><kbd>Esc</kbd></span></div>
-      <div class="key-row"><span class="action">上 / 下导航</span><span><kbd>↑</kbd> <kbd>↓</kbd></span></div>
-      <div class="key-row"><span class="action">选择高亮模型</span><span><kbd>Enter</kbd></span></div>
-      <div class="key-row"><span class="action">按供应商筛选</span><span>点击左侧栏</span></div>
-      <div class="key-row"><span class="action">仅看收藏</span><span>点击「仅看收藏」</span></div>
-      <div class="key-row"><span class="action">查看最近模型</span><span>点击「最近使用」</span></div>
-      <div class="key-row"><span class="action">收藏 / 取消收藏</span><span>点击 ★</span></div>
-      <div class="key-row"><span class="action">切换推理档位</span><span>底部下拉框</span></div>
-      <div class="key-row"><span class="action">切换四大视图</span><span>左侧栏顶部</span></div>
+  <!-- SCREENSHOTS -->
+  <section id="shots">
+    <div class="sec-head reveal">
+      <span class="no">02 — SCREENSHOTS</span>
+      <h2>界面一览</h2>
+      <p>真实产品截图，来自 0.21.1 的本地浏览器验收。</p>
     </div>
-  </div>
+    <div class="wall">
+      <figure class="shot reveal"><img src="screenshots/palette-free-lane.png" alt="免登录免费模型线路：绿色免费区块，模型带 free 徽标" loading="lazy" /><figcaption>免登录免费线路 · FREE 徽标 · 行内更新按钮</figcaption></figure>
+      <figure class="shot reveal d1"><img src="screenshots/palette-config.png" alt="供应商与模型配置界面" loading="lazy" /><figcaption>供应商配置 · 模型列表 · 协议探测</figcaption></figure>
+      <figure class="shot wide reveal d2"><img src="screenshots/effort-meter.png" alt="Codex 式推理档位控件特写" loading="lazy" /><figcaption>Codex 式推理档位 · 递增条形梯 · 选中档高亮</figcaption></figure>
+    </div>
+  </section>
 
-  <div class="tab-pane" id="usage-config">
+  <!-- START -->
+  <section id="start">
+    <div class="sec-head reveal">
+      <span class="no">03 — QUICK START</span>
+      <h2>三步上手</h2>
+      <p>tarball 安装、启用插件、呼出面板。</p>
+    </div>
     <div class="steps">
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>选择或新建供应商</h4>
-          <p>按 <kbd>Alt+M</kbd> → 「模型配置」，从下拉框选择已有供应商，或点击「新增供应商」/「复制供应商」。</p>
-        </div>
+      <div class="step reveal">
+        <h3>下载并安装</h3>
+        <p>从 GitHub Release 下载 tarball，在 DSH profile 里指向本地文件。</p>
+        <pre>dsh plugin add <span class="c">github:Jensen-Yao/dsh-model-palette</span>
+<span class="c"># 或</span>
+pnpm add <span class="c">file:./dsh-model-palette-0.21.1.tgz</span></pre>
       </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>配置端点与协议</h4>
-          <p>填写 Base URL、协议类型与凭据引用；新建 OpenAI 兼容线路默认优先 openai-responses。</p>
-        </div>
+      <div class="step reveal d1">
+        <h3>确认已启用</h3>
+        <p>免费线路与本地网关默认开启，可在插件配置中调整。</p>
+        <pre>freeModels:
+  enabled: <span class="c">true</span>
+  gateway:
+    enabled: <span class="c">true</span>
+    port: 4180</pre>
       </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>管理密钥并测试连接</h4>
-          <p>输入 API key（默认掩码），点击「检查连接」后模型会直接加入草稿，并自动补齐上下文、最大输出和输入类型。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>检查并切分实际协议</h4>
-          <p>可先测试单模型，再点击「检查全部模型协议」分类显式模型、DSH 实时目录和 modelOverrides；确认「切分 Re/CC 协议」后，插件先解析上下文、输出和文本/图片输入，再让原线路保留 Responses 模型，并新建 -completions 分支接收仅支持 Chat Completions 的模型。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>选择导入 OpenRouter 免费模型</h4>
-          <p>读取公开实时目录，搜索并勾选需要的 :free 文本模型，预览上下文、最大输出和输入能力后再导入，不需要 API key。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>验证 API key</h4>
-          <p>使用当前协议和所选模型发送最小流式请求，不再用可能公开的 /models 误判；「一键检查全部 API key」会依次检查全部运行时凭据并直达有问题的供应商。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>配置模型参数并应用预置</h4>
-          <p>从 487 项预置补全上下文、最大输出、文本/视觉输入与已知推理档位；目录型供应商只改线路字段时继续保留 modelOverrides，编辑模型时才安全物化完整列表。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>配置供应商与模型重试</h4>
-          <p>供应商可保持 DSH 原策略或设置 N 次瞬态失败重试；每个模型还能继承、明确禁用或使用独立次数。B.AI / BankOfAI 常见线路默认 50 次。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>启用全模型推理档位</h4>
-          <p>单模型或整条线路可一键启用七档推理并编辑 wire value；协议仍以真实 Completions / Responses 测试结果为准。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>自动修复已知方言回传</h4>
-          <p>自定义 openai-completions 网关中的已知 DeepSeek 方言缺少 thinkingFormat 或 reasoning_content 历史回传设置时，配置页会列出模型并支持一键修复；选择受影响模型前也会自动预检。</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="n"></div>
-        <div>
-          <h4>保存，实时生效</h4>
-          <p>供应商配置写入 DSH settings，密钥写入 credentials，无需重启。</p>
-        </div>
+      <div class="step reveal d2">
+        <h3>呼出面板</h3>
+        <p>在 Web 界面任意位置按快捷键，或点击输入框的模型触发器。</p>
+        <pre><span class="c">Alt+M</span>          打开 / 关闭面板
+<span class="c">Alt+Shift+M</span>    切回上一个模型
+<span class="c">Alt+Shift+1..3</span> 快捷方案</pre>
       </div>
     </div>
-  </div>
-
-  <div class="tab-pane" id="usage-relay">
-    <div class="grid grid-3">
-      <div class="card">
-        <div class="ico">B</div>
-        <h3>内置 B.AI 中继</h3>
-        <p>显示当前 DSH 地址对应的本机 Base URL 和 B.AI 内部策略链：先尝试 AWS 加速域名的当前 DNS 地址，再尝试同域名的下一地址，最后尝试 api.b.ai 直连；provider、模型和 key 始终不变。</p>
-      </div>
-      <div class="card">
-        <div class="ico">📋</div>
-        <h3>复制即用</h3>
-        <p>一键复制 B.AI provider 模板与高级插件配置，再跳到模型配置页检查连接；503、502、504、Cloudflare 403 和 ECONNRESET 会在 B.AI 策略之间自动恢复。</p>
-      </div>
-      <div class="card">
-        <div class="ico">＋</div>
-        <h3>供应商扩展</h3>
-        <p>通过 providerRelays 增加具名固定目标中继，分别设置连接主机、原 API Host、TLS SNI、证书名称和路径白名单。</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="tab-pane" id="usage-media">
-    <div class="grid grid-3">
-      <div class="card">
-        <div class="ico">🖼️</div>
-        <h3>图像生成</h3>
-        <p>读取 OpenRouter 实时目录，选模型、写提示词，直接生成并保存到配置的输出目录。免费模型优先，不发送对话消息。</p>
-      </div>
-      <div class="card">
-        <div class="ico">🎬</div>
-        <h3>视频生成</h3>
-        <p>提交异步视频任务，支持 1–60 秒时长与分辨率控制，随后在任务区查询状态。</p>
-      </div>
-      <div class="card">
-        <div class="ico">⬇️</div>
-        <h3>任务与下载</h3>
-        <p>输入任务 ID 查询状态，完成后一键下载到输出目录，支持自定义文件名。</p>
-      </div>
-    </div>
-    <div style="height:20px"></div>
-    <div class="keys">
-      <div class="key-row"><span class="action">付费保护</span><span>默认阻止付费生成，可配置放开</span></div>
-      <div class="key-row"><span class="action">非免费模型</span><span>逐次勾选「可能扣费」确认</span></div>
-      <div class="key-row"><span class="action">密钥安全</span><span>OpenRouter 凭据仅在宿主解析</span></div>
-      <div class="key-row"><span class="action">Agent 工具</span><span>5 个工具保留给模型驱动工作流</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- Provider relays -->
-<section class="block" id="relay">
-  <div class="sec-head">
-    <div class="tag">Provider Relays</div>
-    <h2>中继是插件内置能力，不是另一个插件</h2>
-    <p>DSH 请求先到本机 dsh-model-palette 后端，再由同 provider 的连接策略访问经过核验的 B.AI 入口；API key 仍由 DSH credentials 管理。这里的策略切换不等于切换 provider 或模型。</p>
-  </div>
-  <div class="tabs">
-    <button class="tab active" data-tab="relay-bai">B.AI 内置中继</button>
-    <button class="tab" data-tab="relay-generic">扩展其他供应商</button>
-  </div>
-  <div class="tab-pane active" id="relay-bai">
-    <pre><span class="cm"># 在模型配置中使用；端口以中继配置页显示为准</span>
-baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
-
-<span class="cm"># 401 = 已到达 B.AI，检查 credential</span>
-<span class="cm"># 503 / 502 / 504 / Cloudflare 403 / ECONNRESET = 切换下一条 B.AI 策略</span>
-<span class="cm"># 策略顺序：加速 DNS 当前地址 → 同加速域名下一地址 → api.b.ai 直连</span>
-<span class="cm"># 503 UPSTREAM_TRANSIENT = 所有 B.AI 策略均失败</span></pre>
-  </div>
-  <div class="tab-pane" id="relay-generic">
-    <pre>- id: dsh-model-palette
-  config:
-    providerRelays:
-      example-provider:
-        upstreamHost: reachable-entry.example.net
-        hostHeader: api.provider.example
-        tlsServerName: reachable-entry.example.net
-        certificateHost: api.provider.example
-        allowedPathPrefix: /v1/
-        timeoutMs: 180000
-        upstreamRetries: 2
-        retryDelaysMs: [250, 1000]
-        retryBodyLimitBytes: 16777216
-
-<span class="cm"># Provider Base URL</span>
-http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
-  </div>
-</section>
-
-<!-- Media (static) -->
-<section class="block" id="media">
-  <div class="sec-head">
-    <div class="tag">Media Tools</div>
-    <h2>OpenRouter 媒体工具（可选）</h2>
-    <p>在配置文件中启用补丁后，即可直接生成图像与视频。</p>
-  </div>
-  <div class="tabs">
-    <button class="tab active" data-tab="media-yaml">YAML 补丁</button>
-    <button class="tab" data-tab="media-tools">Agent 工具</button>
-  </div>
-  <div class="tab-pane active" id="media-yaml">
-    <pre><span class="cm"># 在 cordis.patch.yml 或你的 profile 补丁中加入</span>
-- id: dsh-model-palette
-  config:
-    openrouterMedia:
-      enabled: true
-      credentialRef: OPENROUTER_API_KEY
-      outputDir: 'D:\AI\openrouter\outputs'
-      allowPaidImages: false
-      allowPaidVideos: false
-      preferredImageModels: []
-      preferredVideoModels: []</pre>
-  </div>
-  <div class="tab-pane" id="media-tools">
-    <div class="media-cards">
-      <div class="card media-card">
-        <div class="big">🔎</div>
-        <h3>openrouter_media_models</h3>
-        <p>浏览实时图像 / 视频模型与价格，不产生费用。</p>
-        <span class="badge">只读 · 免费</span>
-      </div>
-      <div class="card media-card">
-        <div class="big">🎨</div>
-        <h3>openrouter_generate_image</h3>
-        <p>通过 OpenRouter 生成 / 编辑图像并保存到本地。</p>
-        <span class="badge">付费受控</span>
-      </div>
-      <div class="card media-card">
-        <div class="big">🎬</div>
-        <h3>openrouter_generate_video</h3>
-        <p>提交异步视频生成任务，随后轮询与下载。</p>
-        <span class="badge">付费受控</span>
-      </div>
-      <div class="card media-card">
-        <div class="big">📡</div>
-        <h3>openrouter_video_status</h3>
-        <p>查询已有视频任务状态，不产生新费用。</p>
-        <span class="badge">只读 · 免费</span>
-      </div>
-      <div class="card media-card">
-        <div class="big">⬇️</div>
-        <h3>openrouter_download_video</h3>
-        <p>将完成的视频下载到配置的输出目录。</p>
-        <span class="badge">下载</span>
-      </div>
-      <div class="card media-card">
-        <div class="big">🛡️</div>
-        <h3>安全模型</h3>
-        <p>每次生成前后端复核实时价格；未授权付费一律拒绝。</p>
-        <span class="badge">逐次确认</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<div class="cta-band">
-  <h2>让模型切换变得像呼吸一样自然</h2>
-  <p>安装 dsh-model-palette，在 DeepSeek Harness Web 中体验真正流畅的全局模型管理。</p>
-  <div class="hero-actions">
-    <a class="btn btn-primary" href="#install">⚡ 立即安装</a>
-    <a class="btn btn-ghost" href="#demo">回到演示</a>
-  </div>
-  <div class="hero-shortcuts">
-    <span>MIT License</span>
-    <span>开源 · 免费</span>
-    <span><kbd>Alt</kbd>+<kbd>M</kbd> 即刻体验</span>
-  </div>
-</div>
+  </section>
+</main>
 
 <footer>
-  <div class="foot-links">
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette">GitHub</a>
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.md">README</a>
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md">中文文档</a>
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/CHANGELOG.md">更新日志</a>
+  <div class="foot">
+    <span class="brand"><span class="mark">⌘</span>dsh-model-palette</span>
+    <span>MIT License · v0.21.1</span>
+    <span class="sep"></span>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases" target="_blank" rel="noopener">Releases</a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md" target="_blank" rel="noopener">中文文档</a>
   </div>
-  <div>© <span id="year"></span> Jensen Yao · dsh-model-palette · 为 DeepSeek Harness 生态用心打造 ❤️</div>
 </footer>
 
 <script>
-(function () {
-  "use strict";
-
-  /* ---------- Demo catalog ---------- */
-  var CATALOG = [
-    { id: "deepseek", name: "DeepSeek", models: [
-      { id: "deepseek-chat", name: "DeepSeek Chat", desc: "通用对话模型，推理成本低", reason: true, effort: "中 · medium" },
-      { id: "deepseek-reasoner", name: "DeepSeek Reasoner", desc: "深度推理模型，擅长数学与逻辑", reason: true, effort: "高 · high" },
-      { id: "deepseek-vl", name: "DeepSeek VL", desc: "多模态视觉语言模型", reason: false }
-    ]},
-    { id: "openai", name: "OpenAI", models: [
-      { id: "gpt-5.5", name: "GPT-5.5", desc: "旗舰模型 · 上下文 1,050k", reason: true, effort: "中 · medium" },
-      { id: "gpt-5.5-mini", name: "GPT-5.5 Mini", desc: "轻量高速，适合日常任务", reason: true, effort: "低 · low" },
-      { id: "gpt-5.5-nano", name: "GPT-5.5 Nano", desc: "极小模型，极致延迟", reason: false }
-    ]},
-    { id: "anthropic", name: "Anthropic", models: [
-      { id: "claude-opus-5", name: "Claude Opus 5", desc: "旗舰推理 · 上下文 1,000k", reason: true, effort: "高 · high" },
-      { id: "claude-sonnet-5", name: "Claude Sonnet 5", desc: "平衡能力与成本", reason: true, effort: "中 · medium" },
-      { id: "claude-haiku-5", name: "Claude Haiku 5", desc: "快速响应，低延迟", reason: false }
-    ]},
-    { id: "google", name: "Google", models: [
-      { id: "gemini-3-pro", name: "Gemini 3 Pro", desc: "多模态旗舰", reason: true, effort: "中 · medium" },
-      { id: "gemini-3-flash", name: "Gemini 3 Flash", desc: "快速多模态", reason: false },
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "高性价比", reason: false }
-    ]},
-    { id: "xai", name: "xAI", models: [
-      { id: "grok-4", name: "Grok 4", desc: "实时信息强项", reason: true, effort: "中 · medium" },
-      { id: "grok-4-mini", name: "Grok 4 Mini", desc: "轻量快速", reason: false }
-    ]},
-    { id: "openrouter", name: "OpenRouter", models: [
-      { id: "auto", name: "Auto Router", desc: "智能路由到最优供应商", reason: false }
-    ]}
-  ];
-
-  var favorites = new Set();
-  var recents = ["openai\u0000gpt-5.5", "deepseek\u0000deepseek-chat"];
-  var currentKey = "deepseek\u0000deepseek-chat";
-  var providerFilter = null;
-  var quickFilter = "all";
-  var query = "";
-  var cursor = 0;
-
-  var searchEl = document.getElementById("demo-search");
-  var railEl = document.getElementById("demo-rail");
-  var resultsEl = document.getElementById("demo-results");
-  var countEl = document.getElementById("count-label");
-  var currentEl = document.getElementById("demo-current");
-
-  function choices() {
-    var out = [];
-    CATALOG.forEach(function (g) {
-      g.models.forEach(function (m) {
-        out.push({ key: g.id + "\u0000" + m.id, provider: g, model: m });
-      });
-    });
-    return out;
+  // scroll progress + nav border
+  const progress = document.getElementById('progress')
+  const nav = document.getElementById('nav')
+  const onScroll = () => {
+    const max = document.documentElement.scrollHeight - innerHeight
+    progress.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%'
+    nav.classList.toggle('scrolled', scrollY > 8)
   }
+  addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
 
-  function norm(s) { return (s || "").toLowerCase().trim(); }
-
-  function score(ch, q) {
-    if (q === "") return 1;
-    var fields = [ch.model.name, ch.model.id, ch.provider.name, ch.provider.id, ch.model.desc];
-    for (var i = 0; i < fields.length; i++) {
-      if (norm(fields[i]).indexOf(norm(q)) !== -1) return 100 - i;
+  // reveal on intersect
+  const io = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target) }
     }
-    return 0;
-  }
+  }, { threshold: 0.12 })
+  document.querySelectorAll('.reveal:not(.in)').forEach(el => io.observe(el))
 
-  function filtered() {
-    var all = choices();
-    var ranked = all.filter(function (ch) {
-      if (providerFilter !== null && ch.provider.id !== providerFilter) return false;
-      if (quickFilter === "favorites" && !favorites.has(ch.key)) return false;
-      if (quickFilter === "recents" && recents.indexOf(ch.key) === -1) return false;
-      return score(ch, query) > 0;
-    });
-    ranked.sort(function (a, b) {
-      var ac = a.key === currentKey, bc = b.key === currentKey;
-      if (ac !== bc) return ac ? -1 : 1;
-      var af = favorites.has(a.key), bf = favorites.has(b.key);
-      if (af !== bf) return af ? -1 : 1;
-      var ar = recents.indexOf(a.key), br = recents.indexOf(b.key);
-      var arv = ar === -1 ? 999 : ar, brv = br === -1 ? 999 : br;
-      if (arv !== brv) return arv - brv;
-      return score(b, query) - score(a, query);
-    });
-    return ranked;
-  }
-
-  function renderRail() {
-    var html = "";
-    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "all" ? " active" : "") + '" data-quick="all" data-id="">' +
-      "<span>全部供应商</span><small>" + choices().length + "</small></button>";
-    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "favorites" ? " active" : "") + '" data-quick="favorites" data-id="">' +
-      "<span>仅看收藏</span><small>" + Array.from(favorites).length + "</small></button>";
-    html += '<button class="rail-item' + (providerFilter === null && quickFilter === "recents" ? " active" : "") + '" data-quick="recents" data-id="">' +
-      "<span>最近使用</span><small>" + recents.length + "</small></button>";
-    html += '<div class="rail-divider"></div>';
-    CATALOG.forEach(function (g) {
-      var active = providerFilter === g.id && quickFilter === "all" ? " active" : "";
-      html += '<button class="rail-item' + active + '" data-id="' + g.id + '">' +
-        "<span>" + g.name + "</span><small>" + g.models.length + "</small></button>";
-    });
-    railEl.innerHTML = html;
-    railEl.querySelectorAll(".rail-item").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        quickFilter = btn.getAttribute("data-quick") || "all";
-        providerFilter = btn.getAttribute("data-id") || null;
-        cursor = 0;
-        renderRail();
-        renderResults();
-      });
-    });
-  }
-
-  function renderResults() {
-    var list = filtered();
-    if (list.length === 0) {
-      resultsEl.innerHTML = '<div class="result-empty">没有匹配的模型</div>';
-      return;
+  // count-up stats
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const statsIO = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue
+      statsIO.unobserve(entry.target)
+      const target = Number(entry.target.dataset.count)
+      if (reduced) { entry.target.textContent = String(target); continue }
+      const started = performance.now()
+      const tick = now => {
+        const p = Math.min(1, (now - started) / 1200)
+        entry.target.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))))
+        if (p < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
     }
-    if (cursor >= list.length) cursor = list.length - 1;
-    if (cursor < 0) cursor = 0;
-    var html = "";
-    list.forEach(function (ch, i) {
-      var active = i === cursor ? " active" : "";
-      var isCur = ch.key === currentKey;
-      var cur = isCur ? " current" : "";
-      var badge = isCur ? '<em>当前</em>' : (recents.indexOf(ch.key) !== -1 ? '<em>最近</em>' : (favorites.has(ch.key) ? '<em class="warn">★收藏</em>' : ""));
-      var reason = ch.model.reason ? '<span class="result-reason">R</span>' : "";
-      var star = favorites.has(ch.key) ? '<button class="result-star on" data-key="' + ch.key + '" title="取消收藏">★</button>' : '<button class="result-star" data-key="' + ch.key + '" title="加入收藏">☆</button>';
-      html += '<div class="result' + active + cur + '" data-index="' + i + '">' +
-        '<div class="result-main">' +
-          '<div class="result-title">' + ch.model.name + badge + "</div>" +
-          '<div class="result-meta"><strong>' + ch.provider.name + "</strong><span>" + ch.model.id + "</span></div>" +
-          (ch.model.desc ? '<div style="font-size:11px;color:#6d7a93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + ch.model.desc + "</div>" : "") +
-        "</div>" +
-        reason + star +
-      "</div>";
-    });
-    resultsEl.innerHTML = html;
+  }, { threshold: 0.6 })
+  document.querySelectorAll('[data-count]').forEach(el => statsIO.observe(el))
 
-    resultsEl.querySelectorAll(".result").forEach(function (row) {
-      row.addEventListener("click", function () {
-        var ch = list[Number(row.getAttribute("data-index"))];
-        if (ch) select(ch);
-      });
-      row.addEventListener("mouseenter", function () {
-        cursor = Number(row.getAttribute("data-index"));
-        renderResults();
-      });
-    });
-    resultsEl.querySelectorAll(".result-star").forEach(function (btn) {
-      btn.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        var key = btn.getAttribute("data-key");
-        if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
-        renderRail();
-        renderResults();
-      });
-    });
-  }
-
-  function select(ch) {
-    currentKey = ch.key;
-    recents = [ch.key].concat(recents.filter(function (k) { return k !== ch.key; })).slice(0, 12);
-    var now = ch.model.name + " · " + ch.provider.name;
-    currentEl.textContent = now;
-    var effortEl = document.getElementById("demo-effort");
-    if (ch.model.reason && ch.model.effort) {
-      var val = ch.model.effort;
-      Array.prototype.forEach.call(effortEl.options, function (o, i) {
-        if (o.text === val) effortEl.selectedIndex = i;
-      });
-    }
-    renderResults();
-  }
-
-  function onSearch() {
-    query = searchEl.value;
-    cursor = 0;
-    renderResults();
-  }
-
-  searchEl.addEventListener("input", onSearch);
-  document.getElementById("demo-clear").addEventListener("click", function () {
-    searchEl.value = "";
-    onSearch();
-  });
-
-  var open = true;
-  function toggleDemo(force) {
-    open = force === undefined ? !open : force;
-    var p = document.querySelector(".palette");
-    p.style.display = open ? "" : "none";
-    document.getElementById("demo-close").textContent = open ? "×" : "＋";
-  }
-  document.getElementById("demo-close").addEventListener("click", function () { toggleDemo(); });
-  document.addEventListener("keydown", function (ev) {
-    if (ev.altKey && !ev.ctrlKey && !ev.metaKey && ev.key.toLowerCase() === "m") {
-      ev.preventDefault();
-      toggleDemo();
-    }
-    if (ev.key === "Escape") { toggleDemo(false); return; }
-    if (ev.key === "ArrowDown") { ev.preventDefault(); cursor = Math.min(cursor + 1, filtered().length - 1); renderResults(); }
-    if (ev.key === "ArrowUp") { ev.preventDefault(); cursor = Math.max(0, cursor - 1); renderResults(); }
-    if (ev.key === "Enter") {
-      var list = filtered();
-      if (list[cursor]) select(list[cursor]);
-    }
-  });
-
-  function updateCount() { countEl.textContent = choices().length; }
-
-  /* ---------- Tabs ---------- */
-  document.querySelectorAll(".tabs").forEach(function (wrap) {
-    wrap.querySelectorAll(".tab").forEach(function (tab) {
-      tab.addEventListener("click", function () {
-        wrap.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
-        tab.classList.add("active");
-        var target = tab.getAttribute("data-tab");
-        var panes = wrap.parentElement.querySelectorAll(".tab-pane");
-        panes.forEach(function (pane) { pane.classList.toggle("active", pane.id === target); });
-      });
-    });
-  });
-
-  document.getElementById("year").textContent = new Date().getFullYear();
-  renderRail();
-  renderResults();
-  updateCount();
-})();
+  // copy install command
+  const copy = document.getElementById('copy')
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(copy.dataset.cmd) } catch {}
+    copy.textContent = '已复制 ✓'
+    copy.classList.add('done')
+    setTimeout(() => { copy.textContent = '复制'; copy.classList.remove('done') }, 1600)
+  })
 </script>
 </body>
 </html>

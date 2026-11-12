@@ -1,27 +1,37 @@
 <div align="center">
-  <img src="assets/icon.svg" width="96" height="96" alt="DSH Model Palette" />
-  <h1>dsh-model-palette</h1>
-  <p>
-    <strong>DeepSeek Harness Web 的全局供应商感知模型命令面板</strong>
-  </p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg" />
+    <img src="assets/banner-light.svg" alt="dsh-model-palette — DeepSeek Harness 全局模型命令面板" width="100%" />
+  </picture>
   <p>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases"><img src="https://img.shields.io/github/v/release/Jensen-Yao/dsh-model-palette" alt="Latest Release" /></a>
-    <a href="https://www.npmjs.com/package/dsh-model-palette"><img src="https://img.shields.io/badge/dsh-plugin-4.0.1+-6a4cff" alt="DSH Plugin" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases"><img src="https://img.shields.io/github/v/release/Jensen-Yao/dsh-model-palette?color=D97757" alt="Latest Release" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1"><img src="https://img.shields.io/badge/version-0.21.1-D97757" alt="v0.21.1" /></a>
+    <a href="https://jensen-yao.github.io/dsh-model-palette/"><img src="https://img.shields.io/badge/项目主页-Claude%20风格-7A8B6F" alt="项目主页" /></a>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.md"><img src="https://img.shields.io/badge/English-Doc-0078ff" alt="English Doc" /></a>
   </p>
   <p>
-    <kbd>Alt+M</kbd> &nbsp;·&nbsp; 模糊搜索 &nbsp;·&nbsp; 供应商筛选 &nbsp;·&nbsp; 模型配置 &nbsp;·&nbsp; OpenRouter 媒体工具
+    <kbd>Alt+M</kbd> 随处呼出 &nbsp;·&nbsp; 免登录免费模型 &nbsp;·&nbsp; Codex 式推理档位 &nbsp;·&nbsp; 供应商配置 &nbsp;·&nbsp; 本地 OpenAI 网关 &nbsp;·&nbsp; OpenRouter 媒体工具
   </p>
 </div>
 
----
+**dsh-model-palette** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的一款插件，用全局命令面板取代原生模型选择器。在界面任意位置按下 **Alt+M** 或点击输入框触发器，即可跨所有供应商搜索、筛选、收藏和切换模型——还包括免登录的 Kilo + OpenCode 免费线路。
 
-**dsh-model-palette** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的一款插件，用强大的全局命令面板取代原生模型选择器。在 Web 界面的任意位置按下 **Alt+M**，或点击输入框的模型触发器，即可跨所有供应商即时搜索、筛选、收藏和切换模型。
+### 界面截图
+
+| 全部模型（按供应商分组） | 免登录免费模型线路 |
+| --- | --- |
+| ![全部模型按供应商分组](assets/screenshots/palette-models.png) | ![免登录免费模型线路](assets/screenshots/palette-free-lane.png) |
+
+| Codex 式推理档位 | 供应商与模型配置 |
+| --- | --- |
+| ![Codex 式推理档位控件](assets/screenshots/effort-meter.png) | ![供应商与模型配置](assets/screenshots/palette-config.png) |
+
+---
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-当前版本：[v0.19.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.1)。
+当前版本：[v0.21.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1)。
 
 插件同时桥接 DSH 0.1 原生设置和 DSH 0.2 基于 profile 的 SettingsForms。0.17 新增供应商 JSON 备份、批量导入预览、模型类型筛选、排序与分批显示。内置模型预置现为 487 项。
 
