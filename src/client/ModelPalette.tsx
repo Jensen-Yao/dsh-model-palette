@@ -125,6 +125,78 @@ function EffortGlyph({ id, ladder }: { id: string; ladder: number }): JSX.Elemen
 }
 
 /**
+ * Composer-seat effort picker: a single small glyph button that expands a
+ * vertical stop list in a popover below, so the seat row stays compact until
+ * the effort actually needs changing.
+ */
+function SeatEffortPopover({ value, options, defaultLabel, label, disabled, onChange }: Omit<EffortControlProps, 'compact'>): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
+  const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
+  useEffect(() => {
+    if (!open) return
+    const POPOVER_WIDTH = 316
+    const update = () => {
+      const rect = anchorRef.current?.getBoundingClientRect()
+      if (rect === undefined) return
+      const centered = rect.left + rect.width / 2 - POPOVER_WIDTH / 2
+      const left = Math.min(Math.max(8, centered), Math.max(8, window.innerWidth - POPOVER_WIDTH - 8))
+      setPosition({ top: rect.bottom + 8, left })
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (popoverRef.current?.contains(target) || anchorRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.stopPropagation(); setOpen(false) }
+    }
+    update()
+    window.addEventListener('resize', update)
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [open])
+  return (
+    <div className="dmp-seat-effort">
+      <button
+        ref={anchorRef}
+        type="button"
+        className={`dmp-seat-effort-btn${open ? ' is-open' : ''}`}
+        disabled={disabled}
+        title={`${label}: ${activeName}`}
+        aria-label={`${label}: ${activeName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+      >
+        <span className="dmp-seat-effort-name">{activeName}</span>
+        <span className="dmp-seat-effort-caret" aria-hidden="true">▾</span>
+      </button>
+      {open && position !== null && createPortal(
+        <div ref={popoverRef} className="dmp-seat-effort-pop" style={position}>
+          <EffortControl
+            value={value}
+            options={options}
+            defaultLabel={defaultLabel}
+            label={label}
+            disabled={disabled}
+            onChange={onChange}
+          />
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
+/**
  * Diagram-style discrete reasoning-effort control. Stops come from the current
  * model's declared efforts only, prefixed by the provider default; a sliding
  * thumb animates between stops instead of a raw range slider.
@@ -610,8 +682,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       {!open && error !== null && <span className="dmp-launcher-error" role="alert">{error}<button type="button" aria-label={t('quick.dismissError')} onClick={() => setError(null)}>×</button></span>}
 
       {!locked && available && hasEffortControl && (
-        <EffortControl
-          compact
+        <SeatEffortPopover
           value={currentEffort}
           options={reasoningOptions}
           defaultLabel={t('palette.providerDefault')}
@@ -802,6 +873,32 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
               ) : view === 'relay' ? (
                 <RelayPanel onOpenConfig={() => changeView('config')} t={t} />
               ) : <main className="dmp-results">
+                {(() => {
+                  const selectedProvider = providerId === null ? undefined : snapshot.groups.find(group => group.id === providerId)
+                  if (selectedProvider === undefined) return null
+                  const isFreeLane = selectedProvider.id === FREE_LANE_PROVIDER_ID
+                  const displayName = isFreeLane ? t('palette.freeLaneName') : selectedProvider.name
+                  const refreshable = providerHasFreeModels(selectedProvider.id, selectedProvider.models.map(model => model.id))
+                  const refreshState = providerRefresh?.id === selectedProvider.id ? providerRefresh : null
+                  if (!refreshable) return null
+                  return (
+                    <div className="dmp-provider-header">
+                      <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(selectedProvider.id).icon} size={14} colored /></span>
+                      <strong>{displayName}</strong>
+                      <small>{selectedProvider.models.length}</small>
+                      <button
+                        type="button"
+                        className={`dmp-provider-header-refresh${refreshState?.phase === 'busy' ? ' is-busy' : refreshState?.phase === 'ok' ? ' is-done' : ''}`}
+                        disabled={selectionDisabled || refreshState?.phase === 'busy'}
+                        title={t('palette.freeRefresh', { provider: displayName })}
+                        onClick={() => void refreshProviderFreeModels(selectedProvider)}
+                      >
+                        <span aria-hidden="true">⟳</span>
+                        {refreshState?.phase === 'busy' ? t('palette.freeRefreshRunning') : t('palette.freeRefreshShort')}
+                      </button>
+                    </div>
+                  )
+                })()}
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
                 {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty"><span>{t('palette.empty')}</span><button type="button" onClick={resetFilters}>{t('palette.resetFilters')}</button></div>}
                 {(() => {

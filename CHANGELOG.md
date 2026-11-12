@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.21.2 - 2026-11-13
+
+- Selecting a provider now shows a header bar above its model list with a
+  prominent "Update free models" action on the right (busy/done states), for
+  every free-capable route including the keyless lane; the rail's compact
+  refresh affordances stay visible at half opacity instead of hover-only.
+- The composer-seat effort control collapses into a small chip showing the
+  current level name; clicking expands the Codex-style slider meter in a
+  popover centered directly below it, adjustable in place, closing on Escape
+  or outside click.
+
 ## 0.21.1 - 2026-11-13
 
 - Craft pass over the palette: capacity badges settle into quiet tabular text that only gains a pill on hover/cursor/current rows (free stays green), row metadata demotes provider names and sets the model id in monospace, and the rail's active item gains a visible 3px brand indicator bar.
