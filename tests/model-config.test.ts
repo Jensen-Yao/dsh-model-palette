@@ -14,6 +14,7 @@ import {
   mergeDiscoveredModelsWithPresets,
   materializeProviderModels,
   nextProviderCopyId,
+  prefillFreeReasoningEfforts,
   nextProtocolBranchId,
   repairProviderCompatibility,
   ensureModelReasoning,
@@ -358,5 +359,25 @@ describe('capacity badges and render limit', () => {
     expect(applyModelRenderLimit(items, true)).toEqual({ rendered: items, hidden: 0 })
     const small = items.slice(0, 59)
     expect(applyModelRenderLimit(small, false).hidden).toBe(0)
+  })
+})
+
+describe('free-model reasoning prefill', () => {
+  it('fills efforts only for reasoning-capable free models without manual values', () => {
+    const models = [
+      { id: 'a/manual:free', name: 'Manual', reasoningEfforts: { low: 'low' } },
+      { id: 'b/thinker:free', name: 'Thinker' },
+      { id: 'c/plain:free', name: 'Plain' },
+    ]
+    const result = prefillFreeReasoningEfforts(models, new Set(['a/manual:free', 'b/thinker:free']))
+    expect(result.prefilled).toBe(1)
+    expect(result.models[0]).toBe(models[0])
+    expect(result.models[1]!.reasoningEfforts).toEqual({ off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high' })
+    expect(result.models[2]!.reasoningEfforts).toBeUndefined()
+  })
+
+  it('leaves lists untouched when no reasoning ids are known', () => {
+    const models = [{ id: 'b/thinker:free', name: 'Thinker' }]
+    expect(prefillFreeReasoningEfforts(models, new Set())).toEqual({ models, prefilled: 0 })
   })
 })

@@ -1,22 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { Fragment } from 'react'
 import { ConfigPanel } from './ConfigPanel.tsx'
 import { QuickProfilesPanel } from './QuickProfilesPanel.tsx'
 import { useQuickProfiles } from './quick-profiles-store.ts'
 import { MediaPanel } from './MediaPanel.tsx'
-import { resolveProviderModels } from './config-api.ts'
+import { refreshFreeModelCatalog, resolveProviderModels, syncProviderFreeModels } from './config-api.ts'
 import type { RankOptions } from './model.ts'
 import { RelayPanel } from './RelayPanel.tsx'
-import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
+import { choiceKey, currentChoice, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, providerHasFreeModels, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
 import { ProviderIcon } from './ProviderIcon.tsx'
 import { providerMeta } from './provider-catalog.ts'
 import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
-import type { ModelChoice, PaletteProps, Selection } from './types.ts'
+import type { CatalogGroup, ModelChoice, PaletteProps, Selection } from './types.ts'
 
 const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
 const RECENTS_KEY = 'dsh-model-palette:recents:v1'
+const RAIL_WIDTH_KEY = 'dsh-model-palette:rail-width:v1'
+const RAIL_WIDTH_DEFAULT = 236
+const RAIL_WIDTH_MIN = 180
+const RAIL_WIDTH_MAX = 440
 type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay' | 'quick'
+
+function readRailWidth(): number {
+  try {
+    const parsed = Number(localStorage.getItem(RAIL_WIDTH_KEY))
+    if (Number.isFinite(parsed) && parsed >= RAIL_WIDTH_MIN && parsed <= RAIL_WIDTH_MAX) return parsed
+  } catch { /* storage unavailable */ }
+  return RAIL_WIDTH_DEFAULT
+}
 
 interface ModelBadges {
   context?: number
@@ -58,7 +72,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-interface EffortSliderProps {
+interface EffortControlProps {
   value: string
   options: ReadonlyArray<{ id: string; name: string }>
   defaultLabel: string
@@ -69,51 +83,84 @@ interface EffortSliderProps {
   onChange: (value: string) => void
 }
 
-/**
- * Codex-style discrete reasoning-effort slider. Stops come from the current
- * model's declared efforts only, prefixed by the provider default.
- */
-function EffortSlider({ value, options, defaultLabel, label, disabled, compact = false, onChange }: EffortSliderProps): JSX.Element {
-  const stops = ['', ...options.map(option => option.id)]
-  const index = value === '' ? 0 : Math.max(0, stops.indexOf(value))
-  const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
-  if (compact) {
+/** Filled-dot count per reasoning level; the dot grid reads as an intensity meter. */
+const EFFORT_GLYPH_DOTS: Record<string, number> = { minimal: 1, low: 2, medium: 3, high: 4, xhigh: 5, max: 6 }
+
+function EffortGlyph({ id }: { id: string }): JSX.Element {
+  if (id === '') {
     return (
-      <div className={`dmp-effort-slider is-compact${disabled ? ' is-busy' : ''}`} title={`${label}: ${activeName}`}>
-        <span className="dmp-effort-slider-value">{activeName}</span>
-        <input
-          type="range"
-          min={0}
-          max={stops.length - 1}
-          step={1}
-          value={Math.min(index, stops.length - 1)}
-          disabled={disabled}
-          aria-label={label}
-          onChange={event => onChange(stops[Number(event.currentTarget.value)])}
-        />
-      </div>
+      <svg className="dmp-effort-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+        <circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
     )
   }
+  if (id === 'off') {
+    return (
+      <svg className="dmp-effort-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+        <circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <line x1="1.7" y1="10.3" x2="10.3" y2="1.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  const filled = EFFORT_GLYPH_DOTS[id] ?? 3
+  const dots = [[2.2, 2.2], [6.6, 2.2], [11, 2.2], [2.2, 6.6], [6.6, 6.6], [11, 6.6]]
   return (
-    <div className={`dmp-effort-slider${disabled ? ' is-busy' : ''}`}>
-      <div className="dmp-effort-slider-head">
-        <span>{label}</span>
-        <strong>{activeName}</strong>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={stops.length - 1}
-        step={1}
-        value={Math.min(index, stops.length - 1)}
-        disabled={disabled}
+    <svg className="dmp-effort-glyph" viewBox="0 0 13.2 8.8" width="14" height="10" aria-hidden="true" focusable="false">
+      {dots.map(([cx, cy], index) => (
+        <circle key={`${cx}:${cy}`} cx={cx} cy={cy} r="1.75" fill="currentColor" opacity={index < filled ? 1 : 0.22} />
+      ))}
+    </svg>
+  )
+}
+
+/**
+ * Diagram-style discrete reasoning-effort control. Stops come from the current
+ * model's declared efforts only, prefixed by the provider default; a sliding
+ * thumb animates between stops instead of a raw range slider.
+ */
+function EffortControl({ value, options, defaultLabel, label, disabled, compact = false, onChange }: EffortControlProps): JSX.Element {
+  const stops = [{ id: '', name: defaultLabel }, ...options.map(option => ({ id: option.id, name: option.name }))]
+  const index = value === '' ? 0 : Math.max(0, stops.findIndex(stop => stop.id === value))
+  const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
+  const select = (next: number) => {
+    if (!disabled && stops[next] !== undefined && stops[next]!.id !== value) onChange(stops[next]!.id)
+  }
+  return (
+    <div className={`dmp-effort-seg${compact ? ' is-compact' : ''}${disabled ? ' is-busy' : ''}`} title={`${label}: ${activeName}`}>
+      {compact
+        ? <span className="dmp-effort-seg-value">{activeName}</span>
+        : (
+          <div className="dmp-effort-seg-head">
+            <span>{label}</span>
+            <strong>{activeName}</strong>
+          </div>
+        )}
+      <div
+        className="dmp-effort-seg-track"
+        role="radiogroup"
         aria-label={label}
-        onChange={event => onChange(stops[Number(event.currentTarget.value)])}
-      />
-      <div className="dmp-effort-slider-scale">
-        <span className={value === '' ? 'is-on' : ''}>{defaultLabel}</span>
-        {options.map(option => (
-          <span key={option.id} className={option.id === value ? 'is-on' : ''}>{option.name}</span>
+        onKeyDown={event => {
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+          event.preventDefault()
+          const next = Math.min(stops.length - 1, Math.max(0, index + (event.key === 'ArrowRight' ? 1 : -1)))
+          select(next)
+          ;(event.currentTarget.querySelectorAll('button')[next] as HTMLElement | undefined)?.focus()
+        }}
+      >
+        <span className="dmp-effort-seg-thumb" style={{ width: `${100 / stops.length}%`, transform: `translateX(${index * 100}%)` }} />
+        {stops.map((stop, stopIndex) => (
+          <button
+            key={stop.id === '' ? 'default' : stop.id}
+            type="button"
+            role="radio"
+            aria-checked={stopIndex === index}
+            className={stopIndex === index ? 'is-active' : ''}
+            disabled={disabled}
+            title={`${label}: ${stop.name}`}
+            onClick={() => select(stopIndex)}
+          >
+            <EffortGlyph id={stop.id} />
+          </button>
         ))}
       </div>
     </div>
@@ -149,11 +196,83 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([])
 
+  const [railWidth, setRailWidth] = useState(readRailWidth)
+  const railDragRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  useEffect(() => {
+    try { localStorage.setItem(RAIL_WIDTH_KEY, String(railWidth)) } catch { /* storage unavailable */ }
+  }, [railWidth])
+  const onRailResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    railDragRef.current = { startX: event.clientX, startWidth: railWidth }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const onRailResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = railDragRef.current
+    if (drag === null) return
+    const next = Math.round(Math.min(RAIL_WIDTH_MAX, Math.max(RAIL_WIDTH_MIN, drag.startWidth + event.clientX - drag.startX)))
+    setRailWidth(current => current === next ? current : next)
+  }
+  const onRailResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (railDragRef.current === null) return
+    railDragRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const [providerRefresh, setProviderRefresh] = useState<{ id: string; phase: 'busy' | 'ok'; note?: string } | null>(null)
+  useEffect(() => {
+    if (providerRefresh === null || providerRefresh.phase !== 'ok') return
+    const timer = setTimeout(() => setProviderRefresh(null), 6000)
+    return () => clearTimeout(timer)
+  }, [providerRefresh])
+  const refreshProviderFreeModels = async (provider: CatalogGroup) => {
+    if (locked || !available || providerRefresh?.phase === 'busy') return
+    setProviderRefresh({ id: provider.id, phase: 'busy' })
+    try {
+      let total = 0
+      let added = 0
+      let removed = 0
+      if (provider.id === 'dsh-free-models') {
+        const summary = await refreshFreeModelCatalog({ force: true })
+        total = summary.available
+        added = summary.added
+        removed = summary.removed
+      } else {
+        const summary = await syncProviderFreeModels(provider.id, { manual: true })
+        total = summary.total
+        added = summary.added
+        removed = summary.removed
+      }
+      setProviderRefresh({
+        id: provider.id,
+        phase: 'ok',
+        note: t('palette.freeRefreshed', { provider: provider.name, total, added, removed }),
+      })
+      load()
+    } catch (cause) {
+      setProviderRefresh(null)
+      setError(t('palette.freeRefreshFailed', { provider: provider.name, message: messageOf(cause) }))
+    }
+  }
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const toggleGroupCollapsed = (providerId: string) => {
+    setCollapsedGroups(current => {
+      const next = new Set(current)
+      if (next.has(providerId)) next.delete(providerId)
+      else next.add(providerId)
+      return next
+    })
+  }
+
   const providers = useMemo(() => {
     const currentProvider = snapshot.current?.provider
     return [...snapshot.groups].sort((left, right) => {
-      if (left.id === currentProvider) return -1
-      if (right.id === currentProvider) return 1
+      // The keyless free lane is pinned right after the current provider so it
+      // stays discoverable instead of sinking into the alphabetical pile.
+      const rank = (id: string | null | undefined) => id === currentProvider ? 0 : id === FREE_LANE_PROVIDER_ID ? 1 : 2
+      const leftRank = rank(left.id)
+      const rightRank = rank(right.id)
+      if (leftRank !== rightRank) return leftRank - rightRank
       return left.name.localeCompare(right.name)
     })
   }, [snapshot.groups, snapshot.current?.provider])
@@ -166,7 +285,45 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     current: snapshot.current,
     quickFilter, capability, sort,
   }), [choices, query, providerId, favorites, recents, snapshot.current, quickFilter, capability, sort])
-  const displayedResults = results.slice(0, Math.max(resultLimit, cursor + 1))
+  // Unfiltered browsing of a large catalog groups rows by provider so the list
+  // stays scannable; searching, filtering, or name sorting falls back to a flat list.
+  const grouped = useMemo(() => (
+    query === '' && providerId === null && quickFilter === 'all' && sort !== 'name' && results.length > 1
+      ? groupChoicesByProvider(results, snapshot.current?.provider)
+      : null
+  ), [query, providerId, quickFilter, sort, results, snapshot.current?.provider])
+  const rows = useMemo(() => grouped === null
+    ? results
+    : grouped.filter(group => !collapsedGroups.has(group.provider.id)).flatMap(group => group.choices),
+  [grouped, results, collapsedGroups])
+  // Group headers stay rendered even when collapsed (they carry the expand
+  // control), so a collapsed group can always be found and reopened.
+  type ResultItem = { kind: 'header'; group: NonNullable<typeof grouped>[number] } | { kind: 'choice'; choice: ModelChoice }
+  const renderItems = useMemo<Array<ResultItem>>(() => {
+    if (grouped === null) return results.map(choice => ({ kind: 'choice', choice }) as ResultItem)
+    const items: Array<ResultItem> = []
+    for (const group of grouped) {
+      items.push({ kind: 'header', group })
+      if (!collapsedGroups.has(group.provider.id)) {
+        for (const choice of group.choices) items.push({ kind: 'choice', choice })
+      }
+    }
+    return items
+  }, [grouped, results, collapsedGroups])
+  const choiceBudget = Math.max(resultLimit, cursor + 1)
+  const displayedItems = useMemo(() => {
+    const items: Array<ResultItem> = []
+    let shown = 0
+    for (const item of renderItems) {
+      if (item.kind === 'choice') {
+        if (shown >= choiceBudget) break
+        shown += 1
+      }
+      items.push(item)
+    }
+    return items
+  }, [renderItems, choiceBudget])
+  const displayedChoiceCount = displayedItems.reduce((count, item) => count + (item.kind === 'choice' ? 1 : 0), 0)
 
   const favoriteCount = useMemo(() => choices.filter(choice => favorites.includes(choice.key)).length, [choices, favorites])
   const recentCount = useMemo(() => choices.filter(choice => recents.includes(choice.key)).length, [choices, recents])
@@ -205,6 +362,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
   const resetFilters = () => {
     setQuery(''); setProviderId(null); setQuickFilter('all'); setCapability('all'); setSort('recommended')
+    setCollapsedGroups(new Set())
   }
 
   useEffect(() => {
@@ -303,7 +461,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       if (view !== 'models' || event.target !== searchRef.current) return
       if (event.key === 'ArrowDown') {
         event.preventDefault()
-        setCursor((value) => Math.min(value + 1, Math.max(0, results.length - 1)))
+        setCursor((value) => Math.min(value + 1, Math.max(0, rows.length - 1)))
         return
       }
       if (event.key === 'ArrowUp') {
@@ -311,14 +469,14 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         setCursor((value) => Math.max(0, value - 1))
         return
       }
-      if (event.key === 'Enter' && results[cursor] !== undefined) {
+      if (event.key === 'Enter' && rows[cursor] !== undefined) {
         event.preventDefault()
-        void choose(results[cursor])
+        void choose(rows[cursor])
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, locked, available, results, cursor, view, activate, previousSelection, quickProfiles, close, show])
+  }, [open, locked, available, rows, cursor, view, activate, previousSelection, quickProfiles, close, show])
 
   useEffect(() => {
     setCursor(0)
@@ -326,15 +484,17 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }, [query, providerId, quickFilter, capability, sort])
 
   useEffect(() => {
-    setCursor((value) => Math.min(value, Math.max(0, results.length - 1)))
-  }, [results.length])
+    setCursor((value) => Math.min(value, Math.max(0, rows.length - 1)))
+  }, [rows.length])
 
   useEffect(() => {
     rowRefs.current[cursor]?.scrollIntoView({ block: 'nearest' })
   }, [cursor])
 
   const currentLabel = current?.model.name ?? snapshot.current?.model ?? t('trigger.fallback')
-  const providerLabel = current?.provider.name ?? snapshot.current?.provider
+  const providerLabel = current === undefined
+    ? snapshot.current?.provider
+    : current.provider.id === FREE_LANE_PROVIDER_ID ? t('palette.freeLaneName') : current.provider.name
   const currentReasoning = current?.model.reasoning
   const currentEffort = snapshot.current?.reasoningEffort ?? currentReasoning?.defaultEffort ?? ''
   // Stops follow the current model's declared efforts only, in canonical order —
@@ -350,7 +510,12 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     })
   const hasEffortControl = snapshot.current !== null && reasoningOptions.length > 0
   const [badges, setBadges] = useState<Map<string, ModelBadges>>(new Map())
-  const badgeTargetsKey = JSON.stringify(displayedResults.map(choice => [choice.provider.id, choice.model.id]).sort())
+  const badgeTargetsKey = JSON.stringify(
+    displayedItems.reduce<Array<[string, string]>>((targets, item) => {
+      if (item.kind === 'choice') targets.push([item.choice.provider.id, item.choice.model.id])
+      return targets
+    }, []).sort(),
+  )
   useEffect(() => {
     if (!open || view !== 'models') return
     const controller = new AbortController()
@@ -417,7 +582,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
       {!open && error !== null && <span className="dmp-launcher-error" role="alert">{error}<button type="button" aria-label={t('quick.dismissError')} onClick={() => setError(null)}>×</button></span>}
 
       {!locked && available && hasEffortControl && (
-        <EffortSlider
+        <EffortControl
           compact
           value={currentEffort}
           options={reasoningOptions}
@@ -472,7 +637,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 </select>
               </label>
               {hasFilters && <button type="button" className="dmp-reset-filters" onClick={resetFilters}>{t('palette.resetFilters')}</button>}
-              <span role="status">{t('palette.resultCount', { count: results.length })}</span>
+              <span role="status">{t('palette.resultCount', { count: rows.length })}</span>
             </div>}
 
             {(error !== null || view === 'models' && snapshot.error !== null) && (
@@ -482,7 +647,11 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
               </div>
             )}
 
-            <div className="dmp-body">
+            {providerRefresh?.phase === 'ok' && providerRefresh.note !== undefined && (
+              <div className="dmp-status" role="status">{providerRefresh.note}</div>
+            )}
+
+            <div className="dmp-body" style={{ gridTemplateColumns: `${railWidth}px 5px minmax(0, 1fr)` }}>
               <nav className="dmp-providers" aria-label={t('palette.providers')}>
                 <button type="button" className={`dmp-media-nav${view === 'quick' ? ' is-active' : ''}`} onClick={() => changeView('quick')}>
                   <span>{t('quick.nav')}</span><small>{quickProfiles.length || '+'}</small>
@@ -539,19 +708,51 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 </button>
                 <div className="dmp-provider-divider" />
                 <div className="dmp-provider-group-label">{t('palette.configuredProviders')}</div>
-                {providers.map((provider) => (
-                  <button
-                    key={provider.id}
-                    type="button"
-                    className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
-                    onClick={() => { if (changeView('models')) { setProviderId(provider.id); setQuickFilter('all') } }}
-                    title={`${provider.name} · ${provider.id}`}
-                  >
-                    <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
-                    <span>{provider.name}</span><small>{provider.models.length}</small>
-                  </button>
-                ))}
+                {providers.map((provider) => {
+                  const refreshable = providerHasFreeModels(provider.id, provider.models.map(model => model.id))
+                  const refreshState = providerRefresh?.id === provider.id ? providerRefresh : null
+                  const isFreeLane = provider.id === FREE_LANE_PROVIDER_ID
+                  const displayName = isFreeLane ? t('palette.freeLaneName') : provider.name
+                  return (
+                    <div key={provider.id} className={`dmp-provider-item${isFreeLane ? ' is-free-lane' : ''}`}>
+                      <button
+                        type="button"
+                        className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
+                        onClick={() => { if (changeView('models')) { setProviderId(provider.id); setQuickFilter('all') } }}
+                        title={`${displayName} · ${provider.id}${isFreeLane ? ` · ${t('palette.freeLaneHint')}` : ''}`}
+                      >
+                        <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
+                        <span>{displayName}</span>
+                        <small>{provider.models.length}</small>
+                        {isFreeLane && <em className="dmp-rail-free">FREE</em>}
+                      </button>
+                      {refreshable && (
+                        <button
+                          type="button"
+                          className={`dmp-provider-refresh${refreshState?.phase === 'busy' ? ' is-busy' : refreshState?.phase === 'ok' ? ' is-done' : ''}`}
+                          disabled={selectionDisabled || refreshState?.phase === 'busy'}
+                          title={t('palette.freeRefresh', { provider: displayName })}
+                          aria-label={t('palette.freeRefresh', { provider: displayName })}
+                          onClick={() => void refreshProviderFreeModels(provider)}
+                        >⟳</button>
+                      )}
+                    </div>
+                  )
+                })}
               </nav>
+
+              <div
+                className="dmp-rail-resizer"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('palette.railResize')}
+                title={t('palette.railResizeHint')}
+                onPointerDown={onRailResizeStart}
+                onPointerMove={onRailResizeMove}
+                onPointerUp={onRailResizeEnd}
+                onPointerCancel={onRailResizeEnd}
+                onDoubleClick={() => setRailWidth(RAIL_WIDTH_DEFAULT)}
+              />
 
               {view === 'quick' ? (
                 <QuickProfilesPanel profiles={quickProfiles} current={snapshot.current} choices={choices} busy={selectionDisabled}
@@ -565,61 +766,83 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
               ) : <main className="dmp-results">
                 {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
                 {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty"><span>{t('palette.empty')}</span><button type="button" onClick={resetFilters}>{t('palette.resetFilters')}</button></div>}
-                {displayedResults.map((choice, index) => {
-                  const isCurrent = snapshot.current?.provider === choice.provider.id && snapshot.current.model === choice.model.id
-                  const isFavorite = favorites.includes(choice.key)
-                  const isRecent = recents.includes(choice.key)
-                  return (
-                    <div
-                      key={choice.key}
-                      className={`dmp-result${index === cursor ? ' is-cursor' : ''}${isCurrent ? ' is-current' : ''}`}
-                      onMouseEnter={() => setCursor(index)}
-                    >
-                      <button
-                        ref={(node) => { rowRefs.current[index] = node }}
-                        type="button"
-                        className="dmp-result-select"
-                        disabled={selectionDisabled}
-                        onClick={() => void choose(choice)}
+                {(() => {
+                  let choiceIndex = 0
+                  return displayedItems.map(item => {
+                    if (item.kind === 'header') {
+                      const collapsed = collapsedGroups.has(item.group.provider.id)
+                      const isFreeLane = item.group.provider.id === FREE_LANE_PROVIDER_ID
+                      return (
+                        <div key={`header:${item.group.provider.id}`} className={`dmp-group-header${collapsed ? ' is-collapsed' : ''}`}>
+                          <button type="button" onClick={() => toggleGroupCollapsed(item.group.provider.id)} aria-expanded={!collapsed}>
+                            <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(item.group.provider.id).icon} size={13} colored /></span>
+                            <strong>{isFreeLane ? t('palette.freeLaneName') : item.group.provider.name}</strong>
+                            <small>{item.group.choices.length}</small>
+                            {isFreeLane && <em className="dmp-rail-free">FREE</em>}
+                            <svg className="dmp-group-chevron" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true" focusable="false">
+                              <path d="M1 1.2 5 5.2 9 1.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        </div>
+                      )
+                    }
+                    const choice = item.choice
+                    const index = choiceIndex++
+                    const isCurrent = snapshot.current?.provider === choice.provider.id && snapshot.current.model === choice.model.id
+                    const isFavorite = favorites.includes(choice.key)
+                    const isRecent = recents.includes(choice.key)
+                    const isFree = isFreeChoice(choice.provider.id, choice.model.id)
+                    return (
+                      <div
+                        key={choice.key}
+                        className={`dmp-result${index === cursor ? ' is-cursor' : ''}${isCurrent ? ' is-current' : ''}`}
+                        onMouseEnter={() => setCursor(index)}
                       >
-                        <span className="dmp-result-main">
-                          <span className="dmp-result-title">
-                            {choice.model.name}
-                            {(() => {
-                              const badge = badges.get(choice.key)
-                              if (badge === undefined) return null
-                              return (
-                                <span className="dmp-result-badges">
-                                  {badge.free && <em className="is-free">free</em>}
-                                  {badge.image && <em title="vision">👁</em>}
-                                  {badge.context !== undefined && <em>{formatTokenCount(badge.context)}</em>}
-                                  {badge.output !== undefined && <em>↩{formatTokenCount(badge.output)}</em>}
-                                </span>
-                              )
-                            })()}
-                            {isCurrent && <em>{t('palette.current')}</em>}
-                            {isRecent && !isCurrent && <em>{t('palette.recent')}</em>}
+                        <button
+                          ref={(node) => { rowRefs.current[index] = node }}
+                          type="button"
+                          className="dmp-result-select"
+                          disabled={selectionDisabled}
+                          onClick={() => void choose(choice)}
+                        >
+                          <span className="dmp-result-main">
+                            <span className="dmp-result-title">
+                              {choice.model.name}
+                              {(() => {
+                                const badge = badges.get(choice.key)
+                                return (
+                                  <span className="dmp-result-badges">
+                                    {isFree && <em className="is-free">free</em>}
+                                    {badge?.image && <em title="vision">👁</em>}
+                                    {badge?.context !== undefined && <em>{formatTokenCount(badge.context)}</em>}
+                                    {badge?.output !== undefined && <em>↩{formatTokenCount(badge.output)}</em>}
+                                  </span>
+                                )
+                              })()}
+                              {isCurrent && <em>{t('palette.current')}</em>}
+                              {isRecent && !isCurrent && <em>{t('palette.recent')}</em>}
+                            </span>
+                            <span className="dmp-result-meta">
+                              <strong>{choice.provider.id === FREE_LANE_PROVIDER_ID ? t('palette.freeLaneName') : choice.provider.name}</strong>
+                              <span>{choice.model.id}</span>
+                            </span>
+                            {choice.model.description !== undefined && <span className="dmp-result-description">{choice.model.description}</span>}
                           </span>
-                          <span className="dmp-result-meta">
-                            <strong>{choice.provider.name}</strong>
-                            <span>{choice.model.id}</span>
-                          </span>
-                          {choice.model.description !== undefined && <span className="dmp-result-description">{choice.model.description}</span>}
-                        </span>
-                        {choice.model.reasoning !== undefined && <span className="dmp-reasoning">R</span>}
-                      </button>
-                      <button
-                        type="button"
-                        className={`dmp-star${isFavorite ? ' is-favorite' : ''}`}
-                        title={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
-                        aria-label={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
-                        onClick={() => setFavorites(toggleFavorite(favorites, choice.key))}
-                      >★</button>
-                    </div>
-                  )
-                })}
-                {displayedResults.length < results.length && <button type="button" className="dmp-load-more" onClick={() => setResultLimit(Math.max(resultLimit, cursor + 1) + RESULT_PAGE_SIZE)}>
-                  {t('palette.showMore', { count: results.length - displayedResults.length })}
+                          {choice.model.reasoning !== undefined && <span className="dmp-reasoning">R</span>}
+                        </button>
+                        <button
+                          type="button"
+                          className={`dmp-star${isFavorite ? ' is-favorite' : ''}`}
+                          title={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
+                          aria-label={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
+                          onClick={() => setFavorites(toggleFavorite(favorites, choice.key))}
+                        >★</button>
+                      </div>
+                    )
+                  })
+                })()}
+                {displayedChoiceCount < rows.length && <button type="button" className="dmp-load-more" onClick={() => setResultLimit(Math.max(resultLimit, cursor + 1) + RESULT_PAGE_SIZE)}>
+                  {t('palette.showMore', { count: rows.length - displayedChoiceCount })}
                 </button>}
               </main>}
             </div>
@@ -634,7 +857,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
               {hasEffortControl && (
-                <EffortSlider
+                <EffortControl
                   value={currentEffort}
                   options={reasoningOptions}
                   defaultLabel={t('palette.providerDefault')}

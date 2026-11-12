@@ -22,6 +22,11 @@ let snapshot: DirectorySnapshot = {
   current: { provider: 'custom', model: 'custom-model', reasoningEffort: 'high' }, status: 'ready', failures: [], error: null,
   groups: [
     { id: 'custom', name: '自定义供应商', models: [{ id: 'custom-model', name: 'Custom Model', reasoning: { defaultEffort: 'high', efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }] } }, ...Array.from({ length: 180 }, (_, i) => ({ id: `model-${i}`, name: `Model ${String(i).padStart(3, '0')}` }))] },
+    { id: 'dsh-free-models', name: 'Free Models', models: [
+      { id: 'deepseek-v4.1-flash-free', name: 'DeepSeek V4.1 Flash', reasoning: { defaultEffort: 'high', efforts: [{ id: 'off', name: 'Off' }, { id: 'low', name: 'Low' }, { id: 'medium', name: 'Medium' }, { id: 'high', name: 'High' }] } },
+      { id: 'big-pickle', name: 'Big Pickle' },
+      { id: 'kilo-auto/free', name: 'Auto Free' },
+    ] },
     { id: 'openrouter-free', name: 'OpenRouter 免费', models: [{ id: 'vendor/reasoner:free', name: 'Free Reasoner', reasoning: { efforts: [{ id: 'high', name: 'High' }] } }] },
     { id: 'custom-chat', name: 'Custom Chat', models: [{ id: 'legacy-model', name: 'Legacy Model' }] },
   ],

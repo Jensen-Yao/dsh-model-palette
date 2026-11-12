@@ -4,6 +4,8 @@ import { REQUEST_RETRY_SETTINGS_NAMESPACE, resolveFreeSyncRule, resolveFreeSyncS
 const LLM_SETTINGS_NAMESPACE = 'llm-pi-ai'
 const SYNC_API_PATH = '/model-palette/api/free-sync'
 const OPENROUTER_HOST_PATTERN = /(^|\.)openrouter\.ai$/iu
+/** Reasoning levels OpenRouter documents for its unified reasoning parameter. */
+const FREE_REASONING_EFFORTS = { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high' }
 const TICK_INTERVAL_MS = 30 * 60 * 1000
 const STARTUP_DELAY_MS = 8_000
 const CATALOG_TIMEOUT_MS = 20_000
@@ -79,14 +81,15 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
     }
   }
 
-  async function syncProvider(providerId) {
+  async function syncProvider(providerId, options = {}) {
     if (stopped) throw new Error('free sync is disposed')
     const pending = inFlight.get(providerId)
     if (pending !== undefined) return pending
+    const manual = options.manual === true
     const task = (async () => {
       try {
         const settings = await pluginSettings()
-        if (resolveFreeSyncRule(settings, providerId) === undefined) {
+        if (!manual && resolveFreeSyncRule(settings, providerId) === undefined) {
           throw new Error(`free sync is not enabled for provider "${providerId}"`)
         }
         const { profile } = await providerSnapshot(settingsApi, providerId)
@@ -97,7 +100,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
         const currentSettings = await pluginSettings()
         const { profile: currentProfile, revision } = await providerSnapshot(settingsApi, providerId)
         if (stopped) throw new Error('free sync is disposed')
-        if (resolveFreeSyncRule(currentSettings, providerId) === undefined || currentProfile === undefined || !isOpenRouterRoute(currentProfile)) {
+        if ((!manual && resolveFreeSyncRule(currentSettings, providerId) === undefined) || currentProfile === undefined || !isOpenRouterRoute(currentProfile)) {
           throw new Error(`provider "${providerId}" changed during free sync; retry after reviewing its settings`)
         }
         const previous = Array.isArray(currentProfile.models)
@@ -186,6 +189,11 @@ export function mergeFreeSyncModels(previous, live, protocol) {
       if (Array.isArray(candidate.input) && candidate.input.length > 0) next.input = [...candidate.input]
       else delete next.input
     }
+    // Prefill the reasoning-effort form for catalog-declared reasoning models;
+    // a manual reasoningEfforts value is never replaced.
+    if (candidate.reasoning === true && next.reasoningEfforts === undefined) {
+      next.reasoningEfforts = structuredClone(FREE_REASONING_EFFORTS)
+    }
     if (protocol === 'openai-completions') next.compat = deepSeekCompat(next)
     else delete next.compat
     models.push(next)
@@ -229,7 +237,7 @@ function createFreeSyncHandler(runtime) {
       return
     }
     try {
-      writeJson(res, 200, { ok: true, value: await runtime.syncProvider(provider) })
+      writeJson(res, 200, { ok: true, value: await runtime.syncProvider(provider, { manual: body?.manual === true }) })
     } catch (error) {
       writeJson(res, 502, { ok: false, error: { message: `free sync failed: ${errorMessage(error)}` } })
     }

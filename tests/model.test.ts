@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { choiceKey, flattenChoices, pushRecent, rankChoices, selectionFor, toggleFavorite } from '../src/client/model.ts'
+import { choiceKey, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, providerHasFreeModels, pushRecent, rankChoices, selectionFor, toggleFavorite } from '../src/client/model.ts'
 import type { CatalogGroup } from '../src/client/types.ts'
 
 const groups: CatalogGroup[] = [
@@ -126,5 +126,50 @@ describe('selection and persistence helpers', () => {
     expect(pushRecent(['b', 'a'], 'a')).toEqual(['a', 'b'])
     expect(toggleFavorite(['a'], 'a')).toEqual([])
     expect(toggleFavorite(['a'], 'b')).toEqual(['b', 'a'])
+  })
+})
+
+describe('provider grouping and free refresh helpers', () => {
+  it('groups ranked choices by provider with the current provider first', () => {
+    const choices = flattenChoices(groups).slice().reverse()
+    const grouped = groupChoicesByProvider(choices, 'bankofai')
+    expect(grouped.map(group => group.provider.id)).toEqual(['bankofai', 'openrouter'])
+    expect(grouped[0]!.choices.map(choice => choice.model.id)).toEqual(['deepseek-v4-flash'])
+    expect(grouped[1]!.choices.map(choice => choice.model.id)).toEqual(['google/gemini-pro', 'deepseek/deepseek-v4-flash'])
+  })
+
+  it('sorts remaining groups by provider name', () => {
+    const choices = flattenChoices(groups)
+    const grouped = groupChoicesByProvider(choices, null)
+    expect(grouped.map(group => group.provider.name)).toEqual(['BankOfAI', 'OpenRouter'])
+  })
+
+  it('marks providers with free models or the keyless free lane as refreshable', () => {
+    expect(providerHasFreeModels('dsh-free-models', ['big-pickle'])).toBe(true)
+    expect(providerHasFreeModels('openrouter', ['vendor/model:free', 'vendor/paid'])).toBe(true)
+    expect(providerHasFreeModels('openrouter', ['vendor/paid'])).toBe(false)
+  })
+})
+
+describe('free lane coverage', () => {
+  const laneGroups: CatalogGroup[] = [
+    { id: 'dsh-free-models', name: 'Free Models', models: [{ id: 'big-pickle', name: 'Big Pickle' }, { id: 'kilo-auto/free', name: 'Auto Free' }] },
+    { id: 'openrouter', name: 'OpenRouter', models: [{ id: 'vendor/paid', name: 'Paid' }] },
+  ]
+  const laneChoices = flattenChoices(laneGroups)
+
+  it('treats the keyless lane and :free routes as free, paid routes as not', () => {
+    expect(isFreeChoice('dsh-free-models', 'big-pickle')).toBe(true)
+    expect(isFreeChoice('dsh-free-models', 'kilo-auto/free')).toBe(true)
+    expect(isFreeChoice('openrouter', 'vendor/model:free')).toBe(true)
+    expect(isFreeChoice('openrouter', 'vendor/paid')).toBe(false)
+  })
+
+  it('includes keyless lane rows in the free capability filter and 免费 search', () => {
+    const options = { providerId: null, favorites: [], recents: [], current: null } as const
+    expect(rankChoices(laneChoices, { ...options, query: '', capability: 'free' }).map(choice => choice.model.id))
+      .toEqual(['big-pickle', 'kilo-auto/free'])
+    expect(rankChoices(laneChoices, { ...options, query: '免费', capability: 'all' }).map(choice => choice.model.id))
+      .toEqual(['big-pickle', 'kilo-auto/free'])
   })
 })

@@ -63,7 +63,16 @@ export type OpenRouterFreeModel = {
   contextWindow?: number
   maxTokens?: number
   input: Array<'text' | 'image'>
+  reasoning?: boolean
   free: true
+}
+
+export type FreeModelRefreshSummary = {
+  total: number
+  available: number
+  added: number
+  removed: number
+  checkedAt: string
 }
 
 export type OpenRouterFreeModelCatalog = {
@@ -245,15 +254,34 @@ export type FreeSyncSummary = {
 }
 
 /** Synchronize one provider's model list to the live OpenRouter :free catalog right now. */
-export async function syncProviderFreeModels(provider: string): Promise<FreeSyncSummary> {
+export async function syncProviderFreeModels(provider: string, options: { manual?: boolean } = {}): Promise<FreeSyncSummary> {
   const response = await fetch('/model-palette/api/free-sync', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ provider }),
+    body: JSON.stringify({ provider, manual: options.manual === true }),
   })
   let payload: ConfigApiSuccess<FreeSyncSummary> | ConfigApiFailure
   try {
     payload = await response.json() as ConfigApiSuccess<FreeSyncSummary> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
+}
+
+/** Re-read the keyless free-model catalogs (Kilo + OpenCode) behind the dsh-free-models provider. */
+export async function refreshFreeModelCatalog(options: { force?: boolean } = {}): Promise<FreeModelRefreshSummary> {
+  const response = await fetch('/model-palette/api/free-models/refresh', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ force: options.force === true }),
+  })
+  let payload: ConfigApiSuccess<FreeModelRefreshSummary> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<FreeModelRefreshSummary> | ConfigApiFailure
   } catch {
     throw new Error(`Configuration API returned HTTP ${response.status}`)
   }
