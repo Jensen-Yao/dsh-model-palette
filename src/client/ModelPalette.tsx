@@ -6,10 +6,10 @@ import { ConfigPanel } from './ConfigPanel.tsx'
 import { QuickProfilesPanel } from './QuickProfilesPanel.tsx'
 import { useQuickProfiles } from './quick-profiles-store.ts'
 import { MediaPanel } from './MediaPanel.tsx'
-import { refreshFreeModelCatalog, resolveProviderModels, syncProviderFreeModels } from './config-api.ts'
+import { fetchFreeModelSnapshot, refreshFreeModelCatalog, resolveProviderModels, syncProviderFreeModels } from './config-api.ts'
 import type { RankOptions } from './model.ts'
 import { RelayPanel } from './RelayPanel.tsx'
-import { choiceKey, currentChoice, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, providerHasFreeModels, pushRecent, rankChoices, toggleFavorite } from './model.ts'
+import { choiceKey, currentChoice, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, mergeFreeLaneGroup, providerHasFreeModels, pushRecent, rankChoices, toggleFavorite, type FreeLaneSnapshot } from './model.ts'
 import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
 import { ProviderIcon } from './ProviderIcon.tsx'
 import { providerMeta } from './provider-catalog.ts'
@@ -83,10 +83,12 @@ interface EffortControlProps {
   onChange: (value: string) => void
 }
 
-/** Filled-dot count per reasoning level; the dot grid reads as an intensity meter. */
-const EFFORT_GLYPH_DOTS: Record<string, number> = { minimal: 1, low: 2, medium: 3, high: 4, xhigh: 5, max: 6 }
-
-function EffortGlyph({ id }: { id: string }): JSX.Element {
+/**
+ * Codex-style ascending-bar glyph: every stop renders the full ladder of bars
+ * (signal-strength metaphor) with bars below its level filled. The provider
+ * default shows a hollow circle; "off" shows an empty ladder.
+ */
+function EffortGlyph({ id, ladder }: { id: string; ladder: number }): JSX.Element {
   if (id === '') {
     return (
       <svg className="dmp-effort-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
@@ -94,21 +96,30 @@ function EffortGlyph({ id }: { id: string }): JSX.Element {
       </svg>
     )
   }
-  if (id === 'off') {
-    return (
-      <svg className="dmp-effort-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
-        <circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <line x1="1.7" y1="10.3" x2="10.3" y2="1.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    )
-  }
-  const filled = EFFORT_GLYPH_DOTS[id] ?? 3
-  const dots = [[2.2, 2.2], [6.6, 2.2], [11, 2.2], [2.2, 6.6], [6.6, 6.6], [11, 6.6]]
+  const rank = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].indexOf(id)
+  const filled = rank <= 0 ? 0 : rank
+  const bars = Math.max(ladder, 3)
+  const unit = 3.4
+  const gap = 2
+  const height = 14
+  const width = bars * unit + (bars - 1) * gap
   return (
-    <svg className="dmp-effort-glyph" viewBox="0 0 13.2 8.8" width="14" height="10" aria-hidden="true" focusable="false">
-      {dots.map(([cx, cy], index) => (
-        <circle key={`${cx}:${cy}`} cx={cx} cy={cy} r="1.75" fill="currentColor" opacity={index < filled ? 1 : 0.22} />
-      ))}
+    <svg className="dmp-effort-glyph" viewBox={`0 0 ${width} ${height}`} width={width} height={height} aria-hidden="true" focusable="false">
+      {Array.from({ length: bars }, (_, bar) => {
+        const barHeight = Math.max(unit, ((bar + 1) / bars) * height)
+        return (
+          <rect
+            key={bar}
+            x={bar * (unit + gap)}
+            y={height - barHeight}
+            width={unit}
+            height={barHeight}
+            rx={1}
+            fill="currentColor"
+            opacity={bar < filled ? 1 : 0.22}
+          />
+        )
+      })}
     </svg>
   )
 }
@@ -152,6 +163,7 @@ function EffortControl({ value, options, defaultLabel, label, disabled, compact 
           <button
             key={stop.id === '' ? 'default' : stop.id}
             type="button"
+            aria-label={stop.name}
             role="radio"
             aria-checked={stopIndex === index}
             className={stopIndex === index ? 'is-active' : ''}
@@ -159,7 +171,7 @@ function EffortControl({ value, options, defaultLabel, label, disabled, compact 
             title={`${label}: ${stop.name}`}
             onClick={() => select(stopIndex)}
           >
-            <EffortGlyph id={stop.id} />
+            <EffortGlyph id={stop.id} ladder={stops.length - 1} />
           </button>
         ))}
       </div>
@@ -168,9 +180,24 @@ function EffortControl({ value, options, defaultLabel, label, disabled, compact 
 }
 
 export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
-  const snapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
+  const rawSnapshot = useSyncExternalStore(directory.subscribe, directory.getSnapshot, directory.getSnapshot)
+  const [freeLane, setFreeLane] = useState<FreeLaneSnapshot | null>(null)
+  // Fetch the keyless lane once the palette can talk to the plugin host, then
+  // merge it into the directory groups whenever the catalog lacks it.
+  useEffect(() => {
+    if (locked || !available) return
+    const controller = new AbortController()
+    void fetchFreeModelSnapshot(controller.signal).then(setFreeLane, () => {})
+    return () => controller.abort()
+  }, [locked, available])
+  const snapshot = useMemo(() => (
+    rawSnapshot.groups.some(group => group.id === FREE_LANE_PROVIDER_ID)
+      ? rawSnapshot
+      : { ...rawSnapshot, groups: mergeFreeLaneGroup(rawSnapshot.groups, freeLane) }
+  ), [rawSnapshot, freeLane])
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
+  const freeLaneGroup = snapshot.groups.find(group => group.id === FREE_LANE_PROVIDER_ID)
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<ModelPaletteView>('models')
   const [query, setQuery] = useState('')
@@ -236,6 +263,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         total = summary.available
         added = summary.added
         removed = summary.removed
+        setFreeLane(await fetchFreeModelSnapshot().catch(() => freeLane))
       } else {
         const summary = await syncProviderFreeModels(provider.id, { manual: true })
         total = summary.total
@@ -653,92 +681,102 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
             <div className="dmp-body" style={{ gridTemplateColumns: `${railWidth}px 5px minmax(0, 1fr)` }}>
               <nav className="dmp-providers" aria-label={t('palette.providers')}>
-                <button type="button" className={`dmp-media-nav${view === 'quick' ? ' is-active' : ''}`} onClick={() => changeView('quick')}>
-                  <span>{t('quick.nav')}</span><small>{quickProfiles.length || '+'}</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'media' ? ' is-active' : ''}`}
-                  onClick={() => changeView('media')}
-                >
-                  <span>{t('media.nav')}</span><small>5</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'config' ? ' is-active' : ''}`}
-                  onClick={() => changeView('config')}
-                >
-                  <span>{t('config.nav')}</span><small>⚙</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'catalog' ? ' is-active' : ''}`}
-                  onClick={() => changeView('catalog')}
-                >
-                  <span>{t('palette.navCatalog')}</span><small>＋</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'relay' ? ' is-active' : ''}`}
-                  onClick={() => changeView('relay')}
-                >
-                  <span>{t('relay.nav')}</span><small>↗</small>
-                </button>
-                <div className="dmp-provider-divider" />
-                <button
-                  type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
-                  onClick={() => { if (changeView('models')) resetFilters() }}
-                >
-                  <span>{t('palette.allModels')}</span><small>{choices.length}</small>
-                </button>
-                <button
-                  type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
-                  onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('favorites') } }}
-                >
-                  <span>{t('palette.favorites')}</span><small>{favoriteCount}</small>
-                </button>
-                <button
-                  type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
-                  onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('recents') } }}
-                >
-                  <span>{t('palette.recents')}</span><small>{recentCount}</small>
-                </button>
-                <div className="dmp-provider-divider" />
-                <div className="dmp-provider-group-label">{t('palette.configuredProviders')}</div>
-                {providers.map((provider) => {
-                  const refreshable = providerHasFreeModels(provider.id, provider.models.map(model => model.id))
-                  const refreshState = providerRefresh?.id === provider.id ? providerRefresh : null
-                  const isFreeLane = provider.id === FREE_LANE_PROVIDER_ID
-                  const displayName = isFreeLane ? t('palette.freeLaneName') : provider.name
-                  return (
-                    <div key={provider.id} className={`dmp-provider-item${isFreeLane ? ' is-free-lane' : ''}`}>
-                      <button
-                        type="button"
-                        className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
-                        onClick={() => { if (changeView('models')) { setProviderId(provider.id); setQuickFilter('all') } }}
-                        title={`${displayName} · ${provider.id}${isFreeLane ? ` · ${t('palette.freeLaneHint')}` : ''}`}
-                      >
-                        <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
-                        <span>{displayName}</span>
-                        <small>{provider.models.length}</small>
-                        {isFreeLane && <em className="dmp-rail-free">FREE</em>}
-                      </button>
-                      {refreshable && (
+                <div className="dmp-rail-scroll">
+                  <div className="dmp-provider-group-label">{t('palette.sectionModels')}</div>
+                  <button
+                    type="button"
+                    className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
+                    onClick={() => { if (changeView('models')) resetFilters() }}
+                  >
+                    <span className="dmp-rail-icon" aria-hidden="true">☰</span>
+                    <span>{t('palette.allModels')}</span><small>{choices.length}</small>
+                  </button>
+                  <div className={`dmp-provider-item is-free-lane${view === 'models' && providerId === FREE_LANE_PROVIDER_ID ? ' is-selected' : ''}`}>
+                    <button
+                      type="button"
+                      className={`dmp-rail-free-lane${view === 'models' && providerId === FREE_LANE_PROVIDER_ID ? ' is-active' : ''}`}
+                      onClick={() => { if (changeView('models')) { setProviderId(FREE_LANE_PROVIDER_ID); setQuickFilter('all') } }}
+                      title={t('palette.freeLaneHint')}
+                    >
+                      <span className="dmp-rail-icon"><ProviderIcon id="free" size={14} colored /></span>
+                      <span>{t('palette.freeLaneName')}</span>
+                      <small>{freeLaneGroup?.models.length ?? 0}</small>
+                      <em className="dmp-rail-free">FREE</em>
+                    </button>
+                    <button
+                      type="button"
+                      className={`dmp-provider-refresh${providerRefresh?.id === FREE_LANE_PROVIDER_ID && providerRefresh.phase === 'busy' ? ' is-busy' : providerRefresh?.id === FREE_LANE_PROVIDER_ID && providerRefresh.phase === 'ok' ? ' is-done' : ''}`}
+                      disabled={selectionDisabled || providerRefresh?.id === FREE_LANE_PROVIDER_ID && providerRefresh.phase === 'busy'}
+                      title={t('palette.freeRefresh', { provider: t('palette.freeLaneName') })}
+                      aria-label={t('palette.freeRefresh', { provider: t('palette.freeLaneName') })}
+                      onClick={() => { if (freeLaneGroup !== undefined) void refreshProviderFreeModels(freeLaneGroup) }}
+                    >⟳</button>
+                  </div>
+                  <button
+                    type="button"
+                    className={view === 'models' && providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
+                    onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('favorites') } }}
+                  >
+                    <span className="dmp-rail-icon" aria-hidden="true">★</span>
+                    <span>{t('palette.favorites')}</span><small>{favoriteCount}</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={view === 'models' && providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
+                    onClick={() => { if (changeView('models')) { setProviderId(null); setQuickFilter('recents') } }}
+                  >
+                    <span className="dmp-rail-icon" aria-hidden="true">
+                      <svg viewBox="0 0 12 12" width="12" height="12" focusable="false"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M6 3.6V6l1.8 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                    </span>
+                    <span>{t('palette.recents')}</span><small>{recentCount}</small>
+                  </button>
+                  <div className="dmp-provider-divider" />
+                  <div className="dmp-provider-group-label">{t('palette.configuredProviders')}</div>
+                  {providers.filter(provider => provider.id !== FREE_LANE_PROVIDER_ID).map((provider) => {
+                    const refreshable = providerHasFreeModels(provider.id, provider.models.map(model => model.id))
+                    const refreshState = providerRefresh?.id === provider.id ? providerRefresh : null
+                    return (
+                      <div key={provider.id} className="dmp-provider-item">
                         <button
                           type="button"
-                          className={`dmp-provider-refresh${refreshState?.phase === 'busy' ? ' is-busy' : refreshState?.phase === 'ok' ? ' is-done' : ''}`}
-                          disabled={selectionDisabled || refreshState?.phase === 'busy'}
-                          title={t('palette.freeRefresh', { provider: displayName })}
-                          aria-label={t('palette.freeRefresh', { provider: displayName })}
-                          onClick={() => void refreshProviderFreeModels(provider)}
-                        >⟳</button>
-                      )}
-                    </div>
-                  )
-                })}
+                          className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
+                          onClick={() => { if (changeView('models')) { setProviderId(provider.id); setQuickFilter('all') } }}
+                          title={`${provider.name} · ${provider.id}`}
+                        >
+                          <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
+                          <span>{provider.name}</span><small>{provider.models.length}</small>
+                        </button>
+                        {refreshable && (
+                          <button
+                            type="button"
+                            className={`dmp-provider-refresh${refreshState?.phase === 'busy' ? ' is-busy' : refreshState?.phase === 'ok' ? ' is-done' : ''}`}
+                            disabled={selectionDisabled || refreshState?.phase === 'busy'}
+                            title={t('palette.freeRefresh', { provider: provider.name })}
+                            aria-label={t('palette.freeRefresh', { provider: provider.name })}
+                            onClick={() => void refreshProviderFreeModels(provider)}
+                          >⟳</button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="dmp-rail-tools" role="group" aria-label={t('palette.sectionTools')}>
+                  <button type="button" className={view === 'config' || view === 'catalog' ? ' is-active' : ''} onClick={() => changeView('config')} title={t('config.nav')}>
+                    <span aria-hidden="true">⚙</span><small>{t('config.navShort')}</small>
+                  </button>
+                  <button type="button" className={view === 'catalog' ? ' is-active' : ''} onClick={() => changeView('catalog')} title={t('palette.navCatalog')}>
+                    <span aria-hidden="true">＋</span><small>{t('palette.navCatalogShort')}</small>
+                  </button>
+                  <button type="button" className={view === 'relay' ? ' is-active' : ''} onClick={() => changeView('relay')} title={t('relay.nav')}>
+                    <span aria-hidden="true">↗</span><small>{t('relay.navShort')}</small>
+                  </button>
+                  <button type="button" className={view === 'media' ? ' is-active' : ''} onClick={() => changeView('media')} title={t('media.nav')}>
+                    <span aria-hidden="true"><svg viewBox="0 0 12 12" width="13" height="13" focusable="false"><path d="M2 2h3.4v3.4H2V2Zm4.6 0H10v3.4H6.6V2ZM2 6.6h3.4V10H2V6.6Zm4.6 0H10V10H6.6V6.6Z" fill="currentColor" /></svg></span><small>{t('media.navShort')}</small>
+                  </button>
+                  <button type="button" className={view === 'quick' ? ' is-active' : ''} onClick={() => changeView('quick')} title={t('quick.nav')}>
+                    <span aria-hidden="true"><svg viewBox="0 0 12 12" width="13" height="13" focusable="false"><path d="M7 1.5 2.8 6.8h2.6L4.9 10.5l4.3-5.3H6.6L7 1.5Z" fill="currentColor" /></svg></span><small>{t('quick.navShort')}</small>
+                  </button>
+                </div>
               </nav>
 
               <div

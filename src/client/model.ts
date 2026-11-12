@@ -176,8 +176,48 @@ export function groupChoicesByProvider(choices: readonly ModelChoice[], currentP
 
 /** Whether a provider panel offers free models that a catalog update can refresh. */
 export function providerHasFreeModels(providerId: string, modelIds: readonly string[]): boolean {
-  if (providerId === 'dsh-free-models') return true
+  if (providerId === FREE_LANE_PROVIDER_ID) return true
   return modelIds.some(id => id.toLocaleLowerCase().endsWith(':free'))
+}
+
+/** Keyless free-lane runtime row as served by the plugin's snapshot endpoint. */
+export interface FreeLaneModelEntry {
+  id: string
+  name: string
+  contextWindow: number
+  maxOutput: number
+  input: Array<'text' | 'image'>
+  efforts: string[]
+  canDisableReasoning: boolean
+  channel: 'kilo' | 'opencode'
+}
+
+export interface FreeLaneSnapshot {
+  provider: string
+  models: FreeLaneModelEntry[]
+}
+
+/**
+ * Merge the plugin's keyless free lane into the DSH directory groups. Some DSH
+ * builds do not surface adapter-registered providers through
+ * session.modelCatalog; merging the runtime snapshot keeps the lane visible
+ * (and selectable) regardless, and never duplicates an existing group.
+ */
+export function mergeFreeLaneGroup(groups: readonly CatalogGroup[], lane: FreeLaneSnapshot | null): CatalogGroup[] {
+  if (lane === null || lane.models.length === 0) return [...groups]
+  if (groups.some(group => group.id === FREE_LANE_PROVIDER_ID)) return [...groups]
+  const effortName = (id: string) => id.charAt(0).toLocaleUpperCase() + id.slice(1)
+  const models = lane.models.map(entry => ({
+    id: entry.id,
+    name: entry.name === '' ? entry.id : entry.name,
+    ...(entry.efforts.length === 0 ? {} : {
+      reasoning: {
+        efforts: entry.efforts.map(id => ({ id, name: effortName(id) })),
+        defaultEffort: entry.efforts.includes('high') ? 'high' : entry.efforts.at(-1),
+      },
+    }),
+  }))
+  return [...groups, { id: FREE_LANE_PROVIDER_ID, name: 'Free Models', models }]
 }
 
 export function toggleFavorite(favorites: readonly string[], key: string): string[] {

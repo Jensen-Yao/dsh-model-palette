@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0 - 2026-11-13
+
+- Guarantee the keyless free lane is visible: the plugin now serves `GET /model-palette/api/free-models/snapshot`, and the palette merges that runtime group into the directory when a DSH build does not surface adapter-registered providers — the lane (and its models) become browsable and selectable regardless, with a dedicated green "Free Models" section in the rail.
+- Restructure the palette's left rail into three clear zones — Models (all / free / favorites / recents), Configured providers, and a bottom Tools row (config, add, relay, media, quick profiles) — replacing the previous flat button pile; all tool icons are now monochrome SVG.
+- Reshape the reasoning-effort control into a Codex-style segmented meter: each stop renders an ascending signal-strength bar ladder with its level filled, the active stop carries the brand highlight, and arrow keys move between stops.
+
 ## 0.20.0 - 2026-11-13
 
 - Keep the keyless free lane current: every probe interval now re-reads the Kilo and OpenCode catalogs, and provider rows with free models (plus the free lane itself) get an inline refresh button served by `POST /model-palette/api/free-models/refresh` with an added/removed summary.

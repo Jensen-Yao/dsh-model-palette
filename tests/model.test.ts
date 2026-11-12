@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { choiceKey, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, providerHasFreeModels, pushRecent, rankChoices, selectionFor, toggleFavorite } from '../src/client/model.ts'
+import { choiceKey, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, mergeFreeLaneGroup, providerHasFreeModels, pushRecent, rankChoices, selectionFor, toggleFavorite, type FreeLaneSnapshot } from '../src/client/model.ts'
 import type { CatalogGroup } from '../src/client/types.ts'
 
 const groups: CatalogGroup[] = [
@@ -171,5 +171,31 @@ describe('free lane coverage', () => {
       .toEqual(['big-pickle', 'kilo-auto/free'])
     expect(rankChoices(laneChoices, { ...options, query: '免费', capability: 'all' }).map(choice => choice.model.id))
       .toEqual(['big-pickle', 'kilo-auto/free'])
+  })
+})
+
+describe('free lane directory merge', () => {
+  const lane: FreeLaneSnapshot = {
+    provider: 'dsh-free-models',
+    models: [
+      { id: 'deepseek-v4.1-flash-free', name: 'DeepSeek V4.1 Flash', contextWindow: 1048576, maxOutput: 384000, input: ['text'], efforts: ['off', 'low', 'high'], canDisableReasoning: true, channel: 'opencode' },
+      { id: 'big-pickle', name: 'Big Pickle', contextWindow: 200000, maxOutput: 32000, input: ['text'], efforts: [], canDisableReasoning: false, channel: 'opencode' },
+    ],
+  }
+
+  it('appends the lane group with reasoning efforts and a sane default', () => {
+    const merged = mergeFreeLaneGroup([{ id: 'custom', name: 'Custom', models: [] }], lane)
+    expect(merged).toHaveLength(2)
+    expect(merged[1]).toMatchObject({ id: 'dsh-free-models', name: 'Free Models' })
+    expect(merged[1]!.models[0]).toMatchObject({ id: 'deepseek-v4.1-flash-free', reasoning: { defaultEffort: 'high' } })
+    expect(merged[1]!.models[0]!.reasoning!.efforts.map(effort => effort.id)).toEqual(['off', 'low', 'high'])
+    expect(merged[1]!.models[1]!.reasoning).toBeUndefined()
+  })
+
+  it('never duplicates an existing lane group and tolerates empty snapshots', () => {
+    const existing = [{ id: 'dsh-free-models', name: 'Free Models', models: [{ id: 'x', name: 'X' }] }]
+    expect(mergeFreeLaneGroup(existing, lane)).toEqual(existing)
+    expect(mergeFreeLaneGroup([{ id: 'custom', name: 'Custom', models: [] }], null)).toHaveLength(1)
+    expect(mergeFreeLaneGroup([{ id: 'custom', name: 'Custom', models: [] }], { ...lane, models: [] })).toHaveLength(1)
   })
 })

@@ -272,6 +272,38 @@ export async function syncProviderFreeModels(provider: string, options: { manual
   return payload.value
 }
 
+export type FreeModelSnapshotEntry = {
+  id: string
+  name: string
+  contextWindow: number
+  maxOutput: number
+  input: Array<'text' | 'image'>
+  efforts: string[]
+  canDisableReasoning: boolean
+  channel: 'kilo' | 'opencode'
+}
+
+export type FreeModelSnapshot = {
+  provider: string
+  models: FreeModelSnapshotEntry[]
+  verdicts: Record<string, { state: string; detail?: string; checkedAt: string }>
+}
+
+/** Read the live keyless free-lane runtime (models + availability verdicts). */
+export async function fetchFreeModelSnapshot(signal?: AbortSignal): Promise<FreeModelSnapshot> {
+  const response = await fetch('/model-palette/api/free-models/snapshot', { signal })
+  let payload: ConfigApiSuccess<FreeModelSnapshot> | ConfigApiFailure
+  try {
+    payload = await response.json() as ConfigApiSuccess<FreeModelSnapshot> | ConfigApiFailure
+  } catch {
+    throw new Error(`Configuration API returned HTTP ${response.status}`)
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? `Configuration API returned HTTP ${response.status}` : payload.error?.message ?? `Configuration API returned HTTP ${response.status}`)
+  }
+  return payload.value
+}
+
 /** Re-read the keyless free-model catalogs (Kilo + OpenCode) behind the dsh-free-models provider. */
 export async function refreshFreeModelCatalog(options: { force?: boolean } = {}): Promise<FreeModelRefreshSummary> {
   const response = await fetch('/model-palette/api/free-models/refresh', {

@@ -275,3 +275,31 @@ describe('models.dev capability enrichment', () => {
     expect(runtime.availableEntries()[0]).toMatchObject({ contextWindow: 131_072, efforts: [] })
   })
 })
+
+describe('free-model snapshot API', () => {
+  it('serves the live runtime snapshot for palette-side merging', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return new Response('nope', { status: 503 })
+      if (url.includes('opencode.example')) return Response.json({ data: [{ id: 'big-pickle', name: 'Big Pickle' }] })
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://ignored', fetchImpl, 'https://opencode.example')
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined
+    const ctx = { webServer: { register: (registration: { handler: (req: unknown, res: unknown) => Promise<void> }) => { handler = registration.handler; return () => {} } } }
+    registerFreeModelsRefreshApi(ctx, runtime)
+    const req = Readable.from([])
+    Object.assign(req, { method: 'GET', url: '/model-palette/api/free-models/snapshot', headers: { 'sec-fetch-site': 'same-origin' } })
+    let status = 0
+    let text = ''
+    const res = { writeHead(nextStatus: number) { status = nextStatus }, end(chunk = '') { text += String(chunk) } }
+    await handler?.(req, res)
+    expect(status).toBe(200)
+    const body = JSON.parse(text) as { ok: boolean; value: { provider: string; models: Array<{ id: string }> } }
+    expect(body.ok).toBe(true)
+    expect(body.value.provider).toBe(FREE_MODEL_PROVIDER_ID)
+    expect(body.value.models.map(model => model.id)).toContain('big-pickle')
+  })
+})
