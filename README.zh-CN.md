@@ -33,7 +33,7 @@
 
 当前版本：[v0.21.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1)。
 
-插件同时桥接 DSH 0.1 原生设置和 DSH 0.2 基于 profile 的 SettingsForms。0.17 新增供应商 JSON 备份、批量导入预览、模型类型筛选、排序与分批显示。内置模型预置现为 487 项。
+插件同时桥接 DSH 0.1 原生设置和 DSH 0.2 基于 profile 的 SettingsForms。0.17 新增供应商 JSON 备份、批量导入预览、模型类型筛选、排序与分批显示。内置模型预置现为 790 项。
 
 ### 快捷方案与一键切回
 
@@ -151,7 +151,7 @@ freeModels:
 <td width="50%">
 
 ### 📦 模型预置
-- **487 项内置预置**（v5）：覆盖 pi-ai 内置目录，以及豆包、混元、Cohere、Perplexity 和 Agnes 等厂商权威条目
+- **790 项内置预置**（v5）：覆盖 pi-ai 内置目录，以及豆包、混元、Cohere、Perplexity 和 Agnes 等厂商权威条目
 - **在线刷新**：从 GitHub 拉取最新预置数据
 - **自动补全**：为精确匹配的模型自动填充缺失参数
 - **搜索式选择**：预置以输入 + datalist 呈现，支持按名称过滤，不再渲染数百项下拉

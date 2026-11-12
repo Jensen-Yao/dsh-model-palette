@@ -74,7 +74,14 @@ window.fetch = async (input, init) => {
     } })
   }
   if (String(input).endsWith('/free-models/refresh')) {
-    return Response.json({ ok: true, value: { total: 3, available: 3, added: 0, removed: 0, checkedAt: new Date().toISOString() } })
+    return Response.json({ ok: true, value: {
+      total: 4, available: 3, added: 0, removed: 0, checkedAt: new Date().toISOString(),
+      missing: ['gone-lane-model'], unsupported: ['refused-lane-model'],
+      filteredStale: 2, filteredNonReasoning: 1,
+    } })
+  }
+  if (String(input).endsWith('/free-models/prune')) {
+    return Response.json({ ok: true, value: { pruned: ['gone-lane-model', 'refused-lane-model'], total: 2 } })
   }
   if (String(input).endsWith('/models/resolve')) {
     const body = JSON.parse(String(init?.body)) as { models: string[] }

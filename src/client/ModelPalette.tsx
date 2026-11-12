@@ -6,7 +6,7 @@ import { ConfigPanel } from './ConfigPanel.tsx'
 import { QuickProfilesPanel } from './QuickProfilesPanel.tsx'
 import { useQuickProfiles } from './quick-profiles-store.ts'
 import { MediaPanel } from './MediaPanel.tsx'
-import { fetchFreeModelSnapshot, refreshFreeModelCatalog, resolveProviderModels, syncProviderFreeModels } from './config-api.ts'
+import { fetchFreeModelSnapshot, pruneFreeModelCatalog, refreshFreeModelCatalog, resolveProviderModels, syncProviderFreeModels } from './config-api.ts'
 import type { RankOptions } from './model.ts'
 import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, FREE_LANE_PROVIDER_ID, groupChoicesByProvider, isFreeChoice, mergeFreeLaneGroup, providerHasFreeModels, pushRecent, rankChoices, toggleFavorite, type FreeLaneSnapshot } from './model.ts'
@@ -31,6 +31,15 @@ function readRailWidth(): number {
   } catch { /* storage unavailable */ }
   return RAIL_WIDTH_DEFAULT
 }
+
+/** Resolve lane model ids to display names for the prune confirmation card. */
+function laneModelNames(ids: readonly string[], snapshot: { groups: CatalogGroup[] }): string {
+  const lane = snapshot.groups.find(group => group.id === FREE_LANE_PROVIDER_ID)
+  if (lane === undefined) return ''
+  const names = ids.map(id => lane.models.find(model => model.id === id)?.name ?? id)
+  return names.length > 4 ? `${names.slice(0, 4).join('、')} …` : names.join('、')
+}
+
 
 interface ModelBadges {
   context?: number
@@ -143,7 +152,13 @@ function SeatEffortPopover({ value, options, defaultLabel, label, disabled, onCh
       if (rect === undefined) return
       const centered = rect.left + rect.width / 2 - POPOVER_WIDTH / 2
       const left = Math.min(Math.max(8, centered), Math.max(8, window.innerWidth - POPOVER_WIDTH - 8))
-      setPosition({ top: rect.bottom + 8, left })
+      // Open below the chip, but flip above when the popover would run past
+      // the viewport's bottom edge and there is room on top.
+      const height = popoverRef.current?.offsetHeight ?? 104
+      const below = rect.bottom + 8
+      const above = rect.top - height - 8
+      const top = below + height > window.innerHeight - 8 && above >= 8 ? above : below
+      setPosition({ top, left })
     }
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node
@@ -163,6 +178,18 @@ function SeatEffortPopover({ value, options, defaultLabel, label, disabled, onCh
       document.removeEventListener('keydown', onKeyDown, true)
     }
   }, [open])
+  // Once mounted, correct the placement with the popover's real height.
+  useEffect(() => {
+    if (!open || position === null) return
+    const popover = popoverRef.current
+    const rect = anchorRef.current?.getBoundingClientRect()
+    if (popover === null || rect === undefined) return
+    const height = popover.offsetHeight
+    const above = rect.top - height - 8
+    if (position.top === rect.bottom + 8 && position.top + height > window.innerHeight - 8 && above >= 8) {
+      setPosition({ ...position, top: above })
+    }
+  }, [open, position])
   return (
     <div className="dmp-seat-effort">
       <button
@@ -318,39 +345,76 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }
 
   const [providerRefresh, setProviderRefresh] = useState<{ id: string; phase: 'busy' | 'ok'; note?: string } | null>(null)
+  const [prunePrompt, setPrunePrompt] = useState<{ missing: string[]; unsupported: string[] } | null>(null)
+  const [laneQueryOptions, setLaneQueryOptions] = useState<{ stale: boolean; nonReasoning: boolean } | null>(null)
   useEffect(() => {
     if (providerRefresh === null || providerRefresh.phase !== 'ok') return
     const timer = setTimeout(() => setProviderRefresh(null), 6000)
     return () => clearTimeout(timer)
   }, [providerRefresh])
+
+  const runLaneRefresh = async (options: { excludeStale: boolean; excludeNonReasoning: boolean }) => {
+    setLaneQueryOptions(null)
+    setProviderRefresh({ id: FREE_LANE_PROVIDER_ID, phase: 'busy' })
+    try {
+      const summary = await refreshFreeModelCatalog({ force: true, probe: true, ...options })
+      const nextLane = await fetchFreeModelSnapshot().catch(() => null)
+      if (nextLane !== null) setFreeLane(nextLane)
+      const noteParts = [t('palette.freeRefreshed', { provider: t('palette.freeLaneName'), total: summary.available, added: summary.added, removed: summary.removed })]
+      if ((summary.filteredStale ?? 0) > 0) noteParts.push(t('palette.queryFilteredStale', { count: summary.filteredStale ?? 0 }))
+      if ((summary.filteredNonReasoning ?? 0) > 0) noteParts.push(t('palette.queryFilteredNonReasoning', { count: summary.filteredNonReasoning ?? 0 }))
+      setProviderRefresh({ id: FREE_LANE_PROVIDER_ID, phase: 'ok', note: noteParts.join(' · ') })
+      // After the query, ask only about previously configured models upstream
+      // no longer carries (or explicitly refuses) — never delete silently.
+      const missing = summary.missing ?? []
+      const unsupported = summary.unsupported ?? []
+      if (missing.length > 0 || unsupported.length > 0) setPrunePrompt({ missing, unsupported })
+      load()
+    } catch (cause) {
+      setProviderRefresh(null)
+      setError(t('palette.freeRefreshFailed', { provider: t('palette.freeLaneName'), message: messageOf(cause) }))
+    }
+  }
+
   const refreshProviderFreeModels = async (provider: CatalogGroup) => {
     if (locked || !available || providerRefresh?.phase === 'busy') return
+    if (provider.id === FREE_LANE_PROVIDER_ID) {
+      // Ask which categories to filter BEFORE the upstream query runs.
+      setLaneQueryOptions({ stale: false, nonReasoning: false })
+      return
+    }
     setProviderRefresh({ id: provider.id, phase: 'busy' })
     try {
-      let total = 0
-      let added = 0
-      let removed = 0
-      if (provider.id === 'dsh-free-models') {
-        const summary = await refreshFreeModelCatalog({ force: true })
-        total = summary.available
-        added = summary.added
-        removed = summary.removed
-        setFreeLane(await fetchFreeModelSnapshot().catch(() => freeLane))
-      } else {
-        const summary = await syncProviderFreeModels(provider.id, { manual: true })
-        total = summary.total
-        added = summary.added
-        removed = summary.removed
-      }
+      const summary = await syncProviderFreeModels(provider.id, { manual: true })
       setProviderRefresh({
         id: provider.id,
         phase: 'ok',
-        note: t('palette.freeRefreshed', { provider: provider.name, total, added, removed }),
+        note: t('palette.freeRefreshed', { provider: provider.name, total: summary.total, added: summary.added, removed: summary.removed }),
       })
       load()
     } catch (cause) {
       setProviderRefresh(null)
       setError(t('palette.freeRefreshFailed', { provider: provider.name, message: messageOf(cause) }))
+    }
+  }
+
+  const pruneBusyRef = useRef(false)
+  const confirmPrune = async (ids: string[]) => {
+    if (pruneBusyRef.current || ids.length === 0) return
+    pruneBusyRef.current = true
+    try {
+      const outcome = await pruneFreeModelCatalog(ids)
+      const nextLane = await fetchFreeModelSnapshot().catch(() => null)
+      if (nextLane !== null) setFreeLane(nextLane)
+      setPrunePrompt(current => current === null ? null : {
+        missing: current.missing.filter(id => !outcome.pruned.includes(id)),
+        unsupported: current.unsupported.filter(id => !outcome.pruned.includes(id)),
+      })
+      load()
+    } catch (cause) {
+      setError(t('palette.freeRefreshFailed', { provider: t('palette.freeLaneName'), message: messageOf(cause) }))
+    } finally {
+      pruneBusyRef.current = false
     }
   }
 
@@ -751,6 +815,55 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
 
             {providerRefresh?.phase === 'ok' && providerRefresh.note !== undefined && (
               <div className="dmp-status" role="status">{providerRefresh.note}</div>
+            )}
+
+            {laneQueryOptions !== null && (
+              <div className="dmp-prune-card" role="dialog" aria-label={t('palette.queryPrefTitle')}>
+                <div className="dmp-prune-head">
+                  <strong>{t('palette.queryPrefTitle')}</strong>
+                  <button type="button" onClick={() => setLaneQueryOptions(null)} aria-label={t('palette.close')}>×</button>
+                </div>
+                <p>{t('palette.queryPrefHint')}</p>
+                <div className="dmp-prune-row as-toggle">
+                  <button type="button" className={laneQueryOptions.stale ? 'is-on' : ''} onClick={() => setLaneQueryOptions(current => current === null ? current : { ...current, stale: !current.stale })}>
+                    {t('palette.queryPrefStale')}{laneQueryOptions.stale ? ' ✓' : ''}
+                  </button>
+                  <button type="button" className={laneQueryOptions.nonReasoning ? 'is-on' : ''} onClick={() => setLaneQueryOptions(current => current === null ? current : { ...current, nonReasoning: !current.nonReasoning })}>
+                    {t('palette.queryPrefNonReasoning')}{laneQueryOptions.nonReasoning ? ' ✓' : ''}
+                  </button>
+                </div>
+                <div className="dmp-prune-foot">
+                  <button type="button" onClick={() => setLaneQueryOptions(null)}>{t('palette.cancel')}</button>
+                  <button type="button" className="dmp-media-primary" onClick={() => { if (laneQueryOptions !== null) void runLaneRefresh({ excludeStale: laneQueryOptions.stale, excludeNonReasoning: laneQueryOptions.nonReasoning }) }}>
+                    {t('palette.queryRun')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {prunePrompt !== null && (prunePrompt.missing.length > 0 || prunePrompt.unsupported.length > 0) && (
+              <div className="dmp-prune-card" role="dialog" aria-label={t('palette.pruneTitle')}>
+                <div className="dmp-prune-head">
+                  <strong>{t('palette.pruneTitle')}</strong>
+                  <button type="button" onClick={() => setPrunePrompt(null)} aria-label={t('palette.close')}>×</button>
+                </div>
+                <p>{t('palette.pruneHint')}</p>
+                {prunePrompt.missing.length > 0 && (
+                  <div className="dmp-prune-row">
+                    <span><em>{t('palette.pruneMissing', { count: prunePrompt.missing.length })}</em><small>{laneModelNames(prunePrompt.missing, snapshot)}</small></span>
+                    <button type="button" onClick={() => void confirmPrune(prunePrompt.missing)}>{t('palette.pruneDelete')}</button>
+                  </div>
+                )}
+                {prunePrompt.unsupported.length > 0 && (
+                  <div className="dmp-prune-row">
+                    <span><em>{t('palette.pruneUnsupported', { count: prunePrompt.unsupported.length })}</em><small>{laneModelNames(prunePrompt.unsupported, snapshot)}</small></span>
+                    <button type="button" onClick={() => void confirmPrune(prunePrompt.unsupported)}>{t('palette.pruneDelete')}</button>
+                  </div>
+                )}
+                <div className="dmp-prune-foot">
+                  <button type="button" className="dmp-media-primary" onClick={() => setPrunePrompt(null)}>{t('palette.pruneKeepAll')}</button>
+                </div>
+              </div>
             )}
 
             <div className="dmp-body" style={{ gridTemplateColumns: `${railWidth}px 5px minmax(0, 1fr)` }}>

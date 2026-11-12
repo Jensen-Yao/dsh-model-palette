@@ -33,7 +33,7 @@ Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github
 
 Current release: [v0.21.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1)
 
-The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 487 entries.
+The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 790 entries.
 
 ### Quick profiles and previous-model switching
 
@@ -151,7 +151,7 @@ Add, edit, or remove provider profiles directly from the UI:
 <td width="50%">
 
 ### 📦 Model Presets
-- **487 bundled presets** (v5): vendor-authoritative data covering the built-in pi-ai catalog plus Doubao, Hunyuan, Cohere, Perplexity and Agnes entries
+- **790 bundled presets** (v6): vendor-authoritative data covering the built-in pi-ai catalog, the live OpenRouter catalog (context, output, reasoning ladders), plus Doubao, Hunyuan, Cohere, Perplexity and Agnes entries
 - **Online refresh** from GitHub — always up-to-date
 - **Auto-fill** missing parameters for exact model matches
 - **Searchable selection**: presets render through an input + datalist filter instead of a 281-option dropdown
