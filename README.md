@@ -1,27 +1,37 @@
 <div align="center">
-  <img src="assets/icon.svg" width="96" height="96" alt="DSH Model Palette" />
-  <h1>dsh-model-palette</h1>
-  <p>
-    <strong>Global provider-aware model command palette for DeepSeek Harness Web</strong>
-  </p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg" />
+    <img src="assets/banner-light.svg" alt="dsh-model-palette — Global model command palette for DeepSeek Harness" width="100%" />
+  </picture>
   <p>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases"><img src="https://img.shields.io/github/v/release/Jensen-Yao/dsh-model-palette" alt="Latest Release" /></a>
-    <a href="https://www.npmjs.com/package/dsh-model-palette"><img src="https://img.shields.io/badge/dsh-plugin-4.0.1+-6a4cff" alt="DSH Plugin" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases"><img src="https://img.shields.io/github/v/release/Jensen-Yao/dsh-model-palette?color=D97757" alt="Latest Release" /></a>
+    <a href="https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1"><img src="https://img.shields.io/badge/version-0.21.1-D97757" alt="v0.21.1" /></a>
+    <a href="https://jensen-yao.github.io/dsh-model-palette/"><img src="https://img.shields.io/badge/project-site-Claude%20style-7A8B6F" alt="Project site" /></a>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md"><img src="https://img.shields.io/badge/中文文档-available-07c160" alt="中文文档" /></a>
   </p>
   <p>
-    <kbd>Alt+M</kbd> &nbsp;·&nbsp; Fuzzy search &nbsp;·&nbsp; Provider filter &nbsp;·&nbsp; Model config &nbsp;·&nbsp; OpenRouter media
+    <kbd>Alt+M</kbd> open anywhere &nbsp;·&nbsp; Keyless free models &nbsp;·&nbsp; Codex-style effort meter &nbsp;·&nbsp; Provider config &nbsp;·&nbsp; Loopback OpenAI gateway &nbsp;·&nbsp; OpenRouter media
   </p>
 </div>
 
----
+**dsh-model-palette** is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that replaces the native model selector with a global command palette. Press **Alt+M** from anywhere — or click the composer trigger — to search, filter, favorite, and switch models across every provider, including a keyless Kilo + OpenCode free lane.
 
-**dsh-model-palette** is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that replaces the native model selector with a powerful, global command palette. Press **Alt+M** from anywhere in the Web UI — or click the composer trigger — and instantly search, filter, favorite, and switch models across all your providers.
+### Screenshots
+
+| All models, grouped by provider | Keyless free lane |
+| --- | --- |
+| ![All models grouped by provider](assets/screenshots/palette-models.png) | ![Keyless free models lane](assets/screenshots/palette-free-lane.png) |
+
+| Codex-style reasoning meter | Provider & model configuration |
+| --- | --- |
+| ![Codex-style reasoning effort meter](assets/screenshots/effort-meter.png) | ![Provider and model configuration](assets/screenshots/palette-config.png) |
+
+---
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
-Current release: [v0.19.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.19.1)
+Current release: [v0.21.1](https://github.com/Jensen-Yao/dsh-model-palette/releases/tag/v0.21.1)
 
 The plugin bridges DSH 0.1 native settings and DSH 0.2 profile-backed SettingsForms. Version 0.17 adds selected-provider JSON backups, batch import previews, model-type filters, sorting and progressive results. The bundled preset registry contains 487 entries.
 
