@@ -100,8 +100,13 @@ describe('OpenRouter media registration', () => {
       'openrouter_download_video',
       'pollinations_media_models',
       'pollinations_generate_image',
+      'agnes_media_models',
+      'agnes_generate_image',
+      'agnes_generate_video',
+      'agnes_video_status',
+      'agnes_video_download',
     ])
-    expect(effectLabels).toHaveLength(8)
+    expect(effectLabels).toHaveLength(13)
     expect(routes).toMatchObject([{ kind: 'prefix', path: '/model-palette/api/media' }])
   })
 

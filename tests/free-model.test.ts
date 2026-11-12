@@ -9,6 +9,7 @@ import {
   registerFreeModels,
   registerFreeModelsRefreshApi,
   mapChatUsage,
+  parseAgnesCatalog,
   parseFreeModelCatalog,
   parseModelsDevCatalog,
   sniffBodyShape,
@@ -385,5 +386,49 @@ describe('upstream query filters and delete confirmation', () => {
     const body = JSON.parse(textOut) as { ok: boolean; value: { pruned: string[]; total: number } }
     expect(body.value.pruned).toEqual(['vendor/old-free'])
     expect(runtime.snapshot().models.map(entry => entry.id)).toEqual(['vendor/plain-free'])
+  })
+})
+
+describe('agnes free chat lane', () => {
+  it('keeps only the two free flash chat models', () => {
+    const rows = parseAgnesCatalog({ data: [
+      { id: 'agnes-2.5-flash' }, { id: 'agnes-3.0-flash' }, { id: 'agnes-2.5-pro' },
+      { id: 'agnes-2.5-pro-beta' }, { id: 'agnes-2.5-pro-theta' }, { id: 'agnes-image-2.5-flash' }, { id: 'agnes-video-2.5-flash' },
+    ] })
+    expect(rows.map(row => row.id)).toEqual(['agnes-2.5-flash', 'agnes-3.0-flash'])
+    expect(rows[0]).toMatchObject({ channel: 'agnes', contextWindow: 524_288, input: ['text'], efforts: [] })
+  })
+
+  it('merges agnes rows into the catalog when the credential resolves', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('models.dev')) return new Response('nope', { status: 503 })
+      if (url.includes('opencode.example')) return Response.json({ data: [] })
+      if (url.includes('agnes.example')) return Response.json({ data: [{ id: 'agnes-2.5-flash' }, { id: 'agnes-2.5-pro' }] })
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://ignored', fetchImpl, 'https://opencode.example', {
+      baseURL: 'https://agnes.example/v1',
+      resolveKey: async () => 'sk-test',
+    })
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    expect(runtime.snapshot().models.map(model => model.id)).toEqual(['agnes-2.5-flash'])
+  })
+
+  it('stays silent when the credential is missing', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('agnes.example')) throw new Error('agnes must not be called without a key')
+      if (String(input).includes('opencode.example')) return Response.json({ data: [] })
+      if (String(input).includes('models.dev')) return new Response('nope', { status: 503 })
+      return Response.json({ data: [] })
+    }) as unknown as typeof fetch
+    const runtime = new FreeModelRuntime('https://ignored', fetchImpl, 'https://opencode.example', {
+      baseURL: 'https://agnes.example/v1',
+      resolveKey: async () => undefined,
+    })
+    runtime.setHandle({ replace: () => {} })
+    await runtime.refresh()
+    expect(runtime.snapshot().models).toEqual([])
   })
 })

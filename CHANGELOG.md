@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.23.1 - 2026-11-13
+
+- Add the Agnes free lane end to end, gated on the local AGNES_API_KEY
+  credential: the keyless chat catalog now merges agnes-2.5-flash and
+  agnes-3.0-flash (the two $0-trial chat models; paid pro/theta ids stay out)
+  through https://api.agnes-ai.cn/v1, streaming through the same adapter.
+- Agnes media joins the panel: image generation on agnes-image-2.1/2.5-flash
+  (1K-4K + ratio, trial-free) and the async 720P agnes-video-2.5-flash
+  pipeline (submit/status/download) with automatic queue-full backoff. New
+  agnes_* tools follow the same provider shape; media providers now cover
+  OpenRouter, keyless Pollinations, and keyed Agnes.
+- Live-verified with the local key: chat probe available on both free models
+  and a real 1K image generated and saved.
+
 ## 0.23.0 - 2026-11-13
 
 - Integrate keyless Pollinations image generation into the media panel: an

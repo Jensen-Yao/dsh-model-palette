@@ -26,6 +26,12 @@ export const FreeModelsConfigSchema = z.object({
     port: z.number().step(1).min(0).max(65535).default(4180),
     credentialRef: z.string().default(''),
   }).default({}),
+  /** Keyed-but-free Agnes lane; uses the local AGNES_API_KEY credential. */
+  agnes: z.object({
+    enabled: z.boolean().default(true),
+    baseURL: z.string().default('https://api.agnes-ai.cn/v1'),
+    credentialRef: z.string().default('AGNES_API_KEY'),
+  }).default({}),
 })
 const CATALOG_TIMEOUT_MS = 20_000
 const TURN_TIMEOUT_MS = 300_000
@@ -75,7 +81,7 @@ export interface FreeModelEntry {
   input: Array<'text' | 'image'>
   efforts: string[]
   canDisableReasoning: boolean
-  channel: 'kilo' | 'opencode'
+  channel: 'kilo' | 'opencode' | 'agnes'
   /** Upstream publish date (ISO or YYYY-MM) when known; drives the one-year staleness rule. */
   released?: string
 }
@@ -233,6 +239,30 @@ export function enrichFreeModelEntries(entries: readonly FreeModelEntry[], facts
   })
 }
 
+/** Agnes ids whose documented trial price is $0 (paid pro/theta ids stay out). */
+const FREE_AGNES_CHAT = new Set(['agnes-2.5-flash', 'agnes-3.0-flash'])
+
+/** Project the Agnes /models listing down to its free chat rows. */
+export function parseAgnesCatalog(value: unknown): FreeModelEntry[] {
+  const rows = Array.isArray((value as { data?: unknown })?.data) ? (value as { data: unknown[] }).data : []
+  const entries: FreeModelEntry[] = []
+  for (const row of rows) {
+    if (!isRecord(row) || typeof row.id !== 'string') continue
+    if (!FREE_AGNES_CHAT.has(row.id.trim())) continue
+    entries.push({
+      id: row.id.trim(),
+      name: row.id.trim().replace(/-/gu, ' ').replace(/\w/gu, (c) => c.toLocaleUpperCase()),
+      contextWindow: 524_288,
+      maxOutput: 65_536,
+      input: ['text'],
+      efforts: [],
+      canDisableReasoning: false,
+      channel: 'agnes',
+    })
+  }
+  return entries
+}
+
 /** Classify whether an upstream answer proves this exact model cannot route. */
 export function freeModelUnavailable(error: unknown): boolean {
   const status = (error as { status?: unknown } | null)?.status
@@ -257,6 +287,7 @@ export function sniffBodyShape(text: string): 'empty' | 'sse' | 'json' {
 export async function* streamChatPayloads(options: {
   baseURL: string
   opencodeBaseURL?: string
+  agnes?: { baseURL: string; key: string }
   entry: FreeModelEntry
   body: Record<string, unknown>
   signal?: AbortSignal
@@ -272,12 +303,17 @@ export async function* streamChatPayloads(options: {
   const body = opencode
     ? (() => { const { max_tokens: _ignored, ...rest } = options.body; return { ...rest, max_completion_tokens: options.body.max_tokens ?? 32_000, stream_options: { include_usage: true } } })()
     : options.body
+  const agnes = options.entry.channel === 'agnes' && options.agnes !== undefined ? options.agnes : undefined
   const url = opencode
     ? `${(options.opencodeBaseURL ?? 'https://opencode.ai').replace(/\/+$/u, '')}/inference/openai/v1/chat/completions`
-    : `${options.baseURL.replace(/\/+$/u, '')}/chat/completions`
-  const headers = opencode
+    : agnes !== undefined
+      ? `${agnes.baseURL.replace(/\/+$/u, '')}/chat/completions`
+      : `${options.baseURL.replace(/\/+$/u, '')}/chat/completions`
+  const headers: Record<string, string> = opencode
     ? { 'content-type': 'application/json', ...opencodeHeaders(session, 'text/event-stream') }
-    : { 'content-type': 'application/json', accept: 'text/event-stream', 'user-agent': USER_AGENT, ...ATTRIBUTION_HEADERS }
+    : agnes !== undefined
+      ? { 'content-type': 'application/json', accept: 'text/event-stream', authorization: `Bearer ${agnes.key}` }
+      : { 'content-type': 'application/json', accept: 'text/event-stream', 'user-agent': USER_AGENT, ...ATTRIBUTION_HEADERS }
   const response = await fetchImpl(url, {
     method: 'POST',
     headers,
@@ -441,7 +477,10 @@ export class FreeModelAdapter {
     const entry = this.runtime.entry(options.model)
     if (entry === undefined) throw new Error(`free model "${options.model}" is not loaded`)
     try {
-      yield* chatPayloadsToChunks(streamChatPayloads({ baseURL: this.runtime.baseURL, opencodeBaseURL: this.runtime.opencodeBaseURL, entry, body: toChatBody(options, entry), signal: options.signal, fetchImpl: this.runtime.fetchImpl }), this.runtime, entry)
+      const agnesKey = this.runtime.agnes === undefined ? undefined : await this.runtime.agnes.resolveKey()
+      const agnes = this.runtime.agnes !== undefined && agnesKey !== undefined ? { baseURL: this.runtime.agnes.baseURL, key: agnesKey } : undefined
+      if (this.runtime.agnes !== undefined && agnes === undefined) throw new Error('the Agnes credential is not available')
+      yield* chatPayloadsToChunks(streamChatPayloads({ baseURL: this.runtime.baseURL, opencodeBaseURL: this.runtime.opencodeBaseURL, ...(agnes === undefined ? {} : { agnes }), entry, body: toChatBody(options, entry), signal: options.signal, fetchImpl: this.runtime.fetchImpl }), this.runtime, entry)
     } catch (error) {
       this.runtime.markFailure(entry.id, error)
       throw error
@@ -527,7 +566,9 @@ export class FreeModelRuntime {
   private capabilityCache: { facts: Map<string, ModelsDevFacts>; fetchedAt: number } | undefined
   readonly fetchImpl: typeof fetch
 
-  constructor(baseURL: string, fetchImpl: typeof fetch = fetch, opencodeBaseURL: string = DEFAULT_OPENCODE_BASE) { this.baseURL = baseURL; this.opencodeBaseURL = opencodeBaseURL; this.fetchImpl = fetchImpl }
+  agnes: { baseURL: string; resolveKey: () => Promise<string | undefined> } | undefined
+
+  constructor(baseURL: string, fetchImpl: typeof fetch = fetch, opencodeBaseURL: string = DEFAULT_OPENCODE_BASE, agnes?: { baseURL: string; resolveKey: () => Promise<string | undefined> }) { this.baseURL = baseURL; this.opencodeBaseURL = opencodeBaseURL; this.fetchImpl = fetchImpl; this.agnes = agnes }
 
   setHandle(handle: { replace: (providers: string[]) => void }) { this.handle = handle }
 
@@ -537,9 +578,21 @@ export class FreeModelRuntime {
 
   snapshot() { return { models: this.availableEntries().map(entry => ({ ...entry })), verdicts: Object.fromEntries(this.verdicts) } }
 
+  /** Fetch the Agnes free rows through the local credential; a missing key resolves to no rows. */
+  private async loadAgnesCatalog(signal?: AbortSignal): Promise<FreeModelEntry[]> {
+    if (this.agnes === undefined) return []
+    const key = await this.agnes.resolveKey()
+    if (key === undefined) return []
+    const response = await this.fetchImpl(`${this.agnes.baseURL.replace(/\/+$/u, '')}/models`, {
+      headers: { accept: 'application/json', authorization: `Bearer ${key}` }, signal: signal ?? AbortSignal.timeout(CATALOG_TIMEOUT_MS), redirect: 'error',
+    })
+    if (!response.ok) throw new Error(`Agnes catalog returned HTTP ${response.status}`)
+    return parseAgnesCatalog(await response.json())
+  }
+
   async refresh(signal?: AbortSignal, options: { force?: boolean; excludeStale?: boolean; excludeNonReasoning?: boolean } = {}): Promise<FreeModelRefreshSummary> {
     const deadline = signal ?? AbortSignal.timeout(CATALOG_TIMEOUT_MS)
-    const [kilo, opencode, capabilities] = await Promise.allSettled([
+    const [kilo, opencode, agnes, capabilities] = await Promise.allSettled([
       this.fetchImpl(`${this.baseURL.replace(/\/+$/u, '')}/models`, {
         headers: { accept: 'application/json', 'user-agent': USER_AGENT, ...ATTRIBUTION_HEADERS }, signal: deadline, redirect: 'error',
       }).then(async response => {
@@ -552,11 +605,12 @@ export class FreeModelRuntime {
         if (!response.ok) throw new Error(`OpenCode catalog returned HTTP ${response.status}`)
         return parseOpenCodeCatalog(await response.json())
       }),
+      this.loadAgnesCatalog(signal),
       this.loadCapabilityFacts(options.force === true, signal),
     ])
-    if (kilo.status === 'rejected' && opencode.status === 'rejected') throw kilo.reason
+    if (kilo.status === 'rejected' && opencode.status === 'rejected' && agnes.status === 'rejected') throw kilo.reason
     const merged = new Map<string, FreeModelEntry>()
-    for (const entry of [...(kilo.status === 'fulfilled' ? kilo.value : []), ...(opencode.status === 'fulfilled' ? opencode.value : [])]) merged.set(entry.id, entry)
+    for (const entry of [...(kilo.status === 'fulfilled' ? kilo.value : []), ...(opencode.status === 'fulfilled' ? opencode.value : []), ...(agnes.status === 'fulfilled' ? agnes.value : [])]) merged.set(entry.id, entry)
     const facts = capabilities.status === 'fulfilled' ? capabilities.value : undefined
     const previous = new Set(this.entries.map(entry => entry.id))
     const missing = [...previous].filter(id => !merged.has(id))
@@ -648,9 +702,11 @@ export class FreeModelRuntime {
     const entry = this.entries.find(item => item.id === id)
     if (entry === undefined) throw new Error(`free model "${id}" is not loaded`)
     try {
+      const agnesKey = this.agnes === undefined ? undefined : await this.agnes.resolveKey()
       for await (const payload of streamChatPayloads({
         baseURL: this.baseURL,
         opencodeBaseURL: this.opencodeBaseURL,
+        ...(this.agnes !== undefined && agnesKey !== undefined ? { agnes: { baseURL: this.agnes.baseURL, key: agnesKey } } : {}),
         entry,
         body: { model: entry.id, messages: [{ role: 'user', content: 'ping' }], stream: true, max_tokens: 16 },
         signal, fetchImpl: this.fetchImpl, timeoutMs: PROBE_TIMEOUT_MS,
@@ -688,7 +744,21 @@ export class FreeModelRuntime {
 
 /** Register adapter, background availability maintenance, and the local gateway. */
 export function registerFreeModels(ctx: Record<string, any>, config: Record<string, any> = {}) {
-  const runtime = new FreeModelRuntime(String(config.baseURL ?? DEFAULT_FREE_MODEL_BASE), config.fetch ?? fetch, String(config.opencodeBaseURL ?? DEFAULT_OPENCODE_BASE))
+  const agnesConfig = config.agnes ?? {}
+  const agnesBaseURL = String(agnesConfig.baseURL ?? 'https://api.agnes-ai.cn/v1')
+  const agnesCredentialRef = String(agnesConfig.credentialRef ?? 'AGNES_API_KEY')
+  const agnesLane = agnesConfig.enabled === false ? undefined : {
+    baseURL: agnesBaseURL,
+    resolveKey: async () => {
+      try {
+        const resolved = await ctx.credentials?.resolve?.(agnesCredentialRef)
+        return resolved?.value
+      } catch {
+        return undefined
+      }
+    },
+  }
+  const runtime = new FreeModelRuntime(String(config.baseURL ?? DEFAULT_FREE_MODEL_BASE), config.fetch ?? fetch, String(config.opencodeBaseURL ?? DEFAULT_OPENCODE_BASE), agnesLane)
   const adapter = new FreeModelAdapter(runtime)
   const handle = ctx.llm.registerAdapter([FREE_MODEL_PROVIDER_ID], adapter)
   runtime.setHandle(handle)
