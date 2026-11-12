@@ -761,7 +761,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                   })}
                 </div>
                 <div className="dmp-rail-tools" role="group" aria-label={t('palette.sectionTools')}>
-                  <button type="button" className={view === 'config' || view === 'catalog' ? ' is-active' : ''} onClick={() => changeView('config')} title={t('config.nav')}>
+                  <button type="button" className={view === 'config' ? ' is-active' : ''} onClick={() => changeView('config')} title={t('config.nav')}>
                     <span aria-hidden="true">⚙</span><small>{t('config.navShort')}</small>
                   </button>
                   <button type="button" className={view === 'catalog' ? ' is-active' : ''} onClick={() => changeView('catalog')} title={t('palette.navCatalog')}>
@@ -866,7 +866,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                             </span>
                             {choice.model.description !== undefined && <span className="dmp-result-description">{choice.model.description}</span>}
                           </span>
-                          {choice.model.reasoning !== undefined && <span className="dmp-reasoning">R</span>}
+                          {choice.model.reasoning !== undefined && <span className="dmp-reasoning" title={t('palette.capabilityReasoning')}>R</span>}
                         </button>
                         <button
                           type="button"
